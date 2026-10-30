@@ -1,0 +1,40 @@
+{
+  "KHMSHDon": "1",
+  "KHHDon": "C26TAT",
+  "NLap": "2026-10-14T00:00:00",
+  "LoaiHDon": 0,
+  "KTraMTChieuTrung": 1,
+  "TCHDon": 0,
+  "LoaiTraHang": 0,
+  "DVTTe": 704,
+  "TGia": 1,
+  "HTTToan": "CK",
+  "GChu": "TEST PI-BOLT - CHI TAO NHAP",
+  "DSHHDVu": [
+    {
+      "TChat": 1,
+      "STT": 1,
+      "MHHDVu": "PBTEST",
+      "THHDVu": "Dich vu thu nghiem - khong phat hanh",
+      "DVTinh": "Goi",
+      "SLuong": 1,
+      "DGia": 100000,
+      "ThTienChuaCK": 100000,
+      "TLCKhau": 0,
+      "STCKhau": 0,
+      "ThTien": 100000,
+      "TSuat": 10,
+      "TThue": 10000,
+      "TgTien": 110000
+    }
+  ],
+  "TTCKTMai": 0,
+  "TGTKhac": 0,
+  "TgThTien": 100000,
+  "TgTThue": 10000,
+  "TgTTTBSo": 110000,
+  "TgTTTBChu": "Mot tram muoi nghin dong",
+  "MTChieu": "PB261014042005D",
+  "MaTraCuu": "PB261014042005D",
+  "NMua_Ten": "TEST BUYER - KHONG PHAT HANH"
+}

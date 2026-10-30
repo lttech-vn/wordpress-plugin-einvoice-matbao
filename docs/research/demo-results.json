@@ -1,0 +1,230 @@
+[
+  {
+    "reference": "PB261014110755A",
+    "transport_error": "HTTPError",
+    "reconciliation_http": 200,
+    "reconciliation": {
+      "errorCode": 301,
+      "message": "Không tìm thấy hóa đơn",
+      "data": {
+        "invoices": [],
+        "notFound": [
+          "PB261014110755A"
+        ]
+      },
+      "success": false
+    },
+    "followup_lookup_http": 200,
+    "followup_lookup": {
+      "errorCode": 301,
+      "message": "Không tìm thấy hóa đơn",
+      "data": {
+        "invoices": [],
+        "notFound": [
+          "PB261014110755A"
+        ]
+      },
+      "success": false
+    }
+  },
+  {
+    "reference": "PB261014110755B",
+    "attempted_at": "2026-10-14T04:17:44.028869+00:00",
+    "http": 200,
+    "response": {
+      "errorCode": 200,
+      "message": "Thành công",
+      "data": [
+        {
+          "errorCode": 200,
+          "message": "Thành công",
+          "data": {
+            "khmshDon": "1",
+            "khhDon": "C26TAT",
+            "maTraCuu": "PB261014110755B",
+            "mtChieu": "PB261014110755B",
+            "shDon": 0,
+            "maSoHDon": "QVh5dWZsYksyS0oycnRpTE5OZExmV3k0OUd4OHVIcTZhM0EvOXZydExFQWNmRDVFM2hDV1I0Y1ZkQVVrT213UA==",
+            "nLap": "2026-10-14T00:00:00",
+            "urlDownloadPDF": "[REDACTED]",
+            "urlDownloadXML": "[REDACTED]"
+          },
+          "success": true
+        }
+      ],
+      "success": true
+    },
+    "lookup_http": 200,
+    "lookup": {
+      "errorCode": 200,
+      "message": "Thành công",
+      "data": {
+        "invoices": [
+          {
+            "maSoHDon": "QVh5dWZsYksyS0oycnRpTE5OZExmV3k0OUd4OHVIcTZhM0EvOXZydExFQWNmRDVFM2hDV1I0Y1ZkQVVrT213UA==",
+            "khmshDon": "1",
+            "khhDon": "C26TAT",
+            "shDon": 0,
+            "nLap": "2026-10-14T00:00:00",
+            "dvtTe": 704,
+            "tGia": 1,
+            "httToan": "CK",
+            "maTraCuu": "PB261014110755B",
+            "mtChieu": "PB261014110755B",
+            "tenLoaiHDon": "Nháp",
+            "tenTThaiHDon": "Nháp",
+            "maLoaiHDon": 1,
+            "maTThaiHDon": 1,
+            "mccqt": "",
+            "ghiChuCQT": ""
+          }
+        ],
+        "notFound": []
+      },
+      "success": true
+    }
+  },
+  {
+    "reference": "PB261014110755C",
+    "attempted_at": "2026-10-14T04:17:44.421902+00:00",
+    "http": 200,
+    "response": {
+      "errorCode": 200,
+      "message": "Thành công",
+      "data": [
+        {
+          "errorCode": 200,
+          "message": "Thành công",
+          "data": {
+            "khmshDon": "1",
+            "khhDon": "C26TAT",
+            "maTraCuu": "PB261014110755C",
+            "mtChieu": "PB261014110755C",
+            "shDon": 0,
+            "maSoHDon": "QVh5dWZsYksyS0tlZ2xyTEpJdnFobXk0OUd4OHVIcTZhM0EvOXZydExFQWNmRDVFM2hDV1I0Y1ZkQVVrT213UA==",
+            "nLap": "2026-10-14T00:00:00",
+            "urlDownloadPDF": "[REDACTED]",
+            "urlDownloadXML": "[REDACTED]"
+          },
+          "success": true
+        }
+      ],
+      "success": true
+    },
+    "lookup_http": 200,
+    "lookup": {
+      "errorCode": 200,
+      "message": "Thành công",
+      "data": {
+        "invoices": [
+          {
+            "maSoHDon": "QVh5dWZsYksyS0tlZ2xyTEpJdnFobXk0OUd4OHVIcTZhM0EvOXZydExFQWNmRDVFM2hDV1I0Y1ZkQVVrT213UA==",
+            "khmshDon": "1",
+            "khhDon": "C26TAT",
+            "shDon": 0,
+            "nLap": "2026-10-14T00:00:00",
+            "dvtTe": 704,
+            "tGia": 1,
+            "httToan": "CK",
+            "maTraCuu": "PB261014110755C",
+            "mtChieu": "PB261014110755C",
+            "tenLoaiHDon": "Nháp",
+            "tenTThaiHDon": "Nháp",
+            "maLoaiHDon": 1,
+            "maTThaiHDon": 1,
+            "mccqt": "",
+            "ghiChuCQT": ""
+          }
+        ],
+        "notFound": []
+      },
+      "success": true
+    }
+  },
+  {
+    "reference": "PB261014041950D",
+    "attempted_at": "2026-10-14T04:19:50.532810+00:00",
+    "http": 400,
+    "response": {
+      "success": null,
+      "errorCode": null,
+      "message": null,
+      "errors": {
+        "[0].NMua_Ten": [
+          "The NMua_Ten field is required."
+        ]
+      },
+      "title": "One or more validation errors occurred.",
+      "status": 400
+    },
+    "lookup_http": 200,
+    "lookup": {
+      "errorCode": 301,
+      "message": "Không tìm thấy hóa đơn",
+      "data": {
+        "invoices": [],
+        "notFound": [
+          "PB261014041950D"
+        ]
+      },
+      "success": false
+    }
+  },
+  {
+    "reference": "PB261014042005D",
+    "attempted_at": "2026-10-14T04:20:06.201051+00:00",
+    "http": 200,
+    "response": {
+      "errorCode": 200,
+      "message": "Thành công",
+      "data": [
+        {
+          "errorCode": 200,
+          "message": "Thành công",
+          "data": {
+            "khmshDon": "1",
+            "khhDon": "C26TAT",
+            "maTraCuu": "PB261014042005D",
+            "mtChieu": "PB261014042005D",
+            "shDon": 0,
+            "maSoHDon": "QVh5dWZsYksyS0tHdzRjSGxDM3RybXk0OUd4OHVIcTZhM0EvOXZydExFQWNmRDVFM2hDV1I0Y1ZkQVVrT213UA==",
+            "nLap": "2026-10-14T00:00:00",
+            "urlDownloadPDF": "[REDACTED]",
+            "urlDownloadXML": "[REDACTED]"
+          },
+          "success": true
+        }
+      ],
+      "success": true
+    },
+    "lookup_http": 200,
+    "lookup": {
+      "errorCode": 200,
+      "message": "Thành công",
+      "data": {
+        "invoices": [
+          {
+            "maSoHDon": "QVh5dWZsYksyS0tHdzRjSGxDM3RybXk0OUd4OHVIcTZhM0EvOXZydExFQWNmRDVFM2hDV1I0Y1ZkQVVrT213UA==",
+            "khmshDon": "1",
+            "khhDon": "C26TAT",
+            "shDon": 0,
+            "nLap": "2026-10-14T00:00:00",
+            "dvtTe": 704,
+            "tGia": 1,
+            "httToan": "CK",
+            "maTraCuu": "PB261014042005D",
+            "mtChieu": "PB261014042005D",
+            "tenLoaiHDon": "Nháp",
+            "tenTThaiHDon": "Nháp",
+            "maLoaiHDon": 1,
+            "maTThaiHDon": 1,
+            "mccqt": "",
+            "ghiChuCQT": ""
+          }
+        ],
+        "notFound": []
+      },
+      "success": true
+    }
+  }
+]
