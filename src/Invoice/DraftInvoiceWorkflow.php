@@ -320,22 +320,36 @@ final class DraftInvoiceWorkflow {
 			return;
 		}
 
+		// An earlier create was sent with the template stored on the row; look it up there, never
+		// under a default template changed since.
+		$sent_template = '' !== $invoice->template_form && '' !== $invoice->template_series
+			? array(
+				'form'   => $invoice->template_form,
+				'series' => $invoice->template_series,
+			)
+			: null;
 		$look_up_first = $this->may_have_been_created( $invoice );
 		$attempt       = $this->repository->start_attempt( $invoice->id );
 
 		if ( $look_up_first ) {
+			$lookup_template = $sent_template ?? $template;
 			try {
-				$existing = $client->find_invoice_by_reference( $invoice->reference, $template['form'], $template['series'] );
+				$existing = $client->find_invoice_by_reference( $invoice->reference, $lookup_template['form'], $lookup_template['series'] );
 			} catch ( MatbaoError $error ) {
-				$this->fail( $invoice, $attempt, $error, $error->target_sent ? 'lookup_failed' : 'not_sent', $template );
+				$this->fail( $invoice, $attempt, $error, $error->target_sent ? 'lookup_failed' : 'not_sent', $lookup_template );
 				return;
 			}
 			if ( null !== $existing ) {
-				$this->adopt( $invoice, $attempt, $existing['invoice_id'], $existing['issued_on'] ?? $issued_on->format( 'Y-m-d' ), $template );
+				$this->adopt( $invoice, $attempt, $existing['invoice_id'], $existing['issued_on'] ?? $issued_on->format( 'Y-m-d' ), $lookup_template );
+				return;
+			}
+			if ( $lookup_template !== $template ) {
+				$this->stop_for_changed_template( $invoice, $attempt, $lookup_template, $template );
 				return;
 			}
 		}
 
+		$this->repository->remember_template( $invoice->id, $template['form'], $template['series'] );
 		try {
 			$invoice_id = $client->create_invoice( $payload );
 		} catch ( MatbaoError $error ) {
@@ -361,6 +375,29 @@ final class DraftInvoiceWorkflow {
 
 		$this->repository->finish_attempt( $attempt, 'success' );
 		$this->mark_created( $invoice, $invoice_id, $issued_on->format( 'Y-m-d' ), $template );
+	}
+
+	/**
+	 * Stops a send whose default template changed after a create that may have reached Mat Bao
+	 * under the stored template, and the lookup there found nothing. Creating under the new
+	 * template could make a second invoice, so an admin decides.
+	 *
+	 * @param InvoiceRecord                       $invoice Invoice.
+	 * @param int                                 $attempt Attempt ID; closed as `not_sent`.
+	 * @param array{form: string, series: string} $sent    Template of the earlier create.
+	 * @param array{form: string, series: string} $current Current default template.
+	 */
+	private function stop_for_changed_template( InvoiceRecord $invoice, int $attempt, array $sent, array $current ): void {
+		$reason = sprintf(
+			/* translators: 1: form (KHMSHDon) of the earlier send, 2: its series (KHHDon), 3: current default form, 4: current default series. */
+			__( 'Hóa đơn đã được gửi với mẫu %1$s / %2$s nhưng mẫu mặc định nay là %3$s / %4$s, và không tìm thấy hóa đơn theo mẫu cũ. Không tự gửi bằng mẫu mới để tránh trùng; chọn lại mẫu %1$s / %2$s hoặc kiểm tra trên Mắt Bão rồi gửi lại.', 'einvoice-matbao' ),
+			$sent['form'],
+			$sent['series'],
+			$current['form'],
+			$current['series']
+		);
+		$this->repository->finish_attempt( $attempt, 'not_sent', null, null, null, $reason );
+		self::record_error( $this->repository, $invoice->order_id, InvoiceErrorCode::TEMPLATE_CHANGED, $reason );
 	}
 
 	/**

@@ -103,6 +103,27 @@ final class InvoiceRepository {
 	}
 
 	/**
+	 * Stores the template a create call is about to be sent with, without touching the status,
+	 * so a later lookup by `MTChieu` uses the same template.
+	 *
+	 * @param int    $invoice_id Invoice row ID.
+	 * @param string $form       `KHMSHDon`.
+	 * @param string $series     `KHHDon`.
+	 */
+	public function remember_template( int $invoice_id, string $form, string $series ): void {
+		global $wpdb;
+
+		$wpdb->update(
+			Schema::invoice_table(),
+			array(
+				'template_form'   => $form,
+				'template_series' => $series,
+			),
+			array( 'id' => $invoice_id )
+		);
+	}
+
+	/**
 	 * Records why an invoice was not created: the code, its kind, the status of that kind and the
 	 * Vietnamese reason.
 	 *

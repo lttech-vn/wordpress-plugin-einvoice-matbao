@@ -31,8 +31,16 @@ enum InvoiceErrorCode: string {
 	case TEMPLATE_MISSING      = 'template_missing';
 	case TEMPLATE_UNAVAILABLE  = 'template_unavailable';
 	case TEMPLATE_REJECTED     = 'template_rejected';
-	case ORDER_NOT_COMPLETED   = 'order_not_completed';
-	case ORDER_REFUNDED        = 'order_refunded';
+
+	/**
+	 * The default template changed after a create call that may have reached Mat Bao under the
+	 * template stored on the row, and the lookup there found nothing. Never resent under the new one.
+	 */
+	case TEMPLATE_CHANGED = 'template_changed';
+
+	case ORDER_NOT_COMPLETED = 'order_not_completed';
+	case ORDER_REFUNDED      = 'order_refunded';
+
 	/** The request did not complete (DNS, TLS, timeout); create-invoice may or may not have run. */
 	case MATBAO_TRANSPORT = 'matbao_transport';
 
@@ -132,7 +140,8 @@ enum InvoiceErrorCode: string {
 			self::CREDENTIALS_MISSING,
 			self::TEMPLATE_MISSING,
 			self::TEMPLATE_UNAVAILABLE,
-			self::TEMPLATE_REJECTED     => InvoiceErrorKind::CONFIG,
+			self::TEMPLATE_REJECTED,
+			self::TEMPLATE_CHANGED      => InvoiceErrorKind::CONFIG,
 			self::ORDER_NOT_COMPLETED,
 			self::ORDER_REFUNDED        => InvoiceErrorKind::ORDER,
 			self::MATBAO_TRANSPORT,
@@ -176,6 +185,7 @@ enum InvoiceErrorCode: string {
 			self::TEMPLATE_MISSING      => __( 'Chưa chọn mẫu hóa đơn', 'einvoice-matbao' ),
 			self::TEMPLATE_UNAVAILABLE  => __( 'Mẫu hóa đơn hết hiệu lực', 'einvoice-matbao' ),
 			self::TEMPLATE_REJECTED     => __( 'Mắt Bão từ chối mẫu hóa đơn', 'einvoice-matbao' ),
+			self::TEMPLATE_CHANGED      => __( 'Mẫu hóa đơn đã đổi giữa các lần gửi', 'einvoice-matbao' ),
 			self::ORDER_NOT_COMPLETED   => __( 'Đơn hàng không còn hoàn thành', 'einvoice-matbao' ),
 			self::ORDER_REFUNDED        => __( 'Đơn hàng đã hoàn tiền', 'einvoice-matbao' ),
 			self::MATBAO_TRANSPORT      => __( 'Không kết nối được Mắt Bão', 'einvoice-matbao' ),
