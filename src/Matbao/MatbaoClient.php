@@ -105,15 +105,16 @@ final class MatbaoClient {
 	}
 
 	/**
-	 * Looks up the invoice created for a reference (`invoice-detail-batch`, `loai` 1 = by `MTChieu`).
+	 * Looks up the invoices with a reference (`invoice-detail-batch`, `loai` 1 = by `MTChieu`).
+	 * Every row Mat Bao returns is passed on; the caller decides whether one is its draft.
 	 *
 	 * @param string $reference `MTChieu`.
 	 * @param string $form      `KHMSHDon` the invoice was sent with.
 	 * @param string $series    `KHHDon` the invoice was sent with.
-	 * @return array{invoice_id: string, issued_on: string|null}|null Null when Mat Bao has no such invoice.
-	 * @throws MatbaoError When the call fails or the answer is unusable.
+	 * @return list<MatbaoInvoice> Empty when Mat Bao has no such invoice.
+	 * @throws MatbaoError When the call fails.
 	 */
-	public function find_invoice_by_reference( string $reference, string $form, string $series ): ?array {
+	public function find_invoices_by_reference( string $reference, string $form, string $series ): array {
 		try {
 			$data = $this->authorized(
 				'POST',
@@ -127,29 +128,14 @@ final class MatbaoClient {
 			);
 		} catch ( MatbaoError $error ) {
 			if ( MatbaoError::API_NOT_FOUND === $error->api_code ) {
-				return null;
+				return array();
 			}
 			throw $error;
 		}
 
 		$invoices = is_array( $data ) && is_array( $data['invoices'] ?? null ) ? $data['invoices'] : array();
-		foreach ( $invoices as $found ) {
-			if ( ! is_array( $found ) || ( $found['mtChieu'] ?? null ) !== $reference ) {
-				continue;
-			}
-			$invoice_id = is_string( $found['maSoHDon'] ?? null ) ? $found['maSoHDon'] : '';
-			if ( '' === $invoice_id ) {
-				throw new MatbaoError( MatbaoError::KIND_API, 'Lookup response has no invoice ID.' ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- plain text, escaped where rendered.
-			}
-			$issued_on = is_string( $found['nLap'] ?? null ) && 1 === preg_match( '/^\d{4}-\d{2}-\d{2}/', $found['nLap'] ) ? substr( $found['nLap'], 0, 10 ) : null;
 
-			return array(
-				'invoice_id' => $invoice_id,
-				'issued_on'  => $issued_on,
-			);
-		}
-
-		return null;
+		return array_values( array_map( array( MatbaoInvoice::class, 'from_api' ), array_filter( $invoices, 'is_array' ) ) );
 	}
 
 	/**

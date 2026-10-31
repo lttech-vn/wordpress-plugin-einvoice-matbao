@@ -63,6 +63,12 @@ enum InvoiceErrorCode: string {
 	case MATBAO_DUPLICATE_REFERENCE = 'matbao_duplicate_reference';
 
 	/**
+	 * The lookup by `MTChieu` returned something that may not be this order's draft (several
+	 * invoices, another reference, not a draft, another total). Not adopted and not retried.
+	 */
+	case MATBAO_LOOKUP_MISMATCH = 'matbao_lookup_mismatch';
+
+	/**
 	 * Action Scheduler did not queue the action; nothing was sent. The row stays `pending` and the
 	 * recovery sweep queues it again; when the sweep fails too, it is final and an admin may resend safely.
 	 */
@@ -149,7 +155,8 @@ enum InvoiceErrorCode: string {
 			self::MATBAO_RESPONSE_UNREADABLE,
 			self::MATBAO_HTTP,
 			self::MATBAO_API,
-			self::MATBAO_DUPLICATE_REFERENCE => InvoiceErrorKind::MATBAO,
+			self::MATBAO_DUPLICATE_REFERENCE,
+			self::MATBAO_LOOKUP_MISMATCH     => InvoiceErrorKind::MATBAO,
 			self::QUEUE_FAILED,
 			self::UNEXPECTED            => InvoiceErrorKind::SYSTEM,
 		};
@@ -194,6 +201,7 @@ enum InvoiceErrorCode: string {
 			self::MATBAO_HTTP           => __( 'Mắt Bão trả lỗi HTTP', 'einvoice-matbao' ),
 			self::MATBAO_API            => __( 'Mắt Bão từ chối hóa đơn', 'einvoice-matbao' ),
 			self::MATBAO_DUPLICATE_REFERENCE => __( 'Trùng mã tham chiếu tại Mắt Bão', 'einvoice-matbao' ),
+			self::MATBAO_LOOKUP_MISMATCH     => __( 'Hóa đơn tìm thấy không khớp đơn hàng', 'einvoice-matbao' ),
 			self::QUEUE_FAILED          => __( 'Không xếp được hàng đợi', 'einvoice-matbao' ),
 			self::UNEXPECTED            => __( 'Lỗi không xác định', 'einvoice-matbao' ),
 		};

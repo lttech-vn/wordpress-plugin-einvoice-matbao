@@ -11,6 +11,7 @@ use LTTech\EinvoiceMatbao\CredentialStore;
 use LTTech\EinvoiceMatbao\Matbao\MatbaoClient;
 use LTTech\EinvoiceMatbao\Matbao\MatbaoCredentials;
 use LTTech\EinvoiceMatbao\Matbao\MatbaoError;
+use LTTech\EinvoiceMatbao\Matbao\MatbaoInvoice;
 use LTTech\EinvoiceMatbao\Matbao\TemplateCache;
 use LTTech\EinvoiceMatbao\Settings;
 use WC_Order;
@@ -331,16 +332,16 @@ final class DraftInvoiceWorkflow {
 		$look_up_first = $this->may_have_been_created( $invoice );
 		$attempt       = $this->repository->start_attempt( $invoice->id );
 
+		$order_total = (int) round( (float) $order->get_total() );
 		if ( $look_up_first ) {
 			$lookup_template = $sent_template ?? $template;
 			try {
-				$existing = $client->find_invoice_by_reference( $invoice->reference, $lookup_template['form'], $lookup_template['series'] );
+				$settled = $this->settle_by_lookup( $client, $invoice, $attempt, $lookup_template, $order_total, $issued_on );
 			} catch ( MatbaoError $error ) {
 				$this->fail( $invoice, $attempt, $error, $error->target_sent ? 'lookup_failed' : 'not_sent', $lookup_template );
 				return;
 			}
-			if ( null !== $existing ) {
-				$this->adopt( $invoice, $attempt, $existing['invoice_id'], $existing['issued_on'] ?? $issued_on->format( 'Y-m-d' ), $lookup_template );
+			if ( $settled ) {
 				return;
 			}
 			if ( $lookup_template !== $template ) {
@@ -360,12 +361,11 @@ final class DraftInvoiceWorkflow {
 			if ( $error->is_duplicate_reference() ) {
 				// Already created under this MTChieu: look it up, never change the reference.
 				try {
-					$existing = $client->find_invoice_by_reference( $invoice->reference, $template['form'], $template['series'] );
+					$settled = $this->settle_by_lookup( $client, $invoice, $attempt, $template, $order_total, $issued_on );
 				} catch ( MatbaoError ) {
-					$existing = null;
+					$settled = false;
 				}
-				if ( null !== $existing ) {
-					$this->adopt( $invoice, $attempt, $existing['invoice_id'], $existing['issued_on'] ?? $issued_on->format( 'Y-m-d' ), $template );
+				if ( $settled ) {
 					return;
 				}
 			}
@@ -401,17 +401,76 @@ final class DraftInvoiceWorkflow {
 	}
 
 	/**
-	 * Takes over a draft that already exists at Mat Bao under this invoice's `MTChieu`.
+	 * Looks the invoice up by `MTChieu` and settles the run when Mat Bao has something under it:
+	 * adopts the single draft of this order, or stops for an admin when what Mat Bao returns may
+	 * not be that draft (several rows, another `MTChieu`, not a draft, another total).
 	 *
-	 * @param InvoiceRecord                       $invoice    Invoice.
-	 * @param int                                 $attempt    Attempt ID.
-	 * @param string                              $invoice_id `maSoHDon`.
-	 * @param string                              $issued_on  `NLap` date (Y-m-d) of the existing draft.
-	 * @param array{form: string, series: string} $template  Template used for the lookup.
+	 * @param MatbaoClient                        $client      Client.
+	 * @param InvoiceRecord                       $invoice     Invoice.
+	 * @param int                                 $attempt     Attempt ID.
+	 * @param array{form: string, series: string} $template    Template the earlier create was sent with.
+	 * @param int                                 $order_total Order total, VND.
+	 * @param \DateTimeImmutable                  $issued_on   `NLap` of this run, used when Mat Bao reports none.
+	 * @return bool Whether the run is settled; false when Mat Bao has no invoice with the reference.
+	 * @throws MatbaoError When the lookup fails or its answer is unusable.
 	 */
-	private function adopt( InvoiceRecord $invoice, int $attempt, string $invoice_id, string $issued_on, array $template ): void {
-		$this->repository->finish_attempt( $attempt, 'success', null, null, null, 'Draft already existed at Mat Bao; adopted.' );
-		$this->mark_created( $invoice, $invoice_id, $issued_on, $template );
+	private function settle_by_lookup( MatbaoClient $client, InvoiceRecord $invoice, int $attempt, array $template, int $order_total, \DateTimeImmutable $issued_on ): bool {
+		$found = $client->find_invoices_by_reference( $invoice->reference, $template['form'], $template['series'] );
+		if ( array() === $found ) {
+			return false;
+		}
+
+		$mismatch = $this->lookup_mismatch( $invoice, $found, $order_total );
+		if ( null !== $mismatch ) {
+			$this->repository->finish_attempt( $attempt, 'lookup_mismatch', null, null, null, $mismatch );
+			self::record_error( $this->repository, $invoice->order_id, InvoiceErrorCode::MATBAO_LOOKUP_MISMATCH, $mismatch, InvoiceStatus::NEEDS_ATTENTION );
+			return true;
+		}
+
+		$draft = $found[0];
+		if ( '' === $draft->invoice_id ) {
+			throw new MatbaoError( MatbaoError::KIND_API, 'Lookup response has no invoice ID.' ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- plain text, escaped where rendered.
+		}
+
+		$this->repository->finish_attempt( $attempt, 'success', null, null, null, __( 'Hóa đơn nháp đã có trên Mắt Bão; đã nhận lại theo mã tham chiếu.', 'einvoice-matbao' ) );
+		$this->mark_created( $invoice, $draft->invoice_id, $draft->issued_on ?? $issued_on->format( 'Y-m-d' ), $template );
+
+		return true;
+	}
+
+	/**
+	 * Why the invoices Mat Bao found under the reference may not be this order's draft, or null
+	 * when there is exactly one draft that matches. The reason names only the reference and the
+	 * Mat Bao status of what was found.
+	 *
+	 * @param InvoiceRecord   $invoice     Invoice.
+	 * @param MatbaoInvoice[] $found       Lookup rows, at least one.
+	 * @param int             $order_total Order total, VND.
+	 */
+	private function lookup_mismatch( InvoiceRecord $invoice, array $found, int $order_total ): ?string {
+		if ( count( $found ) > 1 ) {
+			/* translators: 1: number of invoices, 2: reference (MTChieu). */
+			return sprintf( __( 'Mắt Bão trả về %1$d hóa đơn cùng mã tham chiếu %2$s; cần admin kiểm tra trên Mắt Bão, không tự nhận hóa đơn nào.', 'einvoice-matbao' ), count( $found ), $invoice->reference );
+		}
+
+		$draft = reset( $found );
+		if ( false === $draft ) {
+			return null;
+		}
+		if ( $draft->reference !== $invoice->reference ) {
+			/* translators: 1: reference returned by Mat Bao, 2: reference of this invoice. */
+			return sprintf( __( 'Mắt Bão trả về hóa đơn có mã tham chiếu %1$s, khác %2$s; cần admin kiểm tra.', 'einvoice-matbao' ), $draft->reference, $invoice->reference );
+		}
+		if ( ! $draft->is_draft() ) {
+			/* translators: 1: reference (MTChieu), 2: Mat Bao status name. */
+			return sprintf( __( 'Hóa đơn mã tham chiếu %1$s trên Mắt Bão ở trạng thái "%2$s", không phải Nháp; cần admin kiểm tra.', 'einvoice-matbao' ), $invoice->reference, '' !== $draft->status_name ? $draft->status_name : (string) $draft->status );
+		}
+		if ( null !== $draft->total && $draft->total !== $order_total ) {
+			/* translators: %s: reference (MTChieu). */
+			return sprintf( __( 'Hóa đơn nháp mã tham chiếu %s trên Mắt Bão có tổng tiền khác tổng đơn hàng; cần admin kiểm tra.', 'einvoice-matbao' ), $invoice->reference );
+		}
+
+		return null;
 	}
 
 	/**
