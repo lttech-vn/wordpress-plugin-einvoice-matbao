@@ -489,7 +489,14 @@ final class PostDraftOrderChangeTest extends InvoiceWorkflowTestCase {
 		$order->update_status( 'completed' );
 		$this->run_queued_draft_actions();
 
-		$this->fake_lookup_rows( array( array( 'nMua_Ten' => 'Nguyễn Văn A', 'nMua_MST' => '0123456789' ) ) );
+		$this->fake_lookup_rows(
+			array(
+				array(
+					'nMua_Ten' => 'Nguyễn Văn A',
+					'nMua_MST' => '0123456789',
+				),
+			)
+		);
 		$this->run_queued_draft_actions();
 
 		$this->assertSame( InvoiceStatus::DRAFT_CREATED, $this->invoice_of( $order )?->status );
@@ -510,7 +517,14 @@ final class PostDraftOrderChangeTest extends InvoiceWorkflowTestCase {
 		$order->update_status( 'completed' );
 		$this->run_queued_draft_actions();
 
-		$this->fake_lookup_rows( array( array( 'nMua_Ten' => 'Doanh nghiệp Thử', 'nMua_MST' => '0999999999' ) ) );
+		$this->fake_lookup_rows(
+			array(
+				array(
+					'nMua_Ten' => 'Doanh nghiệp Thử',
+					'nMua_MST' => '0999999999',
+				),
+			)
+		);
 		$this->run_queued_draft_actions();
 
 		$this->assertSame( InvoiceStatus::NEEDS_ATTENTION, $this->invoice_of( $order )?->status );

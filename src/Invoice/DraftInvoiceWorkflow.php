@@ -629,7 +629,8 @@ final class DraftInvoiceWorkflow {
 	 */
 	private static function normalized_name( string $name ): string {
 		if ( class_exists( \Normalizer::class ) ) {
-			$name = \Normalizer::normalize( $name, \Normalizer::FORM_C ) ?: $name;
+			$composed = \Normalizer::normalize( $name, \Normalizer::FORM_C );
+			$name     = false === $composed ? $name : $composed;
 		}
 
 		return mb_strtolower( trim( (string) preg_replace( '/\s+/u', ' ', $name ) ) );
