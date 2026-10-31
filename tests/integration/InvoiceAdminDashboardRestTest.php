@@ -106,8 +106,8 @@ final class InvoiceAdminDashboardRestTest extends SettingsRestTestCase {
 		foreach ( $expected as $metric => $orders ) {
 			$this->assertSame( 1, preg_match( '/data-einv-metric="' . $metric . '"[^>]*hx-get="([^"]+)"/', $html, $match ), $metric );
 			$url = html_entity_decode( $match[1] );
-			$this->assertStringContainsString( 'einvoice-matbao/v1/invoices', $url );
 			parse_str( (string) wp_parse_url( $url, PHP_URL_QUERY ), $query );
+			$this->assertSame( '/einvoice-matbao/v1/invoices', $query['rest_route'] ?? rawurldecode( (string) wp_parse_url( $url, PHP_URL_PATH ) ) );
 			unset( $query['rest_route'] );
 			$list = $this->html( $this->htmx( 'GET', '/invoices', $query ) );
 			preg_match_all( '/data-einv-invoice-row="(\d+)"/', $list, $rows );

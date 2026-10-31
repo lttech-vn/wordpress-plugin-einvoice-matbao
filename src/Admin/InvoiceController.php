@@ -54,6 +54,7 @@ final class InvoiceController {
 	 */
 	public static function register_routes(): void {
 		$routes = array(
+			'/dashboard'                   => array( WP_REST_Server::READABLE, 'dashboard' ),
 			'/invoices'                    => array( WP_REST_Server::READABLE, 'list_invoices' ),
 			'/invoices/(?P<id>\d+)'        => array( WP_REST_Server::READABLE, 'show_invoice' ),
 			'/invoices/(?P<id>\d+)/check'  => array( WP_REST_Server::CREATABLE, 'check_status' ),
@@ -71,6 +72,13 @@ final class InvoiceController {
 				)
 			);
 		}
+	}
+
+	/**
+	 * Error, waiting and created counts, each linking to the filtered list.
+	 */
+	public function dashboard(): WP_REST_Response {
+		return Fragment::response( InvoicePage::render_dashboard( DashboardStats::counts() ) );
 	}
 
 	/**

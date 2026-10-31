@@ -43,6 +43,9 @@ final class InvoiceStatus {
 	/** Filter value grouping the statuses an admin has to look at. */
 	public const FILTER_ERROR = 'error';
 
+	/** Filter value grouping the invoices still on their way: queued or being sent. */
+	public const FILTER_WAITING = 'waiting';
+
 	/**
 	 * Statuses an admin has to look at: not created, and not just waiting.
 	 *
@@ -50,6 +53,15 @@ final class InvoiceStatus {
 	 */
 	public static function error_statuses(): array {
 		return array( self::FAILED, self::NEEDS_ATTENTION, self::NOT_CONFIGURED );
+	}
+
+	/**
+	 * Statuses that are just waiting for the draft action or its retry.
+	 *
+	 * @return list<string>
+	 */
+	public static function waiting_statuses(): array {
+		return array( self::PENDING, self::SENDING );
 	}
 
 	/**
@@ -62,6 +74,9 @@ final class InvoiceStatus {
 		if ( self::FILTER_ERROR === $filter ) {
 			return self::error_statuses();
 		}
+		if ( self::FILTER_WAITING === $filter ) {
+			return self::waiting_statuses();
+		}
 
 		return array_key_exists( $filter, self::filter_labels() ) ? array( $filter ) : array();
 	}
@@ -72,7 +87,10 @@ final class InvoiceStatus {
 	 * @return array<string, string>
 	 */
 	public static function filter_labels(): array {
-		$labels = array( self::FILTER_ERROR => __( 'Lỗi / cần xử lý', 'einvoice-matbao' ) );
+		$labels = array(
+			self::FILTER_ERROR   => __( 'Lỗi / cần xử lý', 'einvoice-matbao' ),
+			self::FILTER_WAITING => __( 'Đang chờ', 'einvoice-matbao' ),
+		);
 		foreach ( array( self::PENDING, self::SENDING, self::DRAFT_CREATED, self::FAILED, self::NEEDS_ATTENTION, self::SKIPPED, self::NOT_CONFIGURED, self::STOPPED ) as $status ) {
 			$labels[ $status ] = self::label( $status );
 		}
