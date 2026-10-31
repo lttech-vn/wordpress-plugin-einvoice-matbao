@@ -11,7 +11,8 @@ namespace LTTech\EinvoiceMatbao\Uninstall;
  * Run by `uninstall.php` when WordPress deletes the plugin, on each site of a network.
  *
  * Always removed: the encrypted Mat Bao and Lark credentials, every plugin transient (the cached
- * Mat Bao token and templates list) and the plugin's queued Action Scheduler actions.
+ * Mat Bao tokens, found through `einvoice_matbao_token_keys`, and the templates list; deleted by
+ * name so a persistent object cache is covered, then the options table is scanned as a safety net) and the plugin's queued Action Scheduler actions.
  *
  * Kept by default: the invoice and attempt tables, the buyer order meta, the per-product unit, the
  * settings and the alert records (`einvoice_matbao_alert_*`), so a reinstall resumes with the same `MTChieu` and history.
@@ -35,6 +36,12 @@ final class Uninstaller {
 
 	/** Every plugin option and transient name starts with this. */
 	public const OPTION_PREFIX = 'einvoice_matbao_';
+
+	/** Transient of the Mat Bao templates cache. */
+	public const TEMPLATES_TRANSIENT = 'einvoice_matbao_templates';
+
+	/** Option listing the Mat Bao token transient names (their names hash the account). */
+	public const TOKEN_KEYS_OPTION = 'einvoice_matbao_token_keys';
 
 	/** Checkout request and buyer snapshot. */
 	public const ORDER_META_KEYS = array( '_einvoice_buyer_request', '_einvoice_buyer_snapshot' );
@@ -105,9 +112,7 @@ final class Uninstaller {
 
 		self::cancel_scheduled_actions();
 		delete_option( self::CREDENTIALS_OPTION );
-		foreach ( self::option_names( '_transient_' . self::OPTION_PREFIX ) as $transient ) {
-			delete_transient( substr( $transient, strlen( '_transient_' ) ) );
-		}
+		self::delete_transients();
 
 		if ( ! $delete_all ) {
 			return;
@@ -118,6 +123,23 @@ final class Uninstaller {
 		delete_post_meta_by_key( self::PRODUCT_META_KEY );
 		foreach ( self::option_names( self::OPTION_PREFIX ) as $option ) {
 			delete_option( $option );
+		}
+	}
+
+	/**
+	 * Deletes the plugin transients by name, which also reaches a persistent object cache. The
+	 * options table scan afterwards is only a safety net for names that were not recorded.
+	 */
+	private static function delete_transients(): void {
+		delete_transient( self::TEMPLATES_TRANSIENT );
+		$keys = get_option( self::TOKEN_KEYS_OPTION, array() );
+		foreach ( is_array( $keys ) ? $keys : array() as $key ) {
+			if ( is_string( $key ) && str_starts_with( $key, self::OPTION_PREFIX ) ) {
+				delete_transient( $key );
+			}
+		}
+		foreach ( self::option_names( '_transient_' . self::OPTION_PREFIX ) as $transient ) {
+			delete_transient( substr( $transient, strlen( '_transient_' ) ) );
 		}
 	}
 
