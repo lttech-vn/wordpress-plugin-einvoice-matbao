@@ -36,6 +36,22 @@ if ! wp config has EINVOICE_MATBAO_ENCRYPTION_KEY --path=/var/www/html; then
 	wp config set EINVOICE_MATBAO_ENCRYPTION_KEY "e2e-$(head -c 24 /dev/urandom | base64 | tr -dc 'A-Za-z0-9')-key-material" --path=/var/www/html >/dev/null
 fi
 
+# Fake Mat Bao API (tests/e2e/fake-matbao): a PHP built-in server inside the WordPress container, reached
+# through EINVOICE_MATBAO_BASE_URL. Demo mode leaves the constant out so the real demo host is used.
+if [ "$mode" = "fake" ]; then
+	"${compose[@]}" exec -T wordpress sh -c "
+		set -e
+		if ! curl -fsS -o /dev/null -X POST http://127.0.0.1:8099/__control/reset 2>/dev/null; then
+			nohup php -S 127.0.0.1:8099 $plugin/tests/e2e/fake-matbao/router.php >/tmp/einv-fake-matbao.log 2>&1 &
+			for i in 1 2 3 4 5 6 7 8 9 10; do curl -fsS -o /dev/null -X POST http://127.0.0.1:8099/__control/reset 2>/dev/null && break; sleep 0.5; done
+		fi
+		curl -fsS -o /dev/null -X POST http://127.0.0.1:8099/__control/reset
+	"
+	wp config set EINVOICE_MATBAO_BASE_URL "http://127.0.0.1:8099" --path=/var/www/html >/dev/null
+else
+	wp config delete EINVOICE_MATBAO_BASE_URL --path=/var/www/html >/dev/null 2>&1 || true
+fi
+
 wp user update admin --user_pass="${EINV_E2E_ADMIN_PASS:-e2e-admin-pass}" >/dev/null
 wp option update woocommerce_currency VND >/dev/null
 wp option update woocommerce_price_num_decimals 0 >/dev/null
