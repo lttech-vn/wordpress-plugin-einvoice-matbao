@@ -94,7 +94,9 @@ final class MatbaoClient {
 	 * @throws MatbaoError When the call fails or Mat Bao rejects the invoice.
 	 */
 	public function create_invoice( array $invoice ): string {
-		$data = $this->authorized( 'POST', '/api/invoice/create-invoice', array( $invoice ) );
+		// The demo answers an item rejection (e.g. 305) with envelope `success` false and `errorCode` 201;
+		// the item carries the real code, so the item list is read whatever the envelope says.
+		$data = $this->authorized( 'POST', '/api/invoice/create-invoice', array( $invoice ), true );
 
 		$item = is_array( $data ) && is_array( $data[0] ?? null ) ? array_change_key_case( $data[0], CASE_LOWER ) : null;
 		if ( null === $item ) {
@@ -157,23 +159,24 @@ final class MatbaoClient {
 	/**
 	 * Calls an endpoint with the cached token, logging in again once if Mat Bao rejects it.
 	 *
-	 * @param string            $method HTTP method.
-	 * @param string            $path   Path with query string.
-	 * @param array<mixed>|null $body   JSON body.
+	 * @param string            $method     HTTP method.
+	 * @param string            $path       Path with query string.
+	 * @param array<mixed>|null $body       JSON body.
+	 * @param bool              $item_list  Whether a failed envelope with a list of item results still returns that list.
 	 * @return mixed Decoded `data` of the response.
 	 * @throws MatbaoError When the call fails; errors from logging in are marked as raised before the call was sent.
 	 */
-	private function authorized( string $method, string $path, ?array $body = null ): mixed {
+	private function authorized( string $method, string $path, ?array $body = null, bool $item_list = false ): mixed {
 		$token = $this->cached_token() ?? $this->login_before_call();
 
 		try {
-			return $this->request( $method, $path, $body, $token );
+			return $this->request( $method, $path, $body, $token, $item_list );
 		} catch ( MatbaoError $error ) {
 			if ( ! $error->is_unauthorized() ) {
 				throw $error;
 			}
 
-			return $this->request( $method, $path, $body, $this->login_before_call() );
+			return $this->request( $method, $path, $body, $this->login_before_call(), $item_list );
 		}
 	}
 
@@ -226,10 +229,12 @@ final class MatbaoClient {
 	 * @param string            $path   Path with query string.
 	 * @param array<mixed>|null $body   JSON body.
 	 * @param string|null       $token  Bearer token.
+	 * @param bool              $item_list Whether a failed 2xx envelope whose `data` is a non-empty list of item
+	 *                                     results returns that list instead of throwing.
 	 * @return mixed Decoded `data`.
 	 * @throws MatbaoError When the call fails.
 	 */
-	private function request( string $method, string $path, ?array $body, ?string $token = null ): mixed {
+	private function request( string $method, string $path, ?array $body, ?string $token = null, bool $item_list = false ): mixed {
 		$headers = array(
 			'Accept'       => 'application/json',
 			'Content-Type' => 'application/json',
@@ -266,6 +271,10 @@ final class MatbaoClient {
 		}
 
 		if ( true !== ( $envelope['success'] ?? null ) ) {
+			$data = $envelope['data'] ?? null;
+			if ( $item_list && is_array( $data ) && array_is_list( $data ) && is_array( $data[0] ?? null ) ) {
+				return $data;
+			}
 			throw new MatbaoError( MatbaoError::KIND_API, '' !== $message ? $message : 'Unexpected response.', $api_code, $status ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- plain text, escaped where rendered (Admin\Fragment).
 		}
 

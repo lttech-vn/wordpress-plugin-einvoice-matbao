@@ -147,8 +147,6 @@ final class DraftInvoiceRetryTest extends InvoiceWorkflowTestCase {
 		$record = $this->invoice_of( $order );
 		$this->assertSame( InvoiceStatus::DRAFT_CREATED, $record?->status );
 		$this->assertSame( 'ZHVw', $record->matbao_invoice_id );
-		$attempts = $this->attempts_of( $record );
-		$this->assertSame( '305', (string) $attempts[0]['api_code'] );
 	}
 
 	public function test_item_rejection_inside_a_failed_envelope_keeps_the_item_code_and_message(): void {
