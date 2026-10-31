@@ -9,6 +9,7 @@ namespace LTTech\EinvoiceMatbao\Buyer;
 
 use LTTech\EinvoiceMatbao\Encryption;
 use LTTech\EinvoiceMatbao\Invoice\InvoiceDataError;
+use LTTech\EinvoiceMatbao\Invoice\InvoiceErrorCode;
 
 /**
  * Everything the payload needs about the buyer. The citizen ID stays encrypted until a payload
@@ -43,14 +44,17 @@ final class BuyerSnapshot {
 	 */
 	public function payload_fields( Encryption $encryption = new Encryption() ): array {
 		if ( '' === $this->buyer_name ) {
-			throw new InvoiceDataError( __( 'Thiếu tên người mua trong thông tin xuất hóa đơn của đơn hàng.', 'einvoice-matbao' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- plain text, escaped where rendered.
+			throw new InvoiceDataError( InvoiceErrorCode::BUYER_SNAPSHOT_INVALID, __( 'Thiếu tên người mua trong thông tin xuất hóa đơn của đơn hàng.', 'einvoice-matbao' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- plain text, escaped where rendered.
 		}
 
 		$fields = $this->fields;
 		if ( '' !== $this->id_encrypted ) {
+			if ( ! $encryption->is_available() ) {
+				throw new InvoiceDataError( InvoiceErrorCode::BUYER_ID_KEY_MISSING, __( 'Thiếu khóa mã hóa EINVOICE_MATBAO_ENCRYPTION_KEY để đọc CCCD của người mua; cấu hình khóa rồi gửi lại.', 'einvoice-matbao' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- plain text, escaped where rendered.
+			}
 			$id_number = $encryption->decrypt( $this->id_encrypted );
 			if ( null === $id_number ) {
-				throw new InvoiceDataError( __( 'Không giải mã được CCCD của người mua; kiểm tra khóa mã hóa EINVOICE_MATBAO_ENCRYPTION_KEY.', 'einvoice-matbao' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- plain text, escaped where rendered.
+				throw new InvoiceDataError( InvoiceErrorCode::BUYER_ID_UNREADABLE, __( 'Không giải mã được CCCD của người mua; kiểm tra khóa mã hóa EINVOICE_MATBAO_ENCRYPTION_KEY.', 'einvoice-matbao' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- plain text, escaped where rendered.
 			}
 			$fields['NMua_CCCDan'] = $id_number;
 		}

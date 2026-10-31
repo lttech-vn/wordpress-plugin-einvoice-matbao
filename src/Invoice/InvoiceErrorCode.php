@@ -27,6 +27,19 @@ enum InvoiceErrorCode: string {
 	case UNTAXED_LINE_WITH_TAX = 'untaxed_line_with_tax';
 	case TOTALS_MISMATCH       = 'totals_mismatch';
 	case REFERENCE_TOO_LONG    = 'reference_too_long';
+
+	/** The buyer of a completed order no longer passes BuyerRules (billing edited after checkout). */
+	case BUYER_INVALID = 'buyer_invalid';
+
+	/** The buyer snapshot is missing or unusable when the draft is sent. */
+	case BUYER_SNAPSHOT_INVALID = 'buyer_snapshot_invalid';
+
+	/** The stored citizen ID cannot be decrypted (corrupted, or another key). */
+	case BUYER_ID_UNREADABLE = 'buyer_id_unreadable';
+
+	/** The snapshot holds a citizen ID but no encryption key is configured when sending. */
+	case BUYER_ID_KEY_MISSING = 'buyer_id_key_missing';
+
 	case CREDENTIALS_MISSING   = 'credentials_missing';
 	case TEMPLATE_MISSING      = 'template_missing';
 	case TEMPLATE_UNAVAILABLE  = 'template_unavailable';
@@ -142,7 +155,11 @@ enum InvoiceErrorCode: string {
 			self::TAX_RATE_UNSUPPORTED,
 			self::UNTAXED_LINE_WITH_TAX,
 			self::TOTALS_MISMATCH,
-			self::REFERENCE_TOO_LONG    => InvoiceErrorKind::DATA,
+			self::REFERENCE_TOO_LONG,
+			self::BUYER_INVALID,
+			self::BUYER_SNAPSHOT_INVALID,
+			self::BUYER_ID_UNREADABLE   => InvoiceErrorKind::DATA,
+			self::BUYER_ID_KEY_MISSING,
 			self::CREDENTIALS_MISSING,
 			self::TEMPLATE_MISSING,
 			self::TEMPLATE_UNAVAILABLE,
@@ -188,6 +205,10 @@ enum InvoiceErrorCode: string {
 			self::UNTAXED_LINE_WITH_TAX => __( 'Dòng không chịu thuế có tiền thuế', 'einvoice-matbao' ),
 			self::TOTALS_MISMATCH       => __( 'Tổng tiền lệch tổng đơn hàng', 'einvoice-matbao' ),
 			self::REFERENCE_TOO_LONG    => __( 'Mã tham chiếu quá dài', 'einvoice-matbao' ),
+			self::BUYER_INVALID         => __( 'Thông tin người mua không hợp lệ', 'einvoice-matbao' ),
+			self::BUYER_SNAPSHOT_INVALID => __( 'Thiếu thông tin người mua đã chụp', 'einvoice-matbao' ),
+			self::BUYER_ID_UNREADABLE   => __( 'Không giải mã được CCCD', 'einvoice-matbao' ),
+			self::BUYER_ID_KEY_MISSING  => __( 'Thiếu khóa mã hóa để đọc CCCD', 'einvoice-matbao' ),
 			self::CREDENTIALS_MISSING   => __( 'Chưa cấu hình kết nối Mắt Bão', 'einvoice-matbao' ),
 			self::TEMPLATE_MISSING      => __( 'Chưa chọn mẫu hóa đơn', 'einvoice-matbao' ),
 			self::TEMPLATE_UNAVAILABLE  => __( 'Mẫu hóa đơn hết hiệu lực', 'einvoice-matbao' ),

@@ -391,7 +391,7 @@ final class DraftInvoiceWorkflow {
 
 		$snapshot = $this->snapshotter->load( $order );
 		if ( null === $snapshot ) {
-			$this->repository->update_status( $invoice->id, InvoiceStatus::FAILED, __( 'Đơn hàng chưa có thông tin người mua đã chụp khi hoàn thành.', 'einvoice-matbao' ) );
+			self::record_error( $this->repository, $order_id, InvoiceErrorCode::BUYER_SNAPSHOT_INVALID, __( 'Đơn hàng chưa có thông tin người mua đã chụp khi hoàn thành.', 'einvoice-matbao' ) );
 			return;
 		}
 

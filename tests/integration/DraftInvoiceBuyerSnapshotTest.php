@@ -9,6 +9,8 @@ namespace LTTech\EinvoiceMatbao\Tests\Integration;
 
 use LTTech\EinvoiceMatbao\Buyer\BuyerSnapshotter;
 use LTTech\EinvoiceMatbao\Invoice\DraftInvoiceWorkflow;
+use LTTech\EinvoiceMatbao\Invoice\InvoiceDataError;
+use LTTech\EinvoiceMatbao\Invoice\InvoiceErrorCode;
 use LTTech\EinvoiceMatbao\Invoice\InvoiceRecord;
 use LTTech\EinvoiceMatbao\Invoice\InvoiceRepository;
 use LTTech\EinvoiceMatbao\Invoice\InvoiceStatus;
@@ -143,12 +145,132 @@ final class DraftInvoiceBuyerSnapshotTest extends InvoiceWorkflowTestCase {
 		$snapshot['id_encrypted'] = 'v1.not-a-valid-ciphertext';
 		$order->update_meta_data( BuyerSnapshotter::META_KEY, wp_json_encode( $snapshot ) );
 		$order->save();
+		$needs_attention = $this->collect_needs_attention();
 		$this->run_queued_draft_actions();
 
 		$record = $this->invoice_of( $order );
 		$this->assertSame( InvoiceStatus::FAILED, $record?->status );
+		$this->assertSame( 'buyer_id_unreadable', $record->error_code );
+		$this->assertSame( array( 'buyer_id_unreadable' ), $needs_attention->codes );
+		$this->assertSame( 'completed', wc_get_order( $order->get_id() )?->get_status() );
 		$this->assertCount( 0, $this->http->requests_to( self::CREATE_ROUTE ) );
-		$this->assertStringNotContainsString( self::ID_NUMBER, (string) $record?->status_reason );
+		$this->assertSame( array(), $this->attempts_of( $record ) );
+		$this->assertStringNotContainsString( self::ID_NUMBER, (string) $record->status_reason );
+	}
+
+	public function test_snapshot_with_an_id_number_but_no_encryption_key_is_a_config_error(): void {
+		$this->with_encryption_key();
+		$order    = $this->order_with_request( $this->individual_post() );
+		$snapshot = ( new BuyerSnapshotter() )->capture( $order, 'Khách hàng không lấy hóa đơn' );
+		remove_all_filters( 'einvoice_matbao_encryption_key' );
+
+		try {
+			$snapshot->payload_fields();
+			$this->fail( 'Expected InvoiceDataError.' );
+		} catch ( InvoiceDataError $error ) {
+			$this->assertSame( InvoiceErrorCode::BUYER_ID_KEY_MISSING, $error->error_code );
+			$this->assertSame( 'config', $error->error_code->kind()->value );
+			$this->assertStringNotContainsString( self::ID_NUMBER, $error->getMessage() );
+		}
+	}
+
+	public function test_missing_snapshot_is_a_classified_error_without_sending(): void {
+		$this->configure_matbao();
+		$this->fake_create_invoice_ok();
+		$order = $this->order_with_request( $this->individual_post() );
+		$order->update_status( 'completed' );
+		$order->delete_meta_data( BuyerSnapshotter::META_KEY );
+		$order->save();
+		$needs_attention = $this->collect_needs_attention();
+
+		$this->run_queued_draft_actions();
+
+		$record = $this->invoice_of( $order );
+		$this->assertSame( 'buyer_snapshot_invalid', $record?->error_code );
+		$this->assertSame( InvoiceStatus::FAILED, $record->status );
+		$this->assertSame( array( 'buyer_snapshot_invalid' ), $needs_attention->codes );
+		$this->assertCount( 0, $this->http->requests_to( self::CREATE_ROUTE ) );
+	}
+
+	public function test_empty_buyer_name_in_the_snapshot_is_a_classified_error(): void {
+		$this->configure_matbao();
+		$this->fake_create_invoice_ok();
+		$order = $this->order_with_request( $this->individual_post() );
+		$order->update_status( 'completed' );
+		$snapshot               = json_decode( (string) $order->get_meta( BuyerSnapshotter::META_KEY ), true );
+		$snapshot['buyer_name'] = '';
+		$order->update_meta_data( BuyerSnapshotter::META_KEY, wp_json_encode( $snapshot ) );
+		$order->save();
+
+		$this->run_queued_draft_actions();
+
+		$this->assertSame( 'buyer_snapshot_invalid', $this->invoice_of( $order )?->error_code );
+		$this->assertCount( 0, $this->http->requests_to( self::CREATE_ROUTE ) );
+	}
+
+	public function test_restart_of_a_stopped_order_sends_the_stored_snapshot(): void {
+		$this->configure_matbao();
+		$this->fake_create_invoice_ok();
+		$order = $this->order_with_request( $this->individual_post() );
+		$order->update_status( 'completed' );
+		$order->update_status( 'cancelled' );
+		$this->run_queued_draft_actions();
+		$this->assertSame( InvoiceStatus::STOPPED, $this->invoice_of( $order )?->status );
+
+		$order->set_billing_phone( '0900000002' );
+		$order->save();
+		$order->update_status( 'completed' );
+		$this->run_queued_draft_actions();
+
+		$this->assertSame( InvoiceStatus::DRAFT_CREATED, $this->invoice_of( $order )?->status );
+		$this->assertCount( 1, $this->http->requests_to( self::CREATE_ROUTE ) );
+		$invoice = $this->sent_invoices()[0];
+		$this->assertSame( '0900000001', $invoice['NMua_SDThoai'], 'The snapshot taken at the first completion is sent.' );
+		$this->assertSame( self::ID_NUMBER, $invoice['NMua_CCCDan'] );
+	}
+
+	public function test_restart_of_a_stopped_order_after_a_possible_create_looks_up_before_creating(): void {
+		$this->configure_matbao();
+		$this->fake_create_invoice_timeout();
+		$order = $this->order_with_request( $this->individual_post() );
+		$order->update_status( 'completed' );
+		$this->run_queued_draft_actions();
+		$order->update_status( 'cancelled' );
+		$this->run_queued_draft_actions();
+		$this->assertSame( InvoiceStatus::STOPPED, $this->invoice_of( $order )?->status );
+
+		$this->fake_lookup_found( 'c3RvcHBlZA==' );
+		$creates_before = count( $this->http->requests_to( self::CREATE_ROUTE ) );
+		$order->update_status( 'completed' );
+		$this->run_queued_draft_actions();
+
+		$this->assertCount( 1, $this->http->requests_to( self::LOOKUP_ROUTE ) );
+		$this->assertCount( $creates_before, $this->http->requests_to( self::CREATE_ROUTE ), 'The adopted draft is not created again.' );
+		$this->assertSame( 'c3RvcHBlZA==', $this->invoice_of( $order )?->matbao_invoice_id );
+	}
+
+	public function test_restart_looks_up_before_it_creates_again(): void {
+		$this->configure_matbao();
+		$this->fake_create_invoice_timeout();
+		$this->fake_lookup_not_found();
+		$order = $this->order_with_request( $this->individual_post() );
+		$order->update_status( 'completed' );
+		$this->run_queued_draft_actions();
+		$first_run_requests = count( $this->http->requests );
+
+		$this->assertTrue( DraftInvoiceWorkflow::restart( $order->get_id(), InvoiceStatus::PENDING ) );
+		$this->run_queued_draft_actions();
+
+		$after = array_slice( $this->http->requests, $first_run_requests );
+		$paths = array_values(
+			array_filter(
+				array_map(
+					static fn( array $request ): string => str_contains( $request['url'], '/api/invoice/invoice-detail-batch' ) ? 'lookup' : ( str_contains( $request['url'], '/api/invoice/create-invoice' ) ? 'create' : '' ),
+					$after
+				)
+			)
+		);
+		$this->assertSame( array( 'lookup', 'create' ), array_slice( $paths, 0, 2 ) );
 	}
 
 	/**
@@ -183,11 +305,16 @@ final class DraftInvoiceBuyerSnapshotTest extends InvoiceWorkflowTestCase {
 		$order = $this->order_with_request( 'individual' === $type ? $this->individual_post() : $this->business_post() );
 		$order->{'set_billing_' . $field}( $value );
 		$order->save();
+		$needs_attention = $this->collect_needs_attention();
 
 		$this->complete_and_run( $order );
 
 		$record = $this->invoice_of( $order );
 		$this->assertSame( InvoiceStatus::FAILED, $record?->status );
+		$this->assertSame( 'buyer_invalid', $record->error_code );
+		$this->assertSame( 'completed', wc_get_order( $order->get_id() )?->get_status() );
+		$this->assertSame( array( 'buyer_invalid' ), $needs_attention->codes, 'The hook fires exactly once.' );
+		$this->assertSame( array(), $this->queued_draft_action_ids(), 'Not retried.' );
 		$this->assertStringContainsString( 'thông tin người mua', (string) $record?->status_reason );
 		$this->assertStringNotContainsString( $never_say, (string) $record?->status_reason );
 		$this->assertStringNotContainsString( self::ID_NUMBER, (string) $record?->status_reason );
@@ -256,6 +383,24 @@ final class DraftInvoiceBuyerSnapshotTest extends InvoiceWorkflowTestCase {
 		$stored = (string) wp_json_encode( array( $record->status_reason, $this->attempts_of( $record ) ) );
 		$this->assertStringNotContainsString( self::ID_NUMBER, $stored );
 		$this->assertStringContainsString( '********1234', $record->status_reason );
+	}
+
+	/**
+	 * Collects the codes of every needs-attention hook from now on.
+	 */
+	private function collect_needs_attention(): object {
+		$collected = new \stdClass();
+		$collected->codes = array();
+		add_action(
+			DraftInvoiceWorkflow::NEEDS_ATTENTION_ACTION,
+			static function ( InvoiceRecord $invoice, InvoiceErrorCode $code ) use ( $collected ): void {
+				$collected->codes[] = $code->value;
+			},
+			10,
+			2
+		);
+
+		return $collected;
 	}
 
 	/**
