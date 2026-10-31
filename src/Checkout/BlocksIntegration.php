@@ -31,8 +31,8 @@ final class BlocksIntegration implements IntegrationInterface {
 	 */
 	public function initialize(): void {
 		$dependencies = array( 'wc-blocks-checkout', 'wc-settings', 'wp-data', 'wp-element', 'wp-i18n' );
-		wp_register_script( self::FRONTEND_HANDLE, plugins_url( 'assets/dist/checkout-blocks.js', EINVOICE_MATBAO_FILE ), $dependencies, EINVOICE_MATBAO_VERSION, true );
-		wp_register_script( self::EDITOR_HANDLE, plugins_url( 'assets/dist/checkout-blocks-editor.js', EINVOICE_MATBAO_FILE ), array( 'wp-blocks', 'wp-block-editor', 'wp-element', 'wp-i18n' ), EINVOICE_MATBAO_VERSION, true );
+		wp_register_script( self::FRONTEND_HANDLE, plugin_dir_url( EINVOICE_MATBAO_FILE ) . 'assets/dist/checkout-blocks.js', $dependencies, EINVOICE_MATBAO_VERSION, true );
+		wp_register_script( self::EDITOR_HANDLE, plugin_dir_url( EINVOICE_MATBAO_FILE ) . 'assets/dist/checkout-blocks-editor.js', array( 'wp-blocks', 'wp-block-editor', 'wp-element', 'wp-i18n' ), EINVOICE_MATBAO_VERSION, true );
 	}
 
 	/**

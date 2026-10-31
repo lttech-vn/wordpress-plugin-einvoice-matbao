@@ -20,8 +20,8 @@ use WP_REST_Response;
  */
 final class BlocksCheckoutBuyerTest extends InvoiceWorkflowTestCase {
 
-	private const ID_NUMBER = '000000001234';
-	private const TAX_CODE  = '0000000000-001';
+	private const ID_NUMBER     = '000000001234';
+	private const TAX_CODE      = '0000000000-001';
 	private const NAMESPACE_KEY = 'einvoice-matbao';
 
 	public function set_up(): void {
@@ -100,7 +100,12 @@ final class BlocksCheckoutBuyerTest extends InvoiceWorkflowTestCase {
 	}
 
 	public function test_a_ticked_request_without_a_type_is_refused(): void {
-		$response = $this->place_order( array( 'request_invoice' => true, 'address' => 'Số 1' ) );
+		$response = $this->place_order(
+			array(
+				'request_invoice' => true,
+				'address'         => 'Số 1',
+			)
+		);
 
 		$this->assertSame( 400, $response->get_status() );
 		$this->assertStringContainsString( 'cá nhân hoặc doanh nghiệp', (string) $response->get_data()['message'] );
@@ -109,7 +114,14 @@ final class BlocksCheckoutBuyerTest extends InvoiceWorkflowTestCase {
 	public function test_individual_with_a_bad_billing_phone_or_too_long_name_is_refused(): void {
 		$this->with_encryption_key();
 
-		$response = $this->place_order( $this->individual(), array( 'first_name' => str_repeat( 'Ư', 60 ), 'last_name' => str_repeat( 'ơ', 60 ), 'phone' => '123' ) );
+		$response = $this->place_order(
+			$this->individual(),
+			array(
+				'first_name' => str_repeat( 'Ư', 60 ),
+				'last_name'  => str_repeat( 'ơ', 60 ),
+				'phone'      => '123',
+			)
+		);
 		$message  = (string) $response->get_data()['message'];
 
 		$this->assertSame( 400, $response->get_status() );
@@ -190,7 +202,7 @@ final class BlocksCheckoutBuyerTest extends InvoiceWorkflowTestCase {
 	public function test_the_checkout_script_is_registered_for_the_blocks_checkout(): void {
 		do_action( 'woocommerce_blocks_checkout_block_registration', new \Automattic\WooCommerce\Blocks\Integrations\IntegrationRegistry() ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- WooCommerce hook.
 
-		$this->assertTrue( wp_script_is( "einvoice-matbao-checkout-blocks", "registered" ) );
+		$this->assertTrue( wp_script_is( 'einvoice-matbao-checkout-blocks', 'registered' ) );
 	}
 
 	/**

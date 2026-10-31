@@ -4,13 +4,14 @@
 	"description": "Admin UI assets for the Mat Bao e-invoice plugin.",
 	"license": "GPL-2.0-or-later",
 	"scripts": {
-		"build": "bun run build:css && bun run build:htmx && bun run build:checkout",
+		"build": "bun run build:css && bun run build:htmx && bun run build:checkout && bun run build:checkout-blocks",
 		"build:css": "tailwindcss -i assets/src/admin.css -o assets/dist/admin.css --minify",
 		"build:htmx": "mkdir -p assets/dist && cp node_modules/htmx.org/dist/htmx.min.js assets/dist/htmx.min.js",
 		"build:checkout": "bun build assets/src/checkout.ts --outfile assets/dist/checkout.js --minify --target browser",
 		"test": "bun test assets/src",
 		"check:css-scope": "bun scripts/check-admin-css-scope.ts --self-test && bun scripts/check-admin-css-scope.ts assets/dist/admin.css",
-		"watch:css": "tailwindcss -i assets/src/admin.css -o assets/dist/admin.css --watch"
+		"watch:css": "tailwindcss -i assets/src/admin.css -o assets/dist/admin.css --watch",
+		"build:checkout-blocks": "bun build assets/src/checkout-blocks.ts --outfile assets/dist/checkout-blocks.js --minify --target browser && bun build assets/src/checkout-blocks-editor.ts --outfile assets/dist/checkout-blocks-editor.js --minify --target browser"
 	},
 	"devDependencies": {
 		"@tailwindcss/cli": "4.3.3",
