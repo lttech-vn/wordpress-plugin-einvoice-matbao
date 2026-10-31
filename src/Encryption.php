@@ -81,18 +81,28 @@ final class Encryption {
 	private function key(): ?string {
 		$material = defined( self::KEY_CONSTANT ) ? constant( self::KEY_CONSTANT ) : '';
 
-		/**
-		 * Filters the encryption key material. Defaults to the `EINVOICE_MATBAO_ENCRYPTION_KEY`
-		 * constant; intended for tests and hosts that inject secrets differently.
-		 *
-		 * @param mixed $material Key material.
-		 */
-		$material = apply_filters( 'einvoice_matbao_encryption_key', $material );
+		if ( self::filter_allowed() ) {
+			/**
+			 * Filters the encryption key material. Defaults to the `EINVOICE_MATBAO_ENCRYPTION_KEY`
+			 * constant. Only applied in `local`/`development` environments (wp_get_environment_type())
+			 * or under the test suite (WP_TESTS_DOMAIN), so other plugins cannot swap the key in production.
+			 *
+			 * @param mixed $material Key material.
+			 */
+			$material = apply_filters( 'einvoice_matbao_encryption_key', $material );
+		}
 
 		if ( ! is_string( $material ) || strlen( $material ) < self::MIN_KEY_LENGTH ) {
 			return null;
 		}
 
 		return sodium_crypto_generichash( $material, self::KDF_LABEL, SODIUM_CRYPTO_SECRETBOX_KEYBYTES );
+	}
+
+	/**
+	 * Whether the key filter may run: local/development environments and the test suite only.
+	 */
+	private function filter_allowed(): bool {
+		return defined( 'WP_TESTS_DOMAIN' ) || in_array( wp_get_environment_type(), array( 'local', 'development' ), true );
 	}
 }

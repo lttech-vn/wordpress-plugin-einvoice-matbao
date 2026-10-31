@@ -7,9 +7,6 @@
 
 namespace LTTech\EinvoiceMatbao\Lark;
 
-// Exception messages are plain text that is escaped where rendered (Admin\Fragment), never echoed raw.
-// phpcs:disable WordPress.Security.EscapeOutput.ExceptionNotEscaped
-
 /**
  * Minimal Lark custom bot client. Uses the WordPress HTTP API (fake-able in tests) and never
  * puts the webhook URL or secret into error messages.
@@ -55,7 +52,7 @@ final class LarkClient {
 		);
 
 		if ( is_wp_error( $response ) ) {
-			throw new LarkError( 'Request did not complete (' . $response->get_error_code() . ').' );
+			throw new LarkError( 'Request did not complete (' . $response->get_error_code() . ').' ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- plain text, escaped where rendered (Admin\Fragment).
 		}
 
 		$status  = (int) wp_remote_retrieve_response_code( $response );
@@ -65,7 +62,7 @@ final class LarkClient {
 		$message = $decoded['msg'] ?? $decoded['StatusMessage'] ?? '';
 
 		if ( $status < 200 || $status >= 300 || 0 !== $code ) {
-			throw new LarkError( is_string( $message ) && '' !== $message ? $message : 'HTTP ' . $status, $code );
+			throw new LarkError( is_string( $message ) && '' !== $message ? $message : 'HTTP ' . $status, $code ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- plain text, escaped where rendered (Admin\Fragment).
 		}
 	}
 

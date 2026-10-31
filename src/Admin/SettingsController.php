@@ -286,10 +286,13 @@ final class SettingsController {
 		$url      = trim( self::raw_param( $request, 'webhook_url' ) );
 		$secret   = trim( self::raw_param( $request, 'secret' ) );
 
+		$clear_secret = '' !== self::raw_param( $request, 'clear_secret' );
+
 		if ( '' === $url && null !== $previous ) {
 			$url = $previous->webhook_url;
 		}
-		if ( '' === $secret && null !== $previous ) {
+		// The stored secret belongs to the stored bot: keep it only for the same webhook, never send it to another one.
+		if ( '' === $secret && ! $clear_secret && null !== $previous && $previous->webhook_url === $url ) {
 			$secret = $previous->secret;
 		}
 
@@ -334,6 +337,16 @@ final class SettingsController {
 	}
 
 	/**
+	 * Year of the invoice templates to offer. Mat Bao series carry the Vietnam-time year (e.g. C26...),
+	 * so it does not follow the site timezone.
+	 *
+	 * @param \DateTimeImmutable|null $now Instant to evaluate; defaults to the current time.
+	 */
+	public static function template_year( ?\DateTimeImmutable $now = null ): int {
+		return (int) ( $now ?? new \DateTimeImmutable( 'now' ) )->setTimezone( new \DateTimeZone( 'Asia/Ho_Chi_Minh' ) )->format( 'Y' );
+	}
+
+	/**
 	 * VAT templates of the current year, in Mat Bao order.
 	 *
 	 * @param MatbaoCredentials $credentials Stored credentials.
@@ -341,7 +354,7 @@ final class SettingsController {
 	 * @throws MatbaoError When Mat Bao cannot be reached or rejects the call.
 	 */
 	private function vat_templates( MatbaoCredentials $credentials ): array {
-		$templates = ( new MatbaoClient( $credentials ) )->templates( (int) wp_date( 'Y' ) );
+		$templates = ( new MatbaoClient( $credentials ) )->templates( self::template_year() );
 
 		return array_values( array_filter( $templates, static fn( MatbaoTemplate $template ): bool => $template->is_vat() ) );
 	}

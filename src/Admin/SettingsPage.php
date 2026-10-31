@@ -197,6 +197,7 @@ final class SettingsPage {
 						<div>
 							<label class="<?php echo esc_attr( $label ); ?>" for="einv-lark-secret"><?php esc_html_e( 'Secret ký (nếu bật trên bot)', 'einvoice-matbao' ); ?></label>
 							<input id="einv-lark-secret" name="secret" type="password" autocomplete="off" class="<?php echo esc_attr( $input ); ?>" value="" />
+							<label class="<?php echo esc_attr( $help ); ?> mt-2 flex items-center gap-2"><input type="checkbox" name="clear_secret" value="1" /> <?php esc_html_e( 'Xóa secret đã lưu (tắt ký)', 'einvoice-matbao' ); ?></label>
 						</div>
 						<div class="flex flex-wrap gap-2">
 							<button type="submit" class="<?php echo esc_attr( $button ); ?>"><?php esc_html_e( 'Lưu webhook', 'einvoice-matbao' ); ?></button>

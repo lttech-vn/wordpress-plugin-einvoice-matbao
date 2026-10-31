@@ -7,9 +7,6 @@
 
 namespace LTTech\EinvoiceMatbao\Matbao;
 
-// Exception messages are plain text that is escaped where rendered (Admin\Fragment), never echoed raw.
-// phpcs:disable WordPress.Security.EscapeOutput.ExceptionNotEscaped
-
 use LTTech\EinvoiceMatbao\Encryption;
 
 /**
@@ -68,7 +65,7 @@ final class MatbaoClient {
 		$data = $this->authorized( 'GET', '/api/invoice/templates?year=' . $year );
 
 		if ( ! is_array( $data ) ) {
-			throw new MatbaoError( MatbaoError::KIND_API, 'Unexpected templates response.' );
+			throw new MatbaoError( MatbaoError::KIND_API, 'Unexpected templates response.' ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- plain text, escaped where rendered (Admin\Fragment).
 		}
 
 		return array_values( array_map( array( MatbaoTemplate::class, 'from_api' ), array_filter( $data, 'is_array' ) ) );
@@ -118,7 +115,7 @@ final class MatbaoClient {
 
 		$token = is_array( $data ) && is_string( $data['accessToken'] ?? null ) ? $data['accessToken'] : '';
 		if ( '' === $token ) {
-			throw new MatbaoError( MatbaoError::KIND_API, 'Login response has no access token.' );
+			throw new MatbaoError( MatbaoError::KIND_API, 'Login response has no access token.' ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- plain text, escaped where rendered (Admin\Fragment).
 		}
 
 		$this->cache_token( $token, is_string( $data['expiredDate'] ?? null ) ? $data['expiredDate'] : '' );
@@ -159,7 +156,7 @@ final class MatbaoClient {
 
 		if ( is_wp_error( $response ) ) {
 			// The WP_Error message may echo request details; keep only its code.
-			throw new MatbaoError( MatbaoError::KIND_TRANSPORT, 'Request did not complete (' . $response->get_error_code() . ').' );
+			throw new MatbaoError( MatbaoError::KIND_TRANSPORT, 'Request did not complete (' . $response->get_error_code() . ').' ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- plain text, escaped where rendered (Admin\Fragment).
 		}
 
 		$status   = (int) wp_remote_retrieve_response_code( $response );
@@ -169,11 +166,11 @@ final class MatbaoClient {
 		$message  = is_string( $envelope['message'] ?? null ) ? $envelope['message'] : '';
 
 		if ( $status < 200 || $status >= 300 ) {
-			throw new MatbaoError( MatbaoError::KIND_HTTP, '' !== $message ? $message : 'HTTP ' . $status, $api_code, $status );
+			throw new MatbaoError( MatbaoError::KIND_HTTP, '' !== $message ? $message : 'HTTP ' . $status, $api_code, $status ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- plain text, escaped where rendered (Admin\Fragment).
 		}
 
 		if ( true !== ( $envelope['success'] ?? null ) ) {
-			throw new MatbaoError( MatbaoError::KIND_API, '' !== $message ? $message : 'Unexpected response.', $api_code, $status );
+			throw new MatbaoError( MatbaoError::KIND_API, '' !== $message ? $message : 'Unexpected response.', $api_code, $status ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- plain text, escaped where rendered (Admin\Fragment).
 		}
 
 		return $envelope['data'] ?? null;

@@ -207,12 +207,33 @@ final class SettingsCredentialsRestTest extends SettingsRestTestCase {
 
 	public function test_lark_blank_secret_is_kept_when_the_webhook_is_unchanged(): void {
 		$this->with_encryption_key();
-		$this->htmx( 'POST', '/settings/lark', array( 'webhook_url' => self::LARK_WEBHOOK, 'secret' => self::LARK_SECRET ) );
+		$this->htmx(
+			'POST',
+			'/settings/lark',
+			array(
+				'webhook_url' => self::LARK_WEBHOOK,
+				'secret'      => self::LARK_SECRET,
+			)
+		);
 
-		$this->htmx( 'POST', '/settings/lark', array( 'webhook_url' => self::LARK_WEBHOOK, 'secret' => '' ) );
+		$this->htmx(
+			'POST',
+			'/settings/lark',
+			array(
+				'webhook_url' => self::LARK_WEBHOOK,
+				'secret'      => '',
+			)
+		);
 		$this->assertSame( self::LARK_SECRET, ( new CredentialStore() )->lark()?->secret );
 
-		$this->htmx( 'POST', '/settings/lark', array( 'webhook_url' => '', 'secret' => '' ) );
+		$this->htmx(
+			'POST',
+			'/settings/lark',
+			array(
+				'webhook_url' => '',
+				'secret'      => '',
+			)
+		);
 		$lark = ( new CredentialStore() )->lark();
 		$this->assertSame( self::LARK_WEBHOOK, $lark?->webhook_url );
 		$this->assertSame( self::LARK_SECRET, $lark?->secret );
@@ -220,10 +241,24 @@ final class SettingsCredentialsRestTest extends SettingsRestTestCase {
 
 	public function test_lark_blank_secret_is_dropped_when_the_webhook_changes(): void {
 		$this->with_encryption_key();
-		$this->htmx( 'POST', '/settings/lark', array( 'webhook_url' => self::LARK_WEBHOOK, 'secret' => self::LARK_SECRET ) );
+		$this->htmx(
+			'POST',
+			'/settings/lark',
+			array(
+				'webhook_url' => self::LARK_WEBHOOK,
+				'secret'      => self::LARK_SECRET,
+			)
+		);
 		$other = 'https://open.larksuite.com/open-apis/bot/v2/hook/11111111-other-hook';
 
-		$response = $this->htmx( 'POST', '/settings/lark', array( 'webhook_url' => $other, 'secret' => '' ) );
+		$response = $this->htmx(
+			'POST',
+			'/settings/lark',
+			array(
+				'webhook_url' => $other,
+				'secret'      => '',
+			)
+		);
 
 		$this->assertSame( 200, $response->get_status() );
 		$lark = ( new CredentialStore() )->lark();
@@ -233,9 +268,24 @@ final class SettingsCredentialsRestTest extends SettingsRestTestCase {
 
 	public function test_lark_secret_can_be_cleared_explicitly(): void {
 		$this->with_encryption_key();
-		$this->htmx( 'POST', '/settings/lark', array( 'webhook_url' => self::LARK_WEBHOOK, 'secret' => self::LARK_SECRET ) );
+		$this->htmx(
+			'POST',
+			'/settings/lark',
+			array(
+				'webhook_url' => self::LARK_WEBHOOK,
+				'secret'      => self::LARK_SECRET,
+			)
+		);
 
-		$this->htmx( 'POST', '/settings/lark', array( 'webhook_url' => '', 'secret' => '', 'clear_secret' => '1' ) );
+		$this->htmx(
+			'POST',
+			'/settings/lark',
+			array(
+				'webhook_url'  => '',
+				'secret'       => '',
+				'clear_secret' => '1',
+			)
+		);
 
 		$lark = ( new CredentialStore() )->lark();
 		$this->assertSame( self::LARK_WEBHOOK, $lark?->webhook_url );
