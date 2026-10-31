@@ -173,16 +173,4 @@ final class SettingsConnectionRestTest extends SettingsRestTestCase {
 		$this->assertStringContainsString( 'data-einv-status="error"', $html );
 		$this->assertStringNotContainsString( 'fake-hook', $html );
 	}
-
-	/**
-	 * Raw values of the plugin's transients.
-	 */
-	private function stored_transients(): string {
-		global $wpdb;
-
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery -- test inspects raw storage on purpose.
-		$rows = $wpdb->get_col( "SELECT option_value FROM {$wpdb->options} WHERE option_name LIKE '\\_transient\\_einvoice\\_matbao\\_%'" );
-
-		return implode( "\n", $rows );
-	}
 }

@@ -192,6 +192,9 @@ final class SettingsCredentialsRestTest extends SettingsRestTestCase {
 			'https://open.larksuite.com:8443/open-apis/bot/v2/hook/abc',
 			'https://user@open.larksuite.com/open-apis/bot/v2/hook/abc',
 			'https://open.larksuite.com/open-apis/bot/v2/hook/',
+			'https://open.larksuite.com.evil.com/open-apis/bot/v2/hook/abc',
+			'https://evil.com/open.larksuite.com/open-apis/bot/v2/hook/abc',
+			'https://OPEN.LARKSUITE.COM/open-apis/bot/v2/hook/abc',
 		);
 
 		foreach ( $rejected as $url ) {
@@ -200,6 +203,43 @@ final class SettingsCredentialsRestTest extends SettingsRestTestCase {
 			$this->assertSame( 422, $response->get_status(), $url );
 			$this->assertNull( ( new CredentialStore() )->lark(), $url );
 		}
+	}
+
+	public function test_lark_blank_secret_is_kept_when_the_webhook_is_unchanged(): void {
+		$this->with_encryption_key();
+		$this->htmx( 'POST', '/settings/lark', array( 'webhook_url' => self::LARK_WEBHOOK, 'secret' => self::LARK_SECRET ) );
+
+		$this->htmx( 'POST', '/settings/lark', array( 'webhook_url' => self::LARK_WEBHOOK, 'secret' => '' ) );
+		$this->assertSame( self::LARK_SECRET, ( new CredentialStore() )->lark()?->secret );
+
+		$this->htmx( 'POST', '/settings/lark', array( 'webhook_url' => '', 'secret' => '' ) );
+		$lark = ( new CredentialStore() )->lark();
+		$this->assertSame( self::LARK_WEBHOOK, $lark?->webhook_url );
+		$this->assertSame( self::LARK_SECRET, $lark?->secret );
+	}
+
+	public function test_lark_blank_secret_is_dropped_when_the_webhook_changes(): void {
+		$this->with_encryption_key();
+		$this->htmx( 'POST', '/settings/lark', array( 'webhook_url' => self::LARK_WEBHOOK, 'secret' => self::LARK_SECRET ) );
+		$other = 'https://open.larksuite.com/open-apis/bot/v2/hook/11111111-other-hook';
+
+		$response = $this->htmx( 'POST', '/settings/lark', array( 'webhook_url' => $other, 'secret' => '' ) );
+
+		$this->assertSame( 200, $response->get_status() );
+		$lark = ( new CredentialStore() )->lark();
+		$this->assertSame( $other, $lark?->webhook_url );
+		$this->assertSame( '', $lark?->secret );
+	}
+
+	public function test_lark_secret_can_be_cleared_explicitly(): void {
+		$this->with_encryption_key();
+		$this->htmx( 'POST', '/settings/lark', array( 'webhook_url' => self::LARK_WEBHOOK, 'secret' => self::LARK_SECRET ) );
+
+		$this->htmx( 'POST', '/settings/lark', array( 'webhook_url' => '', 'secret' => '', 'clear_secret' => '1' ) );
+
+		$lark = ( new CredentialStore() )->lark();
+		$this->assertSame( self::LARK_WEBHOOK, $lark?->webhook_url );
+		$this->assertSame( '', $lark?->secret );
 	}
 
 	public function test_stored_credentials_are_unreadable_with_a_different_key(): void {

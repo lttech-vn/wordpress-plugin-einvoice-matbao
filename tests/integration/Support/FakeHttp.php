@@ -67,6 +67,17 @@ final class FakeHttp {
 	}
 
 	/**
+	 * Responds to "METHOD /path" with a raw body, e.g. HTML or malformed JSON.
+	 *
+	 * @param string $route  For example "POST /api/auth/login".
+	 * @param int    $status HTTP status code.
+	 * @param string $body   Response body, sent as is.
+	 */
+	public function respond_raw( string $route, int $status, string $body ): void {
+		$this->routes[ $route ] = static fn(): array => array_merge( self::json_response( $status, null ), array( 'body' => $body ) );
+	}
+
+	/**
 	 * Responds to "METHOD /path" with a custom handler.
 	 *
 	 * @param string                                                                  $route   For example "POST /api/auth/login".

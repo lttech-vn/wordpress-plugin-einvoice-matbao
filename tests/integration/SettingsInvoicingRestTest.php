@@ -7,6 +7,7 @@
 
 namespace LTTech\EinvoiceMatbao\Tests\Integration;
 
+use LTTech\EinvoiceMatbao\Admin\SettingsController;
 use LTTech\EinvoiceMatbao\Settings;
 use LTTech\EinvoiceMatbao\Tests\Integration\Support\SettingsRestTestCase;
 
@@ -44,8 +45,17 @@ final class SettingsInvoicingRestTest extends SettingsRestTestCase {
 
 		$calls = $this->http->requests_to( 'GET /api/invoice/templates' );
 		$this->assertCount( 1, $calls );
-		$this->assertStringContainsString( 'year=' . wp_date( 'Y' ), $calls[0]['url'] );
+		$this->assertStringContainsString( 'year=' . ( new \DateTimeImmutable( 'now', new \DateTimeZone( 'Asia/Ho_Chi_Minh' ) ) )->format( 'Y' ), $calls[0]['url'] );
 		$this->assertSame( 'Bearer fake-token-xyz', $calls[0]['headers']['Authorization'] );
+	}
+
+	public function test_template_year_follows_vietnam_time_whatever_the_site_timezone(): void {
+		update_option( 'timezone_string', 'UTC' );
+		// 2025-12-31 18:00 UTC is already 2026-01-01 01:00 in Vietnam (UTC+7).
+		$instant = new \DateTimeImmutable( '2025-12-31T18:00:00', new \DateTimeZone( 'UTC' ) );
+
+		$this->assertSame( 2026, SettingsController::template_year( $instant ) );
+		$this->assertSame( 2025, SettingsController::template_year( $instant->modify( '-2 hours' ) ) );
 	}
 
 	public function test_template_calls_reuse_the_cached_token(): void {

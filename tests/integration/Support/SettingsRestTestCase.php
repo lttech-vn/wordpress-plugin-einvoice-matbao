@@ -191,4 +191,16 @@ abstract class SettingsRestTestCase extends WP_UnitTestCase {
 
 		return implode( "\n", $rows );
 	}
+
+	/**
+	 * Raw values of the plugin's transients.
+	 */
+	protected function stored_transients(): string {
+		global $wpdb;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery -- test inspects raw storage on purpose.
+		$rows = $wpdb->get_col( "SELECT option_value FROM {$wpdb->options} WHERE option_name LIKE '\\_transient\\_einvoice\\_matbao\\_%'" );
+
+		return implode( "\n", $rows );
+	}
 }
