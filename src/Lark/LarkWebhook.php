@@ -40,9 +40,12 @@ final class LarkWebhook {
 		return is_array( $parts )
 			&& 'https' === ( $parts['scheme'] ?? '' )
 			&& in_array( $parts['host'] ?? '', self::HOSTS, true )
-			&& ! isset( $parts['port'], $parts['user'], $parts['pass'] )
-			&& str_starts_with( $parts['path'] ?? '', self::PATH_PREFIX )
-			&& strlen( $parts['path'] ?? '' ) > strlen( self::PATH_PREFIX );
+			&& ! isset( $parts['port'] )
+			&& ! isset( $parts['user'] )
+			&& ! isset( $parts['pass'] )
+			&& isset( $parts['path'] )
+			&& str_starts_with( $parts['path'], self::PATH_PREFIX )
+			&& strlen( $parts['path'] ) > strlen( self::PATH_PREFIX );
 	}
 
 	/**

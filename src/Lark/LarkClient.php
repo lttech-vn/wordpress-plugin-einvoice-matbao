@@ -7,6 +7,9 @@
 
 namespace LTTech\EinvoiceMatbao\Lark;
 
+// Exception messages are plain text that is escaped where rendered (Admin\Fragment), never echoed raw.
+// phpcs:disable WordPress.Security.EscapeOutput.ExceptionNotEscaped
+
 /**
  * Minimal Lark custom bot client. Uses the WordPress HTTP API (fake-able in tests) and never
  * puts the webhook URL or secret into error messages.

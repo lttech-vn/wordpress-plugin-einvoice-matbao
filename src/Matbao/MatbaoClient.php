@@ -7,6 +7,9 @@
 
 namespace LTTech\EinvoiceMatbao\Matbao;
 
+// Exception messages are plain text that is escaped where rendered (Admin\Fragment), never echoed raw.
+// phpcs:disable WordPress.Security.EscapeOutput.ExceptionNotEscaped
+
 use LTTech\EinvoiceMatbao\Encryption;
 
 /**

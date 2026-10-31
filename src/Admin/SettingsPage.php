@@ -213,7 +213,7 @@ final class SettingsPage {
 	/**
 	 * The template selection form returned by the templates route.
 	 *
-	 * @param list<MatbaoTemplate>                    $templates VAT templates from Mat Bao.
+	 * @param MatbaoTemplate[]                         $templates VAT templates from Mat Bao.
 	 * @param array{form: string, series: string}|null $selected  Current default template.
 	 * @return string Escaped HTML.
 	 */

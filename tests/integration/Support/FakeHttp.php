@@ -69,7 +69,7 @@ final class FakeHttp {
 	/**
 	 * Responds to "METHOD /path" with a custom handler.
 	 *
-	 * @param string                                                                $route   For example "POST /api/auth/login".
+	 * @param string                                                                  $route   For example "POST /api/auth/login".
 	 * @param callable(array<string, mixed>, string): (array<string, mixed>|WP_Error) $handler Receives request args and URL.
 	 */
 	public function respond_with( string $route, callable $handler ): void {

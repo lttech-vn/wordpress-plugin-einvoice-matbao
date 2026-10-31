@@ -9,6 +9,35 @@
 
 @source "../../src";
 
+/*
+ * Design tokens taken from Stripe DESIGN.md (VoltAgent/awesome-design-md), prefixed `einv-`.
+ * The proprietary Sohne face is not bundled; the documented system fallbacks are used.
+ * DESIGN.md defines no semantic palette, so success/error are the plugin's own status colours.
+ */
+@theme {
+	--color-einv-primary: #533afd;
+	--color-einv-primary-deep: #4434d4;
+	--color-einv-primary-press: #2e2b8c;
+	--color-einv-ink: #0d253d;
+	--color-einv-ink-secondary: #273951;
+	--color-einv-ink-mute: #64748d;
+	--color-einv-canvas-soft: #f6f9fc;
+	--color-einv-hairline: #e3e8ee;
+	--color-einv-hairline-input: #a8c3de;
+	--color-einv-success: #0e6245;
+	--color-einv-success-bg: #ebf8f2;
+	--color-einv-error: #c0123c;
+	--color-einv-error-bg: #fdecf1;
+
+	--font-einv: "SF Pro Display", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+	--radius-einv-sm: 6px;
+	--radius-einv-md: 8px;
+	--radius-einv-lg: 12px;
+
+	--shadow-einv-card: rgba(0, 55, 112, 0.08) 0 1px 3px;
+}
+
 #einv-app {
 	@import "tailwindcss/utilities.css" layer(utilities);
 }

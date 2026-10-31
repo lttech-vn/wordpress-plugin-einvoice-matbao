@@ -186,10 +186,20 @@ final class SettingsCredentialsRestTest extends SettingsRestTestCase {
 	public function test_lark_webhook_must_be_an_https_lark_bot_url(): void {
 		$this->with_encryption_key();
 
-		$response = $this->htmx( 'POST', '/settings/lark', array( 'webhook_url' => 'http://example.com/hook' ) );
+		$rejected = array(
+			'http://open.larksuite.com/open-apis/bot/v2/hook/abc',
+			'https://example.com/open-apis/bot/v2/hook/abc',
+			'https://open.larksuite.com:8443/open-apis/bot/v2/hook/abc',
+			'https://user@open.larksuite.com/open-apis/bot/v2/hook/abc',
+			'https://open.larksuite.com/open-apis/bot/v2/hook/',
+		);
 
-		$this->assertSame( 422, $response->get_status() );
-		$this->assertNull( ( new CredentialStore() )->lark() );
+		foreach ( $rejected as $url ) {
+			$response = $this->htmx( 'POST', '/settings/lark', array( 'webhook_url' => $url ) );
+
+			$this->assertSame( 422, $response->get_status(), $url );
+			$this->assertNull( ( new CredentialStore() )->lark(), $url );
+		}
 	}
 
 	public function test_stored_credentials_are_unreadable_with_a_different_key(): void {

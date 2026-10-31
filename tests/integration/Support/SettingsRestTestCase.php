@@ -29,13 +29,17 @@ abstract class SettingsRestTestCase extends WP_UnitTestCase {
 	protected const LARK_WEBHOOK = 'https://open.larksuite.com/open-apis/bot/v2/hook/00000000-fake-hook';
 	protected const LARK_SECRET  = 'fake-lark-sign-secret';
 
+	/**
+	 * Fake HTTP boundary installed for each test.
+	 *
+	 * @var FakeHttp
+	 */
 	protected FakeHttp $http;
 
 	public function set_up(): void {
 		parent::set_up();
 
-		global $wp_rest_server;
-		$wp_rest_server = null; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- fresh REST server per test.
+		$GLOBALS['wp_rest_server'] = null; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited, WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- fresh REST server per test.
 		rest_get_server();
 
 		$this->http = FakeHttp::install();
@@ -45,8 +49,7 @@ abstract class SettingsRestTestCase extends WP_UnitTestCase {
 		$this->http->uninstall();
 		remove_all_filters( 'einvoice_matbao_encryption_key' );
 
-		global $wp_rest_server;
-		$wp_rest_server = null; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- fresh REST server per test.
+		$GLOBALS['wp_rest_server'] = null; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited, WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- fresh REST server per test.
 
 		parent::tear_down();
 	}
@@ -102,7 +105,9 @@ abstract class SettingsRestTestCase extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Fakes a successful Mat Bao login and records nothing else.
+	 * Fakes a successful Mat Bao login.
+	 *
+	 * @param string $token Access token returned by the fake.
 	 */
 	protected function fake_matbao_login_ok( string $token = 'fake-token-1' ): void {
 		$this->http->respond_json(

@@ -135,7 +135,12 @@ final class SettingsConnectionRestTest extends SettingsRestTestCase {
 		$this->assertSame( 'text', $body['msg_type'] );
 		$this->assertIsString( $body['content']['text'] );
 		$timestamp = (string) $body['timestamp'];
-		$this->assertSame( base64_encode( hash_hmac( 'sha256', '', $timestamp . "\n" . self::LARK_SECRET, true ) ), $body['sign'] );
+		$this->assertSame(
+			base64_encode( // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- Lark signature format.
+				hash_hmac( 'sha256', '', $timestamp . "\n" . self::LARK_SECRET, true )
+			),
+			$body['sign']
+		);
 	}
 
 	public function test_lark_test_reports_rejection_without_echoing_the_webhook(): void {

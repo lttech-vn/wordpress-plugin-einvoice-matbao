@@ -21,13 +21,13 @@ final class SettingsRestAccessTest extends SettingsRestTestCase {
 	 */
 	public static function settings_routes(): array {
 		return array(
-			'templates list'  => array( 'GET', '/settings/templates' ),
-			'save matbao'     => array( 'POST', '/settings/matbao' ),
-			'test matbao'     => array( 'POST', '/settings/matbao/test' ),
-			'save lark'       => array( 'POST', '/settings/lark' ),
-			'test lark'       => array( 'POST', '/settings/lark/test' ),
-			'save template'   => array( 'POST', '/settings/template' ),
-			'save invoicing'  => array( 'POST', '/settings/invoicing' ),
+			'templates list' => array( 'GET', '/settings/templates' ),
+			'save matbao'    => array( 'POST', '/settings/matbao' ),
+			'test matbao'    => array( 'POST', '/settings/matbao/test' ),
+			'save lark'      => array( 'POST', '/settings/lark' ),
+			'test lark'      => array( 'POST', '/settings/lark/test' ),
+			'save template'  => array( 'POST', '/settings/template' ),
+			'save invoicing' => array( 'POST', '/settings/invoicing' ),
 		);
 	}
 
@@ -48,6 +48,8 @@ final class SettingsRestAccessTest extends SettingsRestTestCase {
 	}
 
 	/**
+	 * Rejection for the given route.
+	 *
 	 * @dataProvider settings_routes
 	 *
 	 * @param string $method HTTP method.
@@ -63,6 +65,8 @@ final class SettingsRestAccessTest extends SettingsRestTestCase {
 	}
 
 	/**
+	 * Rejection for the given route.
+	 *
 	 * @dataProvider settings_routes
 	 *
 	 * @param string $method HTTP method.
@@ -84,6 +88,8 @@ final class SettingsRestAccessTest extends SettingsRestTestCase {
 	}
 
 	/**
+	 * Rejection for the given route.
+	 *
 	 * @dataProvider settings_routes
 	 *
 	 * @param string $method HTTP method.
@@ -110,7 +116,14 @@ final class SettingsRestAccessTest extends SettingsRestTestCase {
 	public function test_administrator_with_nonce_gets_an_html_fragment(): void {
 		$this->login_as( 'administrator' );
 
-		$response = $this->htmx( 'POST', '/settings/invoicing', array( 'reference_prefix' => 'SHOP', 'walk_in_buyer_name' => 'Khách lẻ' ) );
+		$response = $this->htmx(
+			'POST',
+			'/settings/invoicing',
+			array(
+				'reference_prefix'   => 'SHOP',
+				'walk_in_buyer_name' => 'Khách lẻ',
+			)
+		);
 
 		$this->assertSame( 200, $response->get_status() );
 		$this->assertStringStartsWith( 'text/html', $response->get_headers()['Content-Type'] ?? '' );
@@ -122,6 +135,7 @@ final class SettingsRestAccessTest extends SettingsRestTestCase {
 		$response = $this->htmx( 'POST', '/settings/invoicing' );
 
 		ob_start();
+		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- core hook under test.
 		$served = apply_filters( 'rest_pre_serve_request', false, $response, new \WP_REST_Request( 'POST', self::NAMESPACE . '/settings/invoicing' ), rest_get_server() );
 		$output = (string) ob_get_clean();
 
@@ -135,6 +149,7 @@ final class SettingsRestAccessTest extends SettingsRestTestCase {
 		$request  = new \WP_REST_Request( 'GET', '/wp/v2/users/me' );
 		$response = rest_do_request( $request );
 
+		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- core hook under test.
 		$served = apply_filters( 'rest_pre_serve_request', false, $response, $request, rest_get_server() );
 
 		$this->assertFalse( $served );
