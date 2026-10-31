@@ -65,9 +65,10 @@ final class BlocksCheckout {
 	 * @return array<string, array<string, mixed>>
 	 */
 	public static function schema(): array {
-		$text = static fn( string $description ): array => array(
+		$text = static fn( string $description, int $max_length ): array => array(
 			'description' => $description,
 			'type'        => array( 'string', 'null' ),
+			'maxLength'   => $max_length,
 			'context'     => array(),
 		);
 
@@ -77,11 +78,16 @@ final class BlocksCheckout {
 				'type'        => array( 'boolean', 'null' ),
 				'context'     => array(),
 			),
-			'buyer_type'      => $text( 'individual or business.' ),
-			'business_name'   => $text( 'Business name.' ),
-			'tax_code'        => $text( 'Business tax code.' ),
-			'address'         => $text( 'Invoice address.' ),
-			'id_number'       => $text( 'Citizen ID, write-only.' ),
+			'buyer_type'      => array(
+				'description' => 'individual or business.',
+				'type'        => array( 'string', 'null' ),
+				'enum'        => array( 'individual', 'business', null ),
+				'context'     => array(),
+			),
+			'business_name'   => $text( 'Business name.', BuyerRules::MAX_BUSINESS_NAME ),
+			'tax_code'        => $text( 'Business tax code.', 14 ),
+			'address'         => $text( 'Invoice address.', BuyerRules::MAX_ADDRESS ),
+			'id_number'       => $text( 'Citizen ID, write-only.', 12 ),
 		);
 	}
 
@@ -104,7 +110,7 @@ final class BlocksCheckout {
 	}
 
 	/**
-	 * Validates and stores the request while the Store API places the order. Without the
+	 * Validates and stores the request while the Store API places the order (POST only). Without the
 	 * checkbox nothing is stored and the buyer is a walk-in buyer, whatever billing holds.
 	 *
 	 * @param WC_Order        $order   Order being placed.
@@ -112,6 +118,13 @@ final class BlocksCheckout {
 	 * @throws RouteException When a ticked request is invalid; the Store API answers 400 with the message.
 	 */
 	public static function save_to_order( WC_Order $order, WP_REST_Request $request ): void {
+		// The hook also fires on PUT/PATCH when a pending or failed order is in the session. Those
+		// calls are mid-typing updates: validating or storing there would refuse half-typed input
+		// and write the encrypted citizen ID on every change. Only the place-order POST counts.
+		if ( 'POST' !== $request->get_method() ) {
+			return;
+		}
+
 		$store = new BuyerRequestStore();
 		$data  = self::posted( $request );
 		if ( true !== ( $data['request_invoice'] ?? null ) ) {

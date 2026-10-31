@@ -41,6 +41,7 @@ function field(name: string, label: string, value: string, onChange: (v: string)
 			value,
 			maxLength,
 			autoComplete: "off",
+			"aria-required": "true",
 			"aria-invalid": error ? "true" : undefined,
 			"aria-describedby": error ? `${id}_error` : undefined,
 			onChange: (e: any) => onChange(e.target.value),
@@ -75,8 +76,12 @@ function InvoiceRequest({ checkoutExtensionData }: { checkoutExtensionData: { se
 	const first = Object.values(errors)[0];
 
 	useEffect(() => {
-		checkoutExtensionData.setExtensionData(NAMESPACE, requested ? { request_invoice: true, buyer_type: values.type, ...values } : { request_invoice: false });
+		const { type, ...rest } = values;
+		checkoutExtensionData.setExtensionData(NAMESPACE, requested ? { request_invoice: true, buyer_type: type, ...rest } : { request_invoice: false });
 	}, [requested, values]);
+
+	// A removed block must not leave a ticked request behind in the checkout store.
+	useEffect(() => () => checkoutExtensionData.setExtensionData(NAMESPACE, { request_invoice: false }), []);
 
 	useEffect(() => {
 		if (first) setValidationErrors({ [VALIDATION_ID]: { message: first, hidden: false } });

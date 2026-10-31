@@ -188,6 +188,14 @@ on `woocommerce_store_api_checkout_update_order_from_request` with `BuyerRules` 
 the Vietnamese message). The extension has no data callback: the CCCD is never echoed in a Store
 API response, the cart extensions, an order note or the session.
 
+The hook also fires on PUT/PATCH when a pending or failed order is in the session (failed-payment
+retry). Those calls are ignored: only the place-order `POST` validates and stores, so a half-typed
+request never gets a 400 and the encrypted CCCD is written once, on the real placement. A retry
+POST on the failed order stores the request normally. Draft orders (`checkout-draft`) never hold
+the CCCD. The schema caps lengths (CCCD 12, tax code 14, address and name 400), restricts
+`buyer_type` to `individual`/`business`, and `request_invoice` accepts only booleans (WordPress
+REST also accepts `"true"`/`1`); any other value is HTTP 400, never a silent walk-in.
+
 Limits: the block UI has no browser test (Playwright in Docker not set up); the server seam is
 covered by `tests/integration/BlocksCheckoutBuyerTest.php`. On a site whose Checkout page was
 customised before activation, add the "Yêu cầu xuất hóa đơn" block in the editor.
