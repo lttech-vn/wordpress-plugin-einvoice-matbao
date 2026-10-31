@@ -27,6 +27,7 @@ abstract class InvoiceWorkflowTestCase extends SettingsRestTestCase {
 	protected const TEMPLATE_SERIES = 'C26TAT';
 
 	protected const CREATE_ROUTE = 'POST /api/invoice/create-invoice';
+	protected const LOOKUP_ROUTE = 'POST /api/invoice/invoice-detail-batch';
 
 	/** Tax class slugs created per test; '' is the WooCommerce standard class. */
 	protected const CLASS_FIVE  = 'einv-five';
@@ -107,6 +108,69 @@ abstract class InvoiceWorkflowTestCase extends SettingsRestTestCase {
 	 */
 	protected function fake_create_invoice_timeout(): void {
 		$this->http->respond_with( self::CREATE_ROUTE, static fn(): WP_Error => new WP_Error( 'http_request_failed', 'cURL error 28: Operation timed out' ) );
+	}
+
+	/**
+	 * Makes the lookup by `MTChieu` answer "not found" (HTTP 200, errorCode 301), as the demo API does.
+	 */
+	protected function fake_lookup_not_found(): void {
+		$this->http->respond_with(
+			self::LOOKUP_ROUTE,
+			static function ( array $args ): array {
+				$sent = json_decode( (string) $args['body'], true );
+
+				return FakeHttp::json_response(
+					200,
+					array(
+						'errorCode' => 301,
+						'message'   => 'Không tìm thấy hóa đơn',
+						'data'      => array(
+							'invoices' => array(),
+							'notFound' => is_array( $sent ) ? $sent['danhSach'] : array(),
+						),
+						'success'   => false,
+					)
+				);
+			}
+		);
+	}
+
+	/**
+	 * Makes the lookup by `MTChieu` find a draft that already exists at Mat Bao.
+	 *
+	 * @param string $invoice_id `maSoHDon` of the existing draft.
+	 * @param string $issued_on  `nLap` of the existing draft.
+	 */
+	protected function fake_lookup_found( string $invoice_id = 'ZXhpc3RpbmctZHJhZnQ=', string $issued_on = '2026-10-14T00:00:00' ): void {
+		$this->http->respond_with(
+			self::LOOKUP_ROUTE,
+			static function ( array $args ) use ( $invoice_id, $issued_on ): array {
+				$sent = json_decode( (string) $args['body'], true );
+
+				return FakeHttp::json_response(
+					200,
+					array(
+						'errorCode' => 200,
+						'message'   => 'Thành công',
+						'data'      => array(
+							'invoices' => array(
+								array(
+									'maSoHDon'    => $invoice_id,
+									'khmshDon'    => is_array( $sent ) ? $sent['mauSo'] : '',
+									'khhDon'      => is_array( $sent ) ? $sent['kiHieu'] : '',
+									'shDon'       => 0,
+									'nLap'        => $issued_on,
+									'mtChieu'     => is_array( $sent ) ? $sent['danhSach'][0] : '',
+									'tenLoaiHDon' => 'Nháp',
+								),
+							),
+							'notFound' => array(),
+						),
+						'success'   => true,
+					)
+				);
+			}
+		);
 	}
 
 	/**
@@ -203,6 +267,30 @@ abstract class InvoiceWorkflowTestCase extends SettingsRestTestCase {
 		}
 
 		return count( $ids );
+	}
+
+	/**
+	 * Seconds from now until the next scheduled draft action.
+	 *
+	 * @return int|null Null when none is scheduled.
+	 */
+	protected function seconds_until_next_draft_action(): ?int {
+		$next = as_next_scheduled_action( DraftInvoiceWorkflow::ACTION );
+
+		return is_int( $next ) ? $next - time() : null;
+	}
+
+	/**
+	 * Pretends an invoice row last changed this long ago.
+	 *
+	 * @param InvoiceRecord $invoice Invoice.
+	 * @param int           $seconds Age in seconds.
+	 */
+	protected function age_invoice( InvoiceRecord $invoice, int $seconds ): void {
+		global $wpdb;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery -- test manipulates raw storage on purpose.
+		$wpdb->update( $wpdb->prefix . 'einvoice_matbao_invoice', array( 'updated_at' => gmdate( 'Y-m-d H:i:s', time() - $seconds ) ), array( 'id' => $invoice->id ) );
 	}
 
 	/**
