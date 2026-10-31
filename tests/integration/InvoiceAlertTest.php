@@ -23,6 +23,11 @@ use WP_Error;
  */
 final class InvoiceAlertTest extends InvoiceWorkflowTestCase {
 
+	/**
+	 * Path route of the fake Lark webhook.
+	 *
+	 * @var string
+	 */
 	private string $lark_route = '';
 
 	public function set_up(): void {
@@ -34,7 +39,14 @@ final class InvoiceAlertTest extends InvoiceWorkflowTestCase {
 	private function configure_lark(): void {
 		$this->with_encryption_key();
 		( new CredentialStore() )->save_lark( new LarkWebhook( self::LARK_WEBHOOK, self::LARK_SECRET ) );
-		$this->http->respond_json( $this->lark_route, 200, array( 'code' => 0, 'msg' => 'success' ) );
+		$this->http->respond_json(
+			$this->lark_route,
+			200,
+			array(
+				'code' => 0,
+				'msg'  => 'success',
+			)
+		);
 	}
 
 	private function failing_order(): WC_Order {
@@ -110,7 +122,7 @@ final class InvoiceAlertTest extends InvoiceWorkflowTestCase {
 		$order->save();
 		$this->run_alert_actions();
 
-		$payload = (string) wp_json_encode( $this->http->requests_to( $this->lark_route ) ) . $this->notice_html();
+		$payload = (string) wp_json_encode( $this->http->requests_to( $this->lark_route )[0]['body'] ) . $this->notice_html();
 
 		foreach ( array( 'Nguyễn', 'Văn A', 'buyer@example.invalid', 'Lê Lợi', 'Công ty', 'Sai dữ liệu', 'fake-hook', self::LARK_SECRET, 'fake-token' ) as $forbidden ) {
 			$this->assertStringNotContainsString( $forbidden, $payload, $forbidden );
@@ -139,8 +151,8 @@ final class InvoiceAlertTest extends InvoiceWorkflowTestCase {
 		$invoice = $this->invoice_of( $order );
 		$this->assertNotNull( $invoice );
 
-		do_action( DraftInvoiceWorkflow::NEEDS_ATTENTION_ACTION, $invoice, $invoice->error() );
-		do_action( DraftInvoiceWorkflow::EXHAUSTED_HOOK, $order->get_id(), $invoice->reference );
+		do_action( 'einvoice_matbao_invoice_needs_attention', $invoice, $invoice->error() );
+		do_action( 'einvoice_matbao_retries_exhausted', $order->get_id(), $invoice->reference );
 
 		$this->assertSame( 0, $this->run_alert_actions() );
 		$this->assertCount( 1, $this->http->requests_to( $this->lark_route ) );
@@ -155,10 +167,11 @@ final class InvoiceAlertTest extends InvoiceWorkflowTestCase {
 		// A new PHP request: nothing but the database remains.
 		wp_cache_flush();
 		$invoice = $this->invoice_of( $order );
-		do_action( DraftInvoiceWorkflow::NEEDS_ATTENTION_ACTION, $invoice, $invoice?->error() );
+		do_action( 'einvoice_matbao_invoice_needs_attention', $invoice, $invoice?->error() );
 		$this->assertSame( 0, $this->run_alert_actions() );
 
 		// The admin resends and it fails the same way: a new cycle.
+		$this->fake_lookup_not_found();
 		$this->assertTrue( DraftInvoiceWorkflow::restart( $order->get_id(), InvoiceStatus::FAILED ) );
 		$this->run_queued_draft_actions();
 		$this->assertSame( 1, $this->run_alert_actions() );
@@ -171,7 +184,7 @@ final class InvoiceAlertTest extends InvoiceWorkflowTestCase {
 		$this->run_alert_actions();
 		$invoice = $this->invoice_of( $order );
 
-		do_action( DraftInvoiceWorkflow::NEEDS_ATTENTION_ACTION, $invoice, \LTTech\EinvoiceMatbao\Invoice\InvoiceErrorCode::UNEXPECTED );
+		do_action( 'einvoice_matbao_invoice_needs_attention', $invoice, \LTTech\EinvoiceMatbao\Invoice\InvoiceErrorCode::UNEXPECTED );
 
 		$this->assertSame( 1, $this->run_alert_actions() );
 	}
@@ -179,7 +192,7 @@ final class InvoiceAlertTest extends InvoiceWorkflowTestCase {
 	public function test_lark_http_failure_only_leaves_a_notice_and_does_not_touch_the_invoice(): void {
 		$this->configure_lark();
 		$this->http->respond_json( $this->lark_route, 500, array( 'msg' => 'boom' ) );
-		$order = $this->failing_order();
+		$order  = $this->failing_order();
 		$before = $this->invoice_of( $order );
 
 		$this->run_alert_actions();

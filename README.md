@@ -125,6 +125,18 @@ error still waiting for a retry, do not.
 Admin and Lark alerts (#7) hook there. The `InvoiceRecord` carries `buyer_name` (a person's name or a
 business name), so an alert listener must not forward that column.
 
+## Alerts (admin notice and Lark)
+
+`Alert\InvoiceAlerts` listens to `einvoice_matbao_invoice_needs_attention` and
+`einvoice_matbao_retries_exhausted`. It records one alert per (order, error code, retry cycle) in a
+non-autoloaded option (`add_option` is atomic and survives restarts), then queues the Lark message
+with Action Scheduler (`einvoice_matbao_send_alert`) so the invoice run never waits for Lark. A
+resend by an admin starts a new retry cycle, so the same error alerts again. The Lark text holds
+only the order number, the error label and code, and the admin link to the order. Lark failures
+(network, HTTP, no webhook) are logged without personal data and shown as a note in the admin
+notice; they never touch the invoice or queue a draft action. The notice shows for `manage_options`
+users, links to the order and can be dismissed.
+
 ## Unit of measure (`DVTinh`)
 
 The store default is set on the settings page; fees and shipping always use it. A product or
@@ -227,7 +239,7 @@ suites through the same Docker Compose stack used locally.
 - The sweep runs on Action Scheduler too: if Action Scheduler is down entirely, nothing is recovered
   and nothing alerts.
 - A draft adopted by the lookup keeps the `NLap` Mat Bao reports, which may predate the day it was adopted.
-- The manual re-send button and the alert for `needs_attention` are #9 and #7.
+- The manual re-send button is #9.
 - A `buyer_invalid` row is `failed` and holds no buyer snapshot, and nothing restarts a `failed` row yet.
   A re-send (#9) must run `BuyerSnapshotter::validate()` again and `capture()` when the row has no
   snapshot or it needs updating. Capturing again is only safe while the invoice cannot have been created
