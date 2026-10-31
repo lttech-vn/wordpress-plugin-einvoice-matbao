@@ -8,6 +8,7 @@
 namespace LTTech\EinvoiceMatbao\Tests\Integration;
 
 use LTTech\EinvoiceMatbao\Invoice\DraftInvoiceWorkflow;
+use LTTech\EinvoiceMatbao\Invoice\InvoiceRepository;
 use LTTech\EinvoiceMatbao\Invoice\InvoiceStatus;
 use LTTech\EinvoiceMatbao\Settings;
 use LTTech\EinvoiceMatbao\Tests\Integration\Support\InvoiceWorkflowTestCase;
@@ -406,5 +407,199 @@ final class DraftInvoiceWorkflowTest extends InvoiceWorkflowTestCase {
 
 		$this->assertNull( $this->invoice_of( $order ) );
 		$this->assertSame( array(), $this->queued_draft_action_ids() );
+	}
+
+	public function test_free_shipping_in_a_paid_order_is_left_off_the_invoice(): void {
+		$this->configure_matbao();
+		$this->fake_create_invoice_ok();
+		$order    = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
+		$shipping = new WC_Order_Item_Shipping();
+		$shipping->set_method_title( 'Miễn phí vận chuyển' );
+		$shipping->set_total( '0' );
+		$order->add_item( $shipping );
+		$order->calculate_totals();
+		$order->save();
+
+		$this->complete_and_run( $order );
+
+		$invoice = $this->sent_invoices()[0];
+		$this->assertSame( array( 'A' ), array_column( $invoice['DSHHDVu'], 'THHDVu' ) );
+		$this->assertSame( 110000, $invoice['TgTTTBSo'] );
+		$this->assertSame( InvoiceStatus::DRAFT_CREATED, $this->invoice_of( $order )?->status );
+	}
+
+	public function test_zero_fee_in_a_paid_order_is_left_off_the_invoice(): void {
+		$this->configure_matbao();
+		$this->fake_create_invoice_ok();
+		$order = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
+		$fee   = new WC_Order_Item_Fee();
+		$fee->set_name( 'Phí 0 đồng' );
+		$fee->set_total( '0' );
+		$fee->set_tax_status( 'taxable' );
+		$order->add_item( $fee );
+		$order->calculate_totals();
+		$order->save();
+
+		$this->complete_and_run( $order );
+
+		$this->assertSame( array( 'A' ), array_column( $this->sent_invoices()[0]['DSHHDVu'], 'THHDVu' ) );
+	}
+
+	public function test_free_product_in_a_paid_order_is_sent_with_rate_by_tax_status(): void {
+		$this->configure_matbao();
+		$this->fake_create_invoice_ok();
+		$order = $this->create_order(
+			array(
+				array( $this->create_product( 'A', '100000' ), 1 ),
+				array( $this->create_product( 'Tặng kèm', '0' ), 1 ),
+				array( $this->create_product( 'Tặng kèm KCT', '0', '', 'none' ), 1 ),
+			)
+		);
+
+		$this->complete_and_run( $order );
+
+		$lines = $this->sent_invoices()[0]['DSHHDVu'];
+		$this->assertSame( array( 'A', 'Tặng kèm', 'Tặng kèm KCT' ), array_column( $lines, 'THHDVu' ) );
+		$this->assertSame( array( 10, 10, -1 ), array_column( $lines, 'TSuat' ) );
+		$this->assertSame( array( 100000, 0, 0 ), array_column( $lines, 'ThTien' ) );
+		$this->assertSame( 110000, $this->sent_invoices()[0]['TgTTTBSo'] );
+	}
+
+	public function test_free_product_without_a_stored_rate_uses_the_rate_for_its_tax_status(): void {
+		$this->configure_matbao();
+		$this->fake_create_invoice_ok();
+		$order = $this->create_order(
+			array(
+				array( $this->create_product( 'A', '100000' ), 1 ),
+				array( $this->create_product( 'Tặng kèm', '0' ), 1 ),
+				array( $this->create_product( 'Tặng kèm KCT', '0', '', 'none' ), 1 ),
+			)
+		);
+		foreach ( $order->get_items() as $item ) {
+			if ( 'A' !== $item->get_name() ) {
+				$item->set_taxes(
+					array(
+						'total'    => array(),
+						'subtotal' => array(),
+					)
+				);
+			}
+		}
+		$order->save();
+
+		$this->complete_and_run( $order );
+
+		$lines = $this->sent_invoices()[0]['DSHHDVu'];
+		$this->assertSame( array( 10, 0, -1 ), array_column( $lines, 'TSuat' ) );
+	}
+
+	public function test_shop_without_tax_calculation_is_failed_instead_of_guessing_a_rate(): void {
+		update_option( 'woocommerce_calc_taxes', 'no' );
+		$this->configure_matbao();
+		$this->fake_create_invoice_ok();
+		$order = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
+
+		$this->complete_and_run( $order );
+
+		$this->assertCount( 0, $this->http->requests_to( self::CREATE_ROUTE ) );
+		$record = $this->invoice_of( $order );
+		$this->assertSame( InvoiceStatus::FAILED, $record?->status );
+		$this->assertStringContainsString( 'thuế suất', (string) $record?->status_reason );
+	}
+
+	public function test_fractional_money_is_refused_whatever_the_price_decimals_setting(): void {
+		update_option( 'woocommerce_price_num_decimals', '2' );
+		$this->configure_matbao();
+		$this->fake_create_invoice_ok();
+		$net_order = $this->create_order( array( array( $this->create_product( 'Lẻ', '100.5', self::CLASS_ZERO ), 1 ) ) );
+		$tax_order = $this->create_order( array( array( $this->create_product( 'Thuế lẻ', '1005' ), 1 ) ) );
+
+		$this->complete_and_run( $net_order );
+		$this->complete_and_run( $tax_order );
+
+		$this->assertCount( 0, $this->http->requests_to( self::CREATE_ROUTE ) );
+		foreach ( array( $net_order, $tax_order ) as $order ) {
+			$record = $this->invoice_of( $order );
+			$this->assertSame( InvoiceStatus::FAILED, $record?->status );
+			$this->assertStringContainsString( 'số nguyên', (string) $record?->status_reason );
+		}
+	}
+
+	public function test_whole_money_with_price_decimals_enabled_is_sent_as_integers(): void {
+		update_option( 'woocommerce_price_num_decimals', '2' );
+		$this->configure_matbao();
+		$this->fake_create_invoice_ok();
+		$order = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
+
+		$this->complete_and_run( $order );
+
+		$invoice = $this->sent_invoices()[0];
+		$this->assertSame( 110000, $invoice['TgTTTBSo'] );
+		$this->assertSame( 'Một trăm mười nghìn đồng', $invoice['TgTTTBChu'] );
+	}
+
+	public function test_rounding_at_subtotal_with_fractional_line_tax_never_sends_a_wrong_invoice(): void {
+		update_option( 'woocommerce_tax_round_at_subtotal', 'yes' );
+		$this->configure_matbao();
+		$this->fake_create_invoice_ok();
+		$order = $this->create_order(
+			array(
+				array( $this->create_product( 'A', '105' ), 1 ),
+				array( $this->create_product( 'B', '105' ), 1 ),
+			)
+		);
+
+		$this->complete_and_run( $order );
+
+		$record = $this->invoice_of( $order );
+		$this->assertSame( InvoiceStatus::FAILED, $record?->status );
+		$this->assertCount( 0, $this->http->requests_to( self::CREATE_ROUTE ) );
+		$this->assertStringContainsString( 'số nguyên', (string) $record?->status_reason );
+	}
+
+	public function test_invoice_already_sending_is_not_sent_again_by_the_action(): void {
+		$this->configure_matbao();
+		$this->fake_create_invoice_ok();
+		$order = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
+		$order->update_status( 'completed' );
+		$record = $this->invoice_of( $order );
+		$this->assertNotNull( $record );
+		( new InvoiceRepository() )->update_status( $record->id, InvoiceStatus::SENDING );
+
+		do_action( 'einvoice_matbao_create_draft', $order->get_id() );
+
+		$this->assertCount( 0, $this->http->requests_to( self::CREATE_ROUTE ) );
+		$this->assertSame( InvoiceStatus::SENDING, $this->invoice_of( $order )?->status );
+	}
+
+	public function test_failing_to_queue_the_action_marks_the_invoice_failed(): void {
+		$this->configure_matbao();
+		add_filter( 'pre_as_enqueue_async_action', static fn(): int => 0 );
+		$order = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
+
+		$order->update_status( 'completed' );
+
+		$record = $this->invoice_of( $order );
+		$this->assertSame( InvoiceStatus::FAILED, $record?->status );
+		$this->assertNotSame( '', $record?->status_reason );
+	}
+
+	public function test_unexpected_error_after_claiming_marks_the_invoice_failed_without_leaking_details(): void {
+		$this->configure_matbao();
+		$this->http->respond_with(
+			self::CREATE_ROUTE,
+			static function (): never {
+				throw new \RuntimeException( 'secret-token https://internal.example/path' );
+			}
+		);
+		$order = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
+
+		$this->complete_and_run( $order );
+
+		$record = $this->invoice_of( $order );
+		$this->assertSame( InvoiceStatus::FAILED, $record?->status );
+		$this->assertNotSame( '', $record?->status_reason );
+		$this->assertStringNotContainsString( 'secret-token', (string) $record?->status_reason );
+		$this->assertStringNotContainsString( 'internal.example', (string) $record?->status_reason );
 	}
 }
