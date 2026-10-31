@@ -72,6 +72,39 @@ final class MatbaoClient {
 	}
 
 	/**
+	 * Creates one invoice (`/api/invoice/create-invoice` takes a list; this sends a list of one).
+	 *
+	 * The envelope can succeed while the invoice itself is rejected (per-item `success` false), so
+	 * the item result is checked too.
+	 *
+	 * @param array<string, mixed> $invoice Invoice payload, see Invoice\DraftPayloadBuilder.
+	 * @return string `maSoHDon` (encrypted Mat Bao invoice ID) of the created invoice.
+	 * @throws MatbaoError When the call fails or Mat Bao rejects the invoice.
+	 */
+	public function create_invoice( array $invoice ): string {
+		$data = $this->authorized( 'POST', '/api/invoice/create-invoice', array( $invoice ) );
+
+		$item = is_array( $data ) && is_array( $data[0] ?? null ) ? array_change_key_case( $data[0], CASE_LOWER ) : null;
+		if ( null === $item ) {
+			throw new MatbaoError( MatbaoError::KIND_API, 'Unexpected create-invoice response.' ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- plain text, escaped where rendered.
+		}
+
+		$api_code = is_numeric( $item['errorcode'] ?? null ) ? (int) $item['errorcode'] : null;
+		$message  = is_string( $item['message'] ?? null ) && '' !== $item['message'] ? $item['message'] : 'Invoice rejected.';
+		if ( true !== ( $item['success'] ?? null ) ) {
+			throw new MatbaoError( MatbaoError::KIND_API, $message, $api_code ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Mat Bao message, escaped where rendered.
+		}
+
+		$created    = is_array( $item['data'] ?? null ) ? $item['data'] : array();
+		$invoice_id = is_string( $created['maSoHDon'] ?? null ) ? $created['maSoHDon'] : '';
+		if ( '' === $invoice_id ) {
+			throw new MatbaoError( MatbaoError::KIND_API, 'Create-invoice response has no invoice ID.', $api_code ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- plain text, escaped where rendered.
+		}
+
+		return $invoice_id;
+	}
+
+	/**
 	 * Calls an endpoint with the cached token, logging in again once if Mat Bao rejects it.
 	 *
 	 * @param string            $method HTTP method.

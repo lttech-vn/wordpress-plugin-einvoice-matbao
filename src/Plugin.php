@@ -23,6 +23,7 @@ final class Plugin {
 		add_action( 'before_woocommerce_init', array( self::class, 'declare_woocommerce_compatibility' ) );
 		add_action( 'init', array( self::class, 'load_textdomain' ) );
 		add_action( 'plugins_loaded', array( self::class, 'boot' ) );
+		register_activation_hook( EINVOICE_MATBAO_FILE, array( Invoice\Schema::class, 'install' ) );
 	}
 
 	/**
@@ -34,11 +35,15 @@ final class Plugin {
 			return;
 		}
 
+		Invoice\Schema::maybe_install();
+		Invoice\DraftInvoiceWorkflow::register();
+
 		add_action( 'rest_api_init', array( Admin\SettingsController::class, 'register_routes' ) );
 		add_filter( 'rest_pre_serve_request', array( Admin\SettingsController::class, 'serve_html' ), 10, 4 );
 
 		if ( is_admin() ) {
 			Admin\SettingsPage::register();
+			Admin\OrderInvoiceMetaBox::register();
 		}
 	}
 
