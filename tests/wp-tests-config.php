@@ -5,6 +5,8 @@
  * @package EinvoiceMatbao
  */
 
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedConstantFound -- constants required by the WordPress test suite.
+
 define( 'ABSPATH', '/var/www/html/' );
 
 define( 'DB_NAME', getenv( 'WP_TESTS_DB_NAME' ) ? getenv( 'WP_TESTS_DB_NAME' ) : 'wordpress_test' );

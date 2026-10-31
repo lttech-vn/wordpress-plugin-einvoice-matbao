@@ -5,9 +5,10 @@
  * @package EinvoiceMatbao
  */
 
-require dirname( __DIR__, 2 ) . '/vendor/autoload.php';
+// wp-phpunit reads its config path from the environment.
+putenv( 'WP_PHPUNIT__TESTS_CONFIG=' . dirname( __DIR__ ) . '/wp-tests-config.php' ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.runtime_configuration_putenv
 
-putenv( 'WP_PHPUNIT__TESTS_CONFIG=' . dirname( __DIR__ ) . '/wp-tests-config.php' );
+require dirname( __DIR__, 2 ) . '/vendor/autoload.php';
 
 require_once getenv( 'WP_PHPUNIT__DIR' ) . '/includes/functions.php';
 
