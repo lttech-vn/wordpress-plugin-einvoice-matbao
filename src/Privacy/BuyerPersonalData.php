@@ -305,6 +305,10 @@ final class BuyerPersonalData {
 			$values[]              = $invoice->buyer_name;
 			$changes['buyer_name'] = $deleted;
 		}
+		if ( '' !== $invoice->order_state ) {
+			// The digest is keyed from the buyer's data, so it goes with the anonymized row.
+			$changes['order_state'] = '';
+		}
 		$reason = self::scrub( $invoice->status_reason, $values );
 		if ( $reason !== $invoice->status_reason ) {
 			$changes['status_reason'] = $reason;
@@ -313,7 +317,9 @@ final class BuyerPersonalData {
 		$changed = false;
 		if ( array() !== $changes ) {
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery -- plugin table, no cache layer.
-			$changed = false !== $wpdb->update( Schema::invoice_table(), $changes, array( 'id' => $invoice->id ), array_fill( 0, count( $changes ), '%s' ), array( '%d' ) );
+			$updated = false !== $wpdb->update( Schema::invoice_table(), $changes, array( 'id' => $invoice->id ), array_fill( 0, count( $changes ), '%s' ), array( '%d' ) );
+			// Clearing the digest alone is no buyer data change worth reporting.
+			$changed = $updated && array( 'order_state' ) !== array_keys( $changes );
 		}
 
 		foreach ( ( new InvoiceRepository() )->attempts( $invoice->id ) as $attempt ) {
