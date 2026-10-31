@@ -40,6 +40,21 @@ back in the UI. The Mat Bao access token is cached encrypted in a transient (at 
 The page talks to the `einvoice-matbao/v1` REST namespace through htmx; every route returns an HTML
 fragment, requires `manage_options` and a `wp_rest` nonce in `X-WP-Nonce`.
 
+## Draft invoices for completed orders
+
+When an order moves to `completed` (only while the plugin is active; older orders are never
+scanned), the plugin reserves one row in `{prefix}einvoice_matbao_invoice` (`UNIQUE(order_id)`,
+fixed `MTChieu` = prefix + `WC` + order ID) and queues one Action Scheduler action
+(`einvoice_matbao_create_draft`, group `einvoice-matbao`). The action claims the row and calls
+`create-invoice` with `LoaiHDon=0` (draft) and `KTraMTChieuTrung=1` for a walk-in buyer; each call
+is logged in `{prefix}einvoice_matbao_attempt`. Status, `MTChieu`, Mat Bao invoice ID and errors
+show in the **Hóa đơn Mắt Bão** box on the order screen (HPOS and legacy).
+
+The payload uses the amounts and taxes stored on each order line (discounted prices, fees and
+shipping as their own lines, `TSuat` 0/5/8/10 or -1 for tax status `none`) and must reconcile with
+the order totals; otherwise nothing is sent and the invoice is marked failed. 0 VND orders are
+skipped with a reason. Failures are not retried yet.
+
 ## Tests, lint and static analysis
 
 One command runs everything (starts the stack if needed):
