@@ -1,0 +1,9 @@
+{
+	"name": "einvoice-matbao-e2e",
+	"private": true,
+	"description": "Browser E2E for Classic and Blocks checkout (run in the Playwright Docker image).",
+	"license": "GPL-2.0-or-later",
+	"devDependencies": {
+		"@playwright/test": "1.64.1"
+	}
+}
