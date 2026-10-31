@@ -18,7 +18,9 @@ use LTTech\EinvoiceMatbao\Invoice\InvoiceRepository;
 use LTTech\EinvoiceMatbao\Invoice\InvoiceStatus;
 use LTTech\EinvoiceMatbao\Invoice\Schema;
 use LTTech\EinvoiceMatbao\Lark\LarkWebhook;
+use LTTech\EinvoiceMatbao\Matbao\MatbaoClient;
 use LTTech\EinvoiceMatbao\Matbao\MatbaoCredentials;
+use LTTech\EinvoiceMatbao\Matbao\TemplateCache;
 use LTTech\EinvoiceMatbao\Plugin;
 use LTTech\EinvoiceMatbao\Settings;
 use LTTech\EinvoiceMatbao\Uninstall\Uninstaller;
@@ -50,6 +52,8 @@ final class UninstallTest extends WP_UnitTestCase {
 		global $wpdb;
 
 		remove_all_filters( 'einvoice_matbao_encryption_key' );
+		remove_all_filters( 'pre_http_request' );
+		wp_using_ext_object_cache( false );
 		// phpcs:disable WordPress.DB.DirectDatabaseQuery -- test fixture tables.
 		$wpdb->query( $wpdb->prepare( 'DROP TEMPORARY TABLE IF EXISTS %i', Schema::invoice_table() ) );
 		$wpdb->query( $wpdb->prepare( 'DROP TEMPORARY TABLE IF EXISTS %i', Schema::attempt_table() ) );
@@ -65,14 +69,19 @@ final class UninstallTest extends WP_UnitTestCase {
 		$this->assertSame( array( BuyerRequestStore::META_KEY, BuyerSnapshotter::META_KEY ), Uninstaller::ORDER_META_KEYS );
 		$this->assertSame( ProductUnitField::META_KEY, Uninstaller::PRODUCT_META_KEY );
 		$this->assertSame( DraftInvoiceWorkflow::GROUP, Uninstaller::ACTION_GROUP );
+		$this->assertSame( ( new \ReflectionClassConstant( TemplateCache::class, 'TRANSIENT' ) )->getValue(), Uninstaller::TEMPLATES_TRANSIENT );
+		$this->assertSame( MatbaoClient::TOKEN_KEYS_OPTION, Uninstaller::TOKEN_KEYS_OPTION );
 		$this->assertSame( array( 'einvoice_matbao_invoice', 'einvoice_matbao_attempt' ), Uninstaller::TABLES );
 	}
 
 	public function test_default_uninstall_removes_credentials_and_caches_and_keeps_invoice_data(): void {
 		$fixture = $this->store_plugin_data();
 		$version = get_option( Schema::VERSION_OPTION );
+		$this->add_lookalike_options();
 
 		Uninstaller::run();
+
+		$this->assert_lookalike_options_kept();
 
 		$this->assertFalse( get_option( CredentialStore::OPTION ) );
 		$this->assertFalse( get_transient( 'einvoice_matbao_token_abc' ) );
@@ -95,7 +104,7 @@ final class UninstallTest extends WP_UnitTestCase {
 		global $wpdb;
 		$fixture = $this->store_plugin_data();
 		( new Settings() )->save_delete_data_on_uninstall( true );
-		update_option( 'unrelated_option', 'kept' );
+		$this->add_lookalike_options();
 
 		Uninstaller::run();
 
@@ -106,14 +115,53 @@ final class UninstallTest extends WP_UnitTestCase {
 		$this->assertSame( '0', $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i', Schema::invoice_table() ) ) );
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery -- test inspects raw storage.
-		$options = $wpdb->get_col( "SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE '%einvoice\\_matbao%'" );
+		$options = $wpdb->get_col( "SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE 'einvoice\\_matbao\\_%'" );
 		$this->assertSame( array(), $options );
-		$this->assertSame( 'kept', get_option( 'unrelated_option' ) );
+		$this->assert_lookalike_options_kept();
 
 		$this->assertSame( array(), $this->order_meta_rows() );
 		$this->assertSame( '', get_post_meta( $fixture['product_id'], ProductUnitField::META_KEY, true ) );
 		$this->assertSame( array(), $this->pending_plugin_actions() );
 		$this->assertInstanceOf( WC_Order::class, wc_get_order( $fixture['order']->get_id() ), 'Orders themselves stay.' );
+	}
+
+	public function test_uninstall_deletes_the_token_and_templates_transients_of_a_persistent_object_cache(): void {
+		global $wpdb;
+		wp_using_ext_object_cache( true ); // Transients then live in the cache only, not in the options table.
+		$this->store_plugin_data();
+		add_filter(
+			'pre_http_request',
+			static fn(): array => array(
+				'headers'  => array(),
+				'body'     => (string) wp_json_encode(
+					array(
+						'success' => true,
+						'data'    => array(
+							'accessToken' => 'fake-token',
+							'expiredDate' => gmdate( 'Y-m-d\TH:i:s', time() + DAY_IN_SECONDS ),
+						),
+					)
+				),
+				'response' => array(
+					'code'    => 200,
+					'message' => 'OK',
+				),
+				'cookies'  => array(),
+			)
+		);
+		( new MatbaoClient( new MatbaoCredentials( 'demo', '0000000000', 'fake-user', 'fake-password' ) ) )->test_connection();
+		set_transient( 'einvoice_matbao_templates', array( 'account' => 'x' ), HOUR_IN_SECONDS );
+		$names = get_option( 'einvoice_matbao_token_keys' );
+		$this->assertIsArray( $names );
+		$this->assertCount( 1, $names );
+		$this->assertNotFalse( get_transient( $names[0] ) );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery -- test inspects raw storage.
+		$this->assertSame( array(), $wpdb->get_col( "SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE '\\_transient\\_einvoice\\_matbao%'" ), 'The transients are not in the options table.' );
+
+		Uninstaller::run();
+
+		$this->assertFalse( get_transient( $names[0] ) );
+		$this->assertFalse( get_transient( 'einvoice_matbao_templates' ) );
 	}
 
 	public function test_uninstall_file_runs_the_uninstaller_when_wordpress_deletes_the_plugin(): void {
@@ -147,6 +195,22 @@ final class UninstallTest extends WP_UnitTestCase {
 
 		$this->assertSame( array(), $this->pending_plugin_actions() );
 		$this->assertSame( 'pending', \ActionScheduler::store()->get_status( (string) $other ) );
+	}
+
+	/**
+	 * Options that share the plugin's prefix only partly, so a LIKE with an unescaped `_` or a
+	 * too short prefix would delete them.
+	 */
+	private function add_lookalike_options(): void {
+		foreach ( array( 'unrelated_option', 'einvoice_other_x', 'einvoice_matbaoX' ) as $name ) {
+			update_option( $name, 'kept' );
+		}
+	}
+
+	private function assert_lookalike_options_kept(): void {
+		foreach ( array( 'unrelated_option', 'einvoice_other_x', 'einvoice_matbaoX' ) as $name ) {
+			$this->assertSame( 'kept', get_option( $name ), $name . ' belongs to another plugin.' );
+		}
 	}
 
 	/**
