@@ -10,12 +10,13 @@ namespace LTTech\EinvoiceMatbao\Tests\Integration;
 use LTTech\EinvoiceMatbao\Admin\OrderInvoiceMetaBox;
 use LTTech\EinvoiceMatbao\Invoice\DraftInvoiceWorkflow;
 use LTTech\EinvoiceMatbao\Invoice\InvoiceErrorCode;
-use LTTech\EinvoiceMatbao\Invoice\InvoiceErrorKind;
 use LTTech\EinvoiceMatbao\Invoice\InvoiceRecord;
 use LTTech\EinvoiceMatbao\Invoice\InvoiceStatus;
 use LTTech\EinvoiceMatbao\Settings;
 use LTTech\EinvoiceMatbao\Tests\Integration\Support\InvoiceWorkflowTestCase;
 use WC_Order;
+use WC_Order_Item_Fee;
+use WC_Order_Item_Product;
 use WC_Tax;
 
 /**
@@ -62,7 +63,7 @@ final class BlockedDraftInvoiceTest extends InvoiceWorkflowTestCase {
 
 		$this->complete_and_run( $order );
 
-		$this->assert_blocked( $order, InvoiceErrorCode::TAX_RATE_UNSUPPORTED, InvoiceStatus::FAILED, '7%' );
+		$this->assert_blocked( $order, InvoiceErrorCode::TAX_RATE_UNSUPPORTED, 'data', InvoiceStatus::FAILED, '7%' );
 	}
 
 	public function test_line_with_several_tax_rates_blocks_the_draft(): void {
@@ -86,7 +87,7 @@ final class BlockedDraftInvoiceTest extends InvoiceWorkflowTestCase {
 
 		$this->complete_and_run( $order );
 
-		$this->assert_blocked( $order, InvoiceErrorCode::LINE_TAX_RATE_COUNT, InvoiceStatus::FAILED, 'đúng một thuế suất' );
+		$this->assert_blocked( $order, InvoiceErrorCode::LINE_TAX_RATE_COUNT, 'data', InvoiceStatus::FAILED, 'đúng một thuế suất' );
 	}
 
 	public function test_line_totals_that_differ_from_the_order_total_block_the_draft(): void {
@@ -98,7 +99,7 @@ final class BlockedDraftInvoiceTest extends InvoiceWorkflowTestCase {
 
 		$this->complete_and_run( $order );
 
-		$this->assert_blocked( $order, InvoiceErrorCode::TOTALS_MISMATCH, InvoiceStatus::FAILED, 'không khớp' );
+		$this->assert_blocked( $order, InvoiceErrorCode::TOTALS_MISMATCH, 'data', InvoiceStatus::FAILED, 'không khớp' );
 	}
 
 	public function test_fractional_money_blocks_the_draft(): void {
@@ -109,7 +110,7 @@ final class BlockedDraftInvoiceTest extends InvoiceWorkflowTestCase {
 
 		$this->complete_and_run( $order );
 
-		$this->assert_blocked( $order, InvoiceErrorCode::AMOUNT_NOT_WHOLE_VND, InvoiceStatus::FAILED, 'số nguyên' );
+		$this->assert_blocked( $order, InvoiceErrorCode::AMOUNT_NOT_WHOLE_VND, 'data', InvoiceStatus::FAILED, 'số nguyên' );
 	}
 
 	public function test_non_vnd_currency_blocks_the_draft(): void {
@@ -121,7 +122,7 @@ final class BlockedDraftInvoiceTest extends InvoiceWorkflowTestCase {
 
 		$this->complete_and_run( $order );
 
-		$this->assert_blocked( $order, InvoiceErrorCode::CURRENCY_NOT_VND, InvoiceStatus::FAILED, 'USD' );
+		$this->assert_blocked( $order, InvoiceErrorCode::CURRENCY_NOT_VND, 'data', InvoiceStatus::FAILED, 'USD' );
 	}
 
 	public function test_reference_longer_than_20_characters_blocks_the_draft_without_queueing(): void {
@@ -134,7 +135,7 @@ final class BlockedDraftInvoiceTest extends InvoiceWorkflowTestCase {
 		$order->update_status( 'completed' );
 
 		$this->assertSame( array(), $this->queued_draft_action_ids() );
-		$this->assert_blocked( $order, InvoiceErrorCode::REFERENCE_TOO_LONG, InvoiceStatus::FAILED, '20 ký tự' );
+		$this->assert_blocked( $order, InvoiceErrorCode::REFERENCE_TOO_LONG, 'data', InvoiceStatus::FAILED, '20 ký tự' );
 	}
 
 	public function test_template_no_longer_offered_by_matbao_blocks_the_draft(): void {
@@ -149,7 +150,7 @@ final class BlockedDraftInvoiceTest extends InvoiceWorkflowTestCase {
 		$templates = $this->http->requests_to( 'GET /api/invoice/templates' );
 		$this->assertCount( 1, $templates );
 		$this->assertStringContainsString( 'year=' . $year, $templates[0]['url'] );
-		$this->assert_blocked( $order, InvoiceErrorCode::TEMPLATE_UNAVAILABLE, InvoiceStatus::NOT_CONFIGURED, 'C25TAT' );
+		$this->assert_blocked( $order, InvoiceErrorCode::TEMPLATE_UNAVAILABLE, 'config', InvoiceStatus::NOT_CONFIGURED, 'C25TAT' );
 	}
 
 	public function test_template_without_remaining_numbers_blocks_the_draft(): void {
@@ -160,7 +161,7 @@ final class BlockedDraftInvoiceTest extends InvoiceWorkflowTestCase {
 
 		$this->complete_and_run( $order );
 
-		$this->assert_blocked( $order, InvoiceErrorCode::TEMPLATE_UNAVAILABLE, InvoiceStatus::NOT_CONFIGURED, 'C26TXX' );
+		$this->assert_blocked( $order, InvoiceErrorCode::TEMPLATE_UNAVAILABLE, 'config', InvoiceStatus::NOT_CONFIGURED, 'C26TXX' );
 	}
 
 	public function test_template_rejected_by_matbao_on_create_is_a_configuration_error(): void {
@@ -170,7 +171,7 @@ final class BlockedDraftInvoiceTest extends InvoiceWorkflowTestCase {
 
 		$this->complete_and_run( $order );
 
-		$record = $this->assert_classified( $order, InvoiceErrorCode::TEMPLATE_REJECTED, InvoiceStatus::NOT_CONFIGURED, 'mẫu' );
+		$record = $this->assert_classified( $order, InvoiceErrorCode::TEMPLATE_REJECTED, 'config', InvoiceStatus::NOT_CONFIGURED, 'mẫu' );
 		$this->assertCount( 1, $this->http->requests_to( self::CREATE_ROUTE ) );
 		$attempts = $this->attempts_of( $record );
 		$this->assertCount( 1, $attempts );
@@ -185,7 +186,7 @@ final class BlockedDraftInvoiceTest extends InvoiceWorkflowTestCase {
 		$this->complete_and_run( $order );
 
 		$this->assertSame( array(), $this->http->requests );
-		$this->assert_blocked( $order, InvoiceErrorCode::CREDENTIALS_MISSING, InvoiceStatus::NOT_CONFIGURED, 'kết nối' );
+		$this->assert_blocked( $order, InvoiceErrorCode::CREDENTIALS_MISSING, 'config', InvoiceStatus::NOT_CONFIGURED, 'kết nối' );
 	}
 
 	public function test_missing_default_template_blocks_the_draft(): void {
@@ -198,7 +199,7 @@ final class BlockedDraftInvoiceTest extends InvoiceWorkflowTestCase {
 		$this->complete_and_run( $order );
 
 		$this->assertSame( array(), $this->http->requests );
-		$this->assert_blocked( $order, InvoiceErrorCode::TEMPLATE_MISSING, InvoiceStatus::NOT_CONFIGURED, 'mẫu' );
+		$this->assert_blocked( $order, InvoiceErrorCode::TEMPLATE_MISSING, 'config', InvoiceStatus::NOT_CONFIGURED, 'mẫu' );
 	}
 
 	public function test_order_cancelled_before_sending_is_stopped_without_attention(): void {
@@ -213,8 +214,8 @@ final class BlockedDraftInvoiceTest extends InvoiceWorkflowTestCase {
 		$this->assertCount( 0, $this->http->requests_to( self::CREATE_ROUTE ) );
 		$record = $this->invoice_of( $order );
 		$this->assertSame( InvoiceStatus::STOPPED, $record?->status );
-		$this->assertSame( InvoiceErrorCode::ORDER_NOT_COMPLETED->value, $record?->error_code );
-		$this->assertSame( InvoiceErrorKind::ORDER->value, $record?->error_kind );
+		$this->assertSame( 'order_not_completed', $record?->error_code );
+		$this->assertSame( 'order', $record?->error_kind );
 		$this->assertSame( 'cancelled', wc_get_order( $order->get_id() )->get_status() );
 		$this->assertStringContainsString( (string) $record?->status_reason, $this->render_meta_box( $order ) );
 		$this->assertSame( array(), $this->attention );
@@ -234,18 +235,165 @@ final class BlockedDraftInvoiceTest extends InvoiceWorkflowTestCase {
 		);
 		$this->run_queued_draft_actions();
 
-		$this->assert_blocked( $order, InvoiceErrorCode::ORDER_REFUNDED, InvoiceStatus::STOPPED, 'hoàn tiền' );
+		$this->assert_blocked( $order, InvoiceErrorCode::ORDER_REFUNDED, 'order', InvoiceStatus::STOPPED, 'hoàn tiền' );
 	}
 
-	public function test_matbao_http_error_is_classified_as_a_matbao_error(): void {
+	public function test_matbao_http_5xx_is_a_temporary_matbao_error(): void {
 		$this->configure_matbao();
 		$this->http->respond_json( self::CREATE_ROUTE, 500, array( 'message' => 'Lỗi hệ thống' ) );
 		$order = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
 
 		$this->complete_and_run( $order );
 
-		$this->assert_classified( $order, InvoiceErrorCode::MATBAO_HTTP, InvoiceStatus::FAILED, 'Lỗi hệ thống' );
-		$this->assertTrue( InvoiceErrorKind::MATBAO->is_auto_retryable() );
+		$record = $this->assert_classified( $order, InvoiceErrorCode::MATBAO_HTTP_TEMPORARY, 'matbao', InvoiceStatus::FAILED, 'Lỗi hệ thống' );
+		$this->assertSame( 'matbao_http_temporary', $record->error_code );
+		$this->assertTrue( $record->error()?->is_auto_retryable() );
+	}
+
+	public function test_matbao_http_4xx_is_a_matbao_error_that_is_not_retried(): void {
+		$this->configure_matbao();
+		$this->http->respond_json( self::CREATE_ROUTE, 400, array( 'message' => 'Dữ liệu không hợp lệ' ) );
+		$order = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
+
+		$this->complete_and_run( $order );
+
+		$record = $this->assert_classified( $order, InvoiceErrorCode::MATBAO_HTTP, 'matbao', InvoiceStatus::FAILED, 'Dữ liệu không hợp lệ' );
+		$this->assertSame( 'matbao_http', $record->error_code );
+		$this->assertFalse( $record->error()?->is_auto_retryable() );
+	}
+
+	public function test_invoice_rejected_by_matbao_is_a_matbao_api_error_that_is_not_retried(): void {
+		$this->configure_matbao();
+		$this->fake_create_invoice_rejected( 400, 'Sai thông tin hóa đơn' );
+		$order = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
+
+		$this->complete_and_run( $order );
+
+		$record = $this->assert_classified( $order, InvoiceErrorCode::MATBAO_API, 'matbao', InvoiceStatus::FAILED, 'Sai thông tin hóa đơn' );
+		$this->assertSame( 'matbao_api', $record->error_code );
+		$this->assertFalse( $record->error()?->is_auto_retryable() );
+	}
+
+	public function test_template_out_of_numbers_on_create_is_a_configuration_error(): void {
+		$this->configure_matbao();
+		$this->fake_create_invoice_rejected( 327, 'Mẫu hóa đơn đã hết số' );
+		$order = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
+
+		$this->complete_and_run( $order );
+
+		$record = $this->assert_classified( $order, InvoiceErrorCode::TEMPLATE_REJECTED, 'config', InvoiceStatus::NOT_CONFIGURED, 'hết số' );
+		$this->assertSame( '327', (string) $this->attempts_of( $record )[0]['api_code'] );
+	}
+
+	public function test_order_without_lines_blocks_the_draft(): void {
+		$this->configure_matbao();
+		$this->fake_create_invoice_ok();
+		$order = $this->create_order( array() );
+		$order->set_total( '100000' );
+		$order->save();
+
+		$this->complete_and_run( $order );
+
+		$this->assert_blocked( $order, InvoiceErrorCode::NO_LINES, 'data', InvoiceStatus::FAILED, 'không có dòng' );
+	}
+
+	public function test_unsupported_line_type_blocks_the_draft(): void {
+		$this->configure_matbao();
+		$this->fake_create_invoice_ok();
+		$order = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
+		$add_coupon_line = static function ( array $items, WC_Order $filtered, array $types ) use ( $order ): array {
+			if ( $filtered->get_id() === $order->get_id() && in_array( 'fee', $types, true ) ) {
+				$items[] = new \WC_Order_Item_Coupon();
+			}
+			return $items;
+		};
+		add_filter( 'woocommerce_order_get_items', $add_coupon_line, 10, 3 );
+
+		$this->complete_and_run( $order );
+
+		remove_filter( 'woocommerce_order_get_items', $add_coupon_line, 10 );
+		$this->assert_blocked( $order, InvoiceErrorCode::LINE_TYPE_UNSUPPORTED, 'data', InvoiceStatus::FAILED, 'loại dòng' );
+	}
+
+	public function test_negative_line_amount_blocks_the_draft(): void {
+		$this->configure_matbao();
+		$this->fake_create_invoice_ok();
+		$order = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
+		$fee = new WC_Order_Item_Fee();
+		$fee->set_name( 'Giảm tay' );
+		$fee->set_total( '-10000' );
+		$fee->set_tax_status( 'none' );
+		$order->add_item( $fee );
+		$order->calculate_totals( false );
+		$order->save();
+
+		$this->complete_and_run( $order );
+
+		$this->assert_blocked( $order, InvoiceErrorCode::LINE_AMOUNT_INVALID, 'data', InvoiceStatus::FAILED, 'Giảm tay' );
+	}
+
+	public function test_untaxed_line_with_tax_blocks_the_draft(): void {
+		$this->configure_matbao();
+		$this->fake_create_invoice_ok();
+		$order = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
+		$taxed = current( $order->get_items() );
+		$this->assertInstanceOf( WC_Order_Item_Product::class, $taxed );
+		$fee = new WC_Order_Item_Fee();
+		$fee->set_name( 'Phí lạ' );
+		$fee->set_total( '10000' );
+		$fee->set_tax_status( 'none' );
+		$fee->set_taxes( array( 'total' => $taxed->get_taxes()['total'] ) );
+		$order->add_item( $fee );
+		$order->save();
+
+		$this->complete_and_run( $order );
+
+		$this->assert_blocked( $order, InvoiceErrorCode::UNTAXED_LINE_WITH_TAX, 'data', InvoiceStatus::FAILED, 'Phí lạ' );
+	}
+
+	public function test_line_whose_rate_percent_is_not_stored_blocks_the_draft(): void {
+		$this->configure_matbao();
+		$this->fake_create_invoice_ok();
+		$order = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
+		// The line keeps its tax by rate ID, but the order has no tax item for that rate.
+		foreach ( $order->get_taxes() as $tax ) {
+			$order->remove_item( $tax->get_id() );
+		}
+		$order->save();
+		$order = wc_get_order( $order->get_id() );
+		$this->assertInstanceOf( WC_Order::class, $order );
+		$this->assertSame( array(), $order->get_taxes() );
+
+		$this->complete_and_run( $order );
+
+		$this->assert_blocked( $order, InvoiceErrorCode::TAX_RATE_NOT_STORED, 'data', InvoiceStatus::FAILED, 'thuế suất đã lưu' );
+	}
+
+	public function test_failing_to_queue_the_action_is_a_system_error(): void {
+		$this->configure_matbao();
+		add_filter( 'pre_as_enqueue_async_action', static fn(): int => 0 );
+		$order = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
+
+		$order->update_status( 'completed' );
+
+		$record = $this->assert_classified( $order, InvoiceErrorCode::QUEUE_FAILED, 'system', InvoiceStatus::FAILED, 'hàng đợi' );
+		$this->assertFalse( $record->error()?->is_auto_retryable() );
+	}
+
+	public function test_unexpected_exception_is_a_system_error(): void {
+		$this->configure_matbao();
+		$this->http->respond_with(
+			self::CREATE_ROUTE,
+			static function (): never {
+				throw new \RuntimeException( 'boom' );
+			}
+		);
+		$order = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
+
+		$this->complete_and_run( $order );
+
+		$record = $this->assert_classified( $order, InvoiceErrorCode::UNEXPECTED, 'system', InvoiceStatus::FAILED, 'không xác định' );
+		$this->assertFalse( $record->error()?->is_auto_retryable() );
 	}
 
 	public function test_templates_call_that_does_not_complete_is_a_matbao_error_and_nothing_is_created(): void {
@@ -257,7 +405,8 @@ final class BlockedDraftInvoiceTest extends InvoiceWorkflowTestCase {
 		$this->complete_and_run( $order );
 
 		$this->assertCount( 0, $this->http->requests_to( self::CREATE_ROUTE ) );
-		$this->assert_classified( $order, InvoiceErrorCode::MATBAO_TRANSPORT, InvoiceStatus::FAILED, '' );
+		$record = $this->assert_classified( $order, InvoiceErrorCode::MATBAO_TRANSPORT, 'matbao', InvoiceStatus::FAILED, '' );
+		$this->assertTrue( $record->error()?->is_auto_retryable() );
 	}
 
 	public function test_data_errors_are_not_retried(): void {
@@ -269,12 +418,11 @@ final class BlockedDraftInvoiceTest extends InvoiceWorkflowTestCase {
 		do_action( 'einvoice_matbao_create_draft', $order->get_id() );
 		$this->run_queued_draft_actions();
 
-		$this->assertFalse( InvoiceErrorKind::DATA->is_auto_retryable() );
-		$this->assertFalse( InvoiceErrorKind::CONFIG->is_auto_retryable() );
-		$this->assertFalse( InvoiceErrorKind::ORDER->is_auto_retryable() );
+		$record = $this->invoice_of( $order );
 		$this->assertSame( array(), $this->queued_draft_action_ids() );
 		$this->assertCount( 0, $this->http->requests_to( self::CREATE_ROUTE ) );
-		$this->assertSame( InvoiceErrorKind::DATA->value, $this->invoice_of( $order )?->error_kind );
+		$this->assertSame( 'data', $record?->error_kind );
+		$this->assertFalse( $record?->error()?->is_auto_retryable() );
 		$this->assertCount( 1, $this->attention );
 	}
 
@@ -298,12 +446,13 @@ final class BlockedDraftInvoiceTest extends InvoiceWorkflowTestCase {
 	 *
 	 * @param WC_Order         $order    Order.
 	 * @param InvoiceErrorCode $code     Expected error code.
+	 * @param string           $kind     Expected stored kind.
 	 * @param string           $status   Expected InvoiceStatus.
 	 * @param string           $fragment Text the reason must contain.
 	 */
-	private function assert_blocked( WC_Order $order, InvoiceErrorCode $code, string $status, string $fragment ): void {
+	private function assert_blocked( WC_Order $order, InvoiceErrorCode $code, string $kind, string $status, string $fragment ): void {
 		$this->assertCount( 0, $this->http->requests_to( self::CREATE_ROUTE ) );
-		$record = $this->assert_classified( $order, $code, $status, $fragment );
+		$record = $this->assert_classified( $order, $code, $kind, $status, $fragment );
 		$this->assertSame( array(), $this->attempts_of( $record ) );
 	}
 
@@ -312,15 +461,16 @@ final class BlockedDraftInvoiceTest extends InvoiceWorkflowTestCase {
 	 *
 	 * @param WC_Order         $order    Order.
 	 * @param InvoiceErrorCode $code     Expected error code.
+	 * @param string           $kind     Expected stored kind.
 	 * @param string           $status   Expected InvoiceStatus.
 	 * @param string           $fragment Text the reason must contain.
 	 */
-	private function assert_classified( WC_Order $order, InvoiceErrorCode $code, string $status, string $fragment ): InvoiceRecord {
+	private function assert_classified( WC_Order $order, InvoiceErrorCode $code, string $kind, string $status, string $fragment ): InvoiceRecord {
 		$record = $this->invoice_of( $order );
 		$this->assertNotNull( $record );
 		$this->assertSame( $status, $record->status );
 		$this->assertSame( $code->value, $record->error_code );
-		$this->assertSame( $code->kind()->value, $record->error_kind );
+		$this->assertSame( $kind, $record->error_kind );
 		$this->assertNotSame( '', $record->status_reason );
 		$this->assertStringContainsString( $fragment, $record->status_reason );
 		$this->assertSame( array(), $this->queued_draft_action_ids() );
@@ -329,6 +479,7 @@ final class BlockedDraftInvoiceTest extends InvoiceWorkflowTestCase {
 		$html = $this->render_meta_box( $order );
 		$this->assertStringContainsString( 'data-einv-invoice-status="' . $status . '"', $html );
 		$this->assertStringContainsString( 'data-einv-error-code="' . $code->value . '"', $html );
+		$this->assertStringContainsString( 'data-einv-error-kind="' . $kind . '"', $html );
 		$this->assertStringContainsString( esc_html( $record->status_reason ), $html );
 		$this->assertStringContainsString( esc_html( $code->kind()->label() ), $html );
 
