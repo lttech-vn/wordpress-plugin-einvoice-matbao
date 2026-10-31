@@ -8,8 +8,10 @@
 namespace LTTech\EinvoiceMatbao\Tests\Integration;
 
 use LTTech\EinvoiceMatbao\Invoice\DraftInvoiceWorkflow;
+use LTTech\EinvoiceMatbao\Invoice\InvoiceErrorCode;
 use LTTech\EinvoiceMatbao\Invoice\InvoiceRepository;
 use LTTech\EinvoiceMatbao\Invoice\InvoiceStatus;
+use LTTech\EinvoiceMatbao\Settings;
 use LTTech\EinvoiceMatbao\Tests\Integration\Support\FakeHttp;
 use LTTech\EinvoiceMatbao\Tests\Integration\Support\InvoiceWorkflowTestCase;
 use WC_Order;
@@ -334,6 +336,113 @@ final class DraftInvoiceRetryTest extends InvoiceWorkflowTestCase {
 			'ids'
 		);
 		$this->assertCount( 1, $pending );
+	}
+
+	public function test_first_create_stores_its_template_on_the_row(): void {
+		$this->fake_create_invoice_timeout();
+		$order = $this->completed_order();
+
+		$this->run_queued_draft_actions();
+
+		$record = $this->invoice_of( $order );
+		$this->assertSame( InvoiceStatus::PENDING, $record?->status );
+		$this->assertSame( self::TEMPLATE_FORM, $record->template_form );
+		$this->assertSame( self::TEMPLATE_SERIES, $record->template_series );
+	}
+
+	public function test_template_changed_between_attempts_still_looks_up_under_the_stored_template(): void {
+		$this->fake_create_invoice_timeout();
+		$order = $this->completed_order();
+		$this->run_queued_draft_actions();
+
+		$this->offer_another_vat_template();
+		( new Settings() )->save_default_template( '1', 'C26TBB' );
+		$this->fake_lookup_found( 'b2xk' );
+		$this->run_queued_draft_actions();
+
+		$lookups = $this->http->requests_to( self::LOOKUP_ROUTE );
+		$this->assertCount( 1, $lookups );
+		$this->assertSame( '1', $lookups[0]['body']['mauSo'] );
+		$this->assertSame( 'C26TAT', $lookups[0]['body']['kiHieu'] );
+		$this->assertCount( 1, $this->http->requests_to( self::CREATE_ROUTE ) );
+		$record = $this->invoice_of( $order );
+		$this->assertSame( InvoiceStatus::DRAFT_CREATED, $record?->status );
+		$this->assertSame( 'b2xk', $record->matbao_invoice_id );
+		$this->assertSame( 'C26TAT', $record->template_series );
+	}
+
+	public function test_template_changed_and_nothing_found_under_the_stored_template_stops_for_an_admin(): void {
+		$this->fake_create_invoice_timeout();
+		$order = $this->completed_order();
+		$this->run_queued_draft_actions();
+		$attention = $this->record_attention();
+
+		$this->offer_another_vat_template();
+		( new Settings() )->save_default_template( '1', 'C26TBB' );
+		$this->fake_lookup_not_found();
+		$this->fake_create_invoice_ok();
+		$this->run_queued_draft_actions();
+
+		$this->assertSame( 'C26TAT', $this->http->requests_to( self::LOOKUP_ROUTE )[0]['body']['kiHieu'] );
+		$this->assertCount( 1, $this->http->requests_to( self::CREATE_ROUTE ), 'Never create under another template after an uncertain create.' );
+		$record = $this->invoice_of( $order );
+		$this->assertSame( InvoiceStatus::NOT_CONFIGURED, $record?->status );
+		$this->assertSame( 'template_changed', $record->error_code );
+		$this->assertSame( 'config', $record->error_kind );
+		$this->assertStringContainsString( 'C26TAT', $record->status_reason );
+		$this->assertStringContainsString( 'C26TBB', $record->status_reason );
+		$this->assertSame( 'C26TAT', $record->template_series );
+		$this->assertSame( array(), $this->queued_draft_action_ids() );
+		$this->assertSame( array( 'template_changed' ), $attention->codes );
+	}
+
+	/**
+	 * Adds a second VAT template, 1/C26TBB, to the templates Mat Bao offers.
+	 */
+	private function offer_another_vat_template(): void {
+		$this->http->respond_json(
+			'GET /api/invoice/templates',
+			200,
+			array(
+				'errorCode' => 200,
+				'message'   => 'Thành công',
+				'data'      => array(
+					array(
+						'thDon'    => 'Hóa đơn giá trị gia tăng',
+						'khmshDon' => '1',
+						'khhDon'   => 'C26TAT',
+						'sLuong'   => 100000,
+						'cLai'     => 54518,
+					),
+					array(
+						'thDon'    => 'Hóa đơn giá trị gia tăng',
+						'khmshDon' => '1',
+						'khhDon'   => 'C26TBB',
+						'sLuong'   => 1000,
+						'cLai'     => 1000,
+					),
+				),
+				'success'   => true,
+			)
+		);
+	}
+
+	/**
+	 * Collects the codes passed to the needs-attention hook from now on.
+	 */
+	private function record_attention(): \stdClass {
+		$attention        = new \stdClass();
+		$attention->codes = array();
+		add_action(
+			DraftInvoiceWorkflow::NEEDS_ATTENTION_ACTION,
+			static function ( $invoice, InvoiceErrorCode $code ) use ( $attention ): void {
+				$attention->codes[] = $code->value;
+			},
+			10,
+			2
+		);
+
+		return $attention;
 	}
 
 	/**
