@@ -27,6 +27,7 @@ final class InvoiceRecord {
 	 * @param string      $template_series   `KHHDon` sent, or empty before sending.
 	 * @param string|null $matbao_invoice_id `maSoHDon` returned by Mat Bao.
 	 * @param string|null $issued_on         `NLap` date (Y-m-d) of the successful create call.
+	 * @param int         $retry_cycle_start Attempt ID from which retries are counted; 0 = all attempts.
 	 */
 	public function __construct(
 		public readonly int $id,
@@ -41,6 +42,7 @@ final class InvoiceRecord {
 		public readonly string $template_series,
 		public readonly ?string $matbao_invoice_id,
 		public readonly ?string $issued_on,
+		public readonly int $retry_cycle_start = 0,
 	) {
 	}
 
@@ -63,6 +65,7 @@ final class InvoiceRecord {
 			self::text( $row['template_series'] ?? null ),
 			is_string( $row['matbao_invoice_id'] ?? null ) ? $row['matbao_invoice_id'] : null,
 			is_string( $row['issued_on'] ?? null ) ? $row['issued_on'] : null,
+			is_numeric( $row['retry_cycle_start'] ?? null ) ? (int) $row['retry_cycle_start'] : 0,
 		);
 	}
 

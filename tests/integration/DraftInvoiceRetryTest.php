@@ -376,7 +376,7 @@ final class DraftInvoiceRetryTest extends InvoiceWorkflowTestCase {
 		$this->assertFalse( DraftInvoiceWorkflow::restart( $order->get_id(), InvoiceStatus::NEEDS_ATTENTION ), 'Only one restart wins.' );
 		$this->run_queued_draft_actions();
 
-		$this->assertCount( 7, $this->http->requests_to( self::LOOKUP_ROUTE ), 'The restarted run still looks up first.' );
+		$this->assertCount( 6, $this->http->requests_to( self::LOOKUP_ROUTE ), 'Runs 2 to 6 and the restarted run look up first.' );
 		$this->assertSame( InvoiceStatus::PENDING, $this->invoice_of( $order )?->status );
 		$this->assertEqualsWithDelta( 60, $this->seconds_until_next_draft_action(), 5 );
 		$this->assertCount( 1, $exhausted, 'The new cycle is not exhausted by the old attempts.' );

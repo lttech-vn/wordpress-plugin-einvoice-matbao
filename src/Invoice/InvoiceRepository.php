@@ -74,6 +74,36 @@ final class InvoiceRepository {
 	}
 
 	/**
+	 * Moves an invoice from a stopped or final status back to `pending` and starts a new retry
+	 * cycle: attempts before this call no longer count as tries, but still decide whether the
+	 * next run looks the invoice up first.
+	 *
+	 * @param int    $invoice_id Invoice row ID.
+	 * @param string $from       Expected current status.
+	 * @return bool Whether this call made the change.
+	 */
+	public function restart( int $invoice_id, string $from ): bool {
+		global $wpdb;
+
+		$updated = $wpdb->query(
+			$wpdb->prepare(
+				'UPDATE %i SET status = %s, error_code = %s, error_kind = %s, retry_cycle_start = (SELECT COALESCE(MAX(id), 0) + 1 FROM %i WHERE invoice_id = %d), updated_at = %s WHERE id = %d AND status = %s',
+				Schema::invoice_table(),
+				InvoiceStatus::PENDING,
+				'',
+				'',
+				Schema::attempt_table(),
+				$invoice_id,
+				current_time( 'mysql', true ),
+				$invoice_id,
+				$from
+			)
+		);
+
+		return 1 === $updated;
+	}
+
+	/**
 	 * Sets the status and reason of an invoice and clears any recorded error.
 	 *
 	 * @param int                  $invoice_id Invoice row ID.

@@ -103,10 +103,10 @@ final class DraftInvoiceWorkflow {
 		$repository = new InvoiceRepository();
 		$existing   = $repository->find_by_order( $order_id );
 		if ( null !== $existing ) {
-			// Cancelled and then completed again: queue it again. An earlier attempt may have
-			// reached Mat Bao, so the run looks the invoice up first when needed.
-			if ( InvoiceStatus::STOPPED === $existing->status && $repository->claim( $existing->id, InvoiceStatus::STOPPED, InvoiceStatus::PENDING ) ) {
-				self::enqueue( $repository, $order_id, false );
+			// Cancelled and then completed again: send it again in a new retry cycle. An earlier
+			// attempt may have reached Mat Bao, so the run looks the invoice up first when needed.
+			if ( InvoiceStatus::STOPPED === $existing->status ) {
+				self::restart( $order_id, InvoiceStatus::STOPPED );
 			}
 			return;
 		}
@@ -132,6 +132,27 @@ final class DraftInvoiceWorkflow {
 		if ( $repository->reserve( $order_id, $reference, $buyer_name, InvoiceStatus::PENDING ) ) {
 			self::enqueue( $repository, $order_id, false );
 		}
+	}
+
+	/**
+	 * Sends the invoice of an order again from a stopped or final status (STOPPED after the order
+	 * is completed again, or an admin resend, #9) in a new retry cycle. Earlier attempts still
+	 * decide whether the run looks the invoice up by `MTChieu` first.
+	 *
+	 * @param int    $order_id Order ID.
+	 * @param string $from     Status the invoice must be in.
+	 * @return bool Whether this call restarted it; false when it is in another status or another call won.
+	 */
+	public static function restart( int $order_id, string $from ): bool {
+		$repository = new InvoiceRepository();
+		$invoice    = $repository->find_by_order( $order_id );
+		if ( null === $invoice || ! $repository->restart( $invoice->id, $from ) ) {
+			return false;
+		}
+
+		self::enqueue( $repository, $order_id, false );
+
+		return true;
 	}
 
 	/**
@@ -243,15 +264,16 @@ final class DraftInvoiceWorkflow {
 	}
 
 	/**
-	 * Tries used so far: attempts that called Mat Bao and failed (`failed`, `lookup_failed`,
-	 * `not_sent`). Attempts closed by the sweep (`abandoned`) are not counted.
+	 * Tries used in the current retry cycle (from `retry_cycle_start`): attempts that called Mat
+	 * Bao and failed (`failed`, `lookup_failed`, `not_sent`). Attempts closed by the sweep
+	 * (`abandoned`) are not counted.
 	 *
 	 * @param InvoiceRecord $invoice Invoice.
 	 */
 	private function tries( InvoiceRecord $invoice ): int {
 		$tries = 0;
 		foreach ( $this->repository->attempts( $invoice->id ) as $attempt ) {
-			if ( in_array( $attempt['outcome'], array( 'failed', 'lookup_failed', 'not_sent' ), true ) ) {
+			if ( (int) $attempt['id'] >= $invoice->retry_cycle_start && in_array( $attempt['outcome'], array( 'failed', 'lookup_failed', 'not_sent' ), true ) ) {
 				++$tries;
 			}
 		}
