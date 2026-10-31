@@ -220,6 +220,57 @@ Limits: the block UI has no browser test (Playwright in Docker not set up); the 
 covered by `tests/integration/BlocksCheckoutBuyerTest.php`. On a site whose Checkout page was
 customised before activation, add the "Yêu cầu xuất hóa đơn" block in the editor.
 
+## Privacy requests and uninstall
+
+### Export and erase personal data (Tools → Export/Erase Personal Data)
+
+`Privacy\BuyerPersonalData` registers a WordPress exporter and eraser (`einvoice-matbao`). Both find
+the orders whose billing email is the requested address (guest orders included) plus the orders of
+the user with that email, ten per page, like WooCommerce does.
+
+- **Export**: one item per order with plugin data from a named buyer (individual or business):
+  buyer type, name, MST, address, CCCD, phone, email, `MTChieu` and invoice status. The CCCD is
+  exported as its 4-digit mask (`********1234`), never decrypted: ADR 0002 keeps the full number in
+  encrypted order meta only, the export file is downloaded and mailed, and the person already knows
+  their own number. No ciphertext or secret is exported. Walk-in orders export nothing.
+- **Erase**: deletes `_einvoice_buyer_request` and `_einvoice_buyer_snapshot` from the order (the
+  WooCommerce order itself is not changed), replaces `buyer_name` in the invoice row with core's
+  `[deleted]` text and removes copies of the buyer's values from `status_reason` and attempt
+  messages. The invoice and attempt rows, `MTChieu`, status and Mat Bao invoice ID are kept for
+  accounting, reported as `items_retained` with a message saying so; the same message says that a
+  draft or invoice already created on Mat Bao is outside the plugin and must be handled there.
+- **Order with WooCommerce's erasers**: the plugin eraser runs at priority 5, before WooCommerce's
+  order eraser (10), so it still finds orders by billing email. When WooCommerce anonymizes an order
+  (its eraser with "Remove personal data from orders" on, or its scheduled removal), the plugin
+  erases that order's data through `woocommerce_privacy_remove_order_personal_data` too.
+- Limit: values shorter than 3 characters are not searched for in free text.
+
+### Deactivate and uninstall
+
+Deactivating cancels every queued plugin action (Action Scheduler group `einvoice-matbao`: drafts,
+the recovery sweep and, once #7 lands, alerts); data stays and the sweep is queued again after
+reactivation.
+
+`uninstall.php` runs only when WordPress deletes the plugin. It loads `Uninstall\Uninstaller` by
+file path, so it works without `vendor/` and with WooCommerce removed (actions are then cancelled
+in the Action Scheduler tables directly). On multisite it runs on every site.
+
+| Data | Default uninstall | With "Xóa toàn bộ dữ liệu" on |
+|------|-------------------|-------------------------------|
+| Mat Bao and Lark credentials (`einvoice_matbao_credentials`) | deleted | deleted |
+| Transients `einvoice_matbao_*` (token, templates cache) | deleted | deleted |
+| Queued actions in group `einvoice-matbao` | cancelled | cancelled |
+| Tables `{prefix}einvoice_matbao_invoice` and `_attempt` | kept | dropped |
+| Order meta `_einvoice_buyer_request`, `_einvoice_buyer_snapshot` (legacy and HPOS) | kept | deleted |
+| Product meta `_einvoice_matbao_unit` | kept | deleted |
+| Every other `einvoice_matbao_*` option (settings, schema version, alert records of #7) | kept | deleted |
+| WooCommerce orders and products | kept | kept |
+
+The switch is in the **Gỡ plugin** section of the settings page (`POST settings/uninstall`): off by
+default, Administrator and `wp_rest` nonce like every settings route, and turning it on requires
+typing `XOA HET DU LIEU`. Turning it off needs no confirmation. Invoices on Mat Bao are never
+affected.
+
 ## Tests, lint and static analysis
 
 One command runs everything (starts the stack if needed):
