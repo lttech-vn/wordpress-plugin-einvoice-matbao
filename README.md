@@ -63,7 +63,7 @@ skipped with a reason.
   fires while a retry waits. After the fifth retry the status becomes `needs_attention`
   ("Lỗi cần xử lý") with the last error code, and both
   `einvoice_matbao_invoice_needs_attention( $invoice, $code )` and
-  `einvoice_matbao_retries_exhausted( $order_id, $reference )` fire once (alerting is #7).
+  `einvoice_matbao_retries_exhausted( $order_id, $reference )` fire once.
 - Other failures are final (see the table below) and alert at once.
 - Before any send that may follow an earlier create call, the plugin looks the invoice up by `MTChieu`
   (`invoice-detail-batch`) under the template stored on the row at that earlier call, not the
@@ -124,6 +124,27 @@ InvoiceErrorCode $code )` once; an order the shop moved out of `completed` on pu
 error still waiting for a retry, do not.
 Admin and Lark alerts (#7) hook there. The `InvoiceRecord` carries `buyer_name` (a person's name or a
 business name), so an alert listener must not forward that column.
+
+## Alerts (admin notice and Lark)
+
+`Alert\InvoiceAlerts` listens to `einvoice_matbao_invoice_needs_attention` and
+`einvoice_matbao_retries_exhausted`. It records one alert per (order, error code, alert cycle) in a
+non-autoloaded option (`add_option` does nothing when the name exists; a race between two writers
+can at worst send one duplicate Lark message), then queues the Lark message with Action Scheduler
+(`einvoice_matbao_send_alert`) so the invoice run never waits for Lark. Every restart of an
+invoice (admin resend, cancelled then completed again) bumps the invoice's `alert_cycle`, also when
+it stops before any attempt, so the same error alerts again. The Lark text holds only the order
+number, the error label and code, and the admin link to the order.
+
+Lark is best-effort. A network error, HTTP 5xx, 408 or 429 is retried up to 3 times after 1, 5 and
+15 minutes; other failures (other 4xx, wrong or missing webhook) are not retried. A failed message
+is logged without personal data and shown as a note in the admin notice; it never touches the
+invoice or queues a draft action.
+
+The notice shows for `manage_options` users (at most 10 open alerts, one query), links to the
+order and can be dismissed. The recovery sweep deletes alerts whose invoice was resent, paid or
+removed, and alerts dismissed more than 30 days ago. Deleting all alert options on uninstall
+belongs to #13.
 
 ## Unit of measure (`DVTinh`)
 
@@ -227,7 +248,7 @@ suites through the same Docker Compose stack used locally.
 - The sweep runs on Action Scheduler too: if Action Scheduler is down entirely, nothing is recovered
   and nothing alerts.
 - A draft adopted by the lookup keeps the `NLap` Mat Bao reports, which may predate the day it was adopted.
-- The manual re-send button and the alert for `needs_attention` are #9 and #7.
+- The manual re-send button is #9.
 - A `buyer_invalid` row is `failed` and holds no buyer snapshot, and nothing restarts a `failed` row yet.
   A re-send (#9) must run `BuyerSnapshotter::validate()` again and `capture()` when the row has no
   snapshot or it needs updating. Capturing again is only safe while the invoice cannot have been created

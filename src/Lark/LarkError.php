@@ -19,8 +19,9 @@ final class LarkError extends RuntimeException {
 	 *
 	 * @param string   $message   Secret-free message.
 	 * @param int|null $lark_code Lark `code`, when present.
+	 * @param bool     $retryable Whether a later try may succeed: no response, HTTP 5xx, 408 or 429.
 	 */
-	public function __construct( string $message, public readonly ?int $lark_code = null ) {
+	public function __construct( string $message, public readonly ?int $lark_code = null, public readonly bool $retryable = false ) {
 		parent::__construct( $message );
 	}
 }
