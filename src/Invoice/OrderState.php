@@ -33,13 +33,15 @@ final class OrderState {
 				'~',
 				array(
 					$item->get_type(),
-					$item->get_name(),
+					self::text( $item->get_name() ),
 					(string) $item->get_quantity(),
 					self::money( $item->get_total() ),
 					self::money( $item->get_total_tax() ),
 				)
 			);
 		}
+		// Line order is not part of the order's content, so reordering lines is not a change.
+		sort( $lines );
 		$amounts = implode(
 			'|',
 			array(
@@ -53,16 +55,33 @@ final class OrderState {
 		$buyer   = implode(
 			'|',
 			array(
-				$order->get_billing_first_name(),
-				$order->get_billing_last_name(),
-				$order->get_billing_company(),
-				$order->get_billing_email(),
-				$order->get_billing_phone(),
+				self::text( $order->get_billing_first_name() ),
+				self::text( $order->get_billing_last_name() ),
+				self::text( $order->get_billing_company() ),
+				self::text( $order->get_billing_email() ),
+				self::text( $order->get_billing_phone() ),
 				(string) $order->get_meta( BuyerRequestStore::META_KEY ),
 			)
 		);
 
 		return 'a:' . self::digest( $amounts ) . '|b:' . self::digest( $buyer ) . '|r:' . self::money( $order->get_total_refunded() );
+	}
+
+	/**
+	 * `$current` with the buyer part taken from `$basis`: the buyer the existing snapshot was built
+	 * from, so re-basing the other parts never hides a buyer edit the snapshot did not pick up.
+	 *
+	 * @param string $current State of the order now.
+	 * @param string $basis   State whose buyer part is kept; empty keeps the current one.
+	 */
+	public static function with_buyer_of( string $current, string $basis ): string {
+		$buyer = self::parts( $basis )['b'];
+		if ( '' === $buyer ) {
+			return $current;
+		}
+		$parts = self::parts( $current );
+
+		return 'a:' . $parts['a'] . '|b:' . $buyer . '|r:' . $parts['r'];
 	}
 
 	/**
@@ -112,6 +131,15 @@ final class OrderState {
 	 */
 	private static function digest( string $value ): string {
 		return substr( hash_hmac( 'sha256', $value, wp_salt( 'auth' ) ), 0, 16 );
+	}
+
+	/**
+	 * Text with trimmed, single-spaced whitespace, so re-saving a name with stray spaces is not a change.
+	 *
+	 * @param string $value Text.
+	 */
+	private static function text( string $value ): string {
+		return trim( (string) preg_replace( '/\s+/u', ' ', $value ) );
 	}
 
 	/**

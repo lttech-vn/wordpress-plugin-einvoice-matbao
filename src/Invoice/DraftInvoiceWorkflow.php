@@ -462,7 +462,9 @@ final class DraftInvoiceWorkflow {
 		// Only an attempt that cannot have reached Mat Bao re-bases the state later changes are compared
 		// with; after one that may have, the stored state describes what the existing draft was built from.
 		if ( ! $look_up_first || '' === $invoice->order_state ) {
-			$this->repository->remember_order_state( $invoice->id, OrderState::encode( $order ) );
+			// The buyer part stays with the snapshot this run sends: a buyer edit that did not re-capture
+			// it (customer, cron, REST) must still be warned about once the draft exists.
+			$this->repository->remember_order_state( $invoice->id, OrderState::with_buyer_of( OrderState::encode( $order ), $invoice->order_state ) );
 		}
 
 		$order_total = (int) round( (float) $order->get_total() );
@@ -605,18 +607,32 @@ final class DraftInvoiceWorkflow {
 			return sprintf( __( 'Hóa đơn nháp mã tham chiếu %s trên Mắt Bão có tổng tiền khác tổng đơn hàng; cần admin kiểm tra.', 'einvoice-matbao' ), $invoice->reference );
 		}
 
-		// The lookup only has to agree where the response names the buyer at all (the demo answer does not).
+		// The lookup only has to agree where the response names the buyer at all (the demo answer does not),
+		// and a tax code only counts when the snapshot has one (Mat Bao may fill it in for an individual).
 		$snapshot_name = $snapshot->fields['NMua_Ten'] ?? $snapshot->buyer_name;
-		$snapshot_tax  = $snapshot->fields['NMua_MST'] ?? '';
+		$snapshot_tax  = self::tax_digits( $snapshot->fields['NMua_MST'] ?? '' );
 		if (
-			( null !== $draft->buyer_name && mb_strtolower( $draft->buyer_name ) !== mb_strtolower( trim( $snapshot_name ) ) )
-			|| ( null !== $draft->buyer_tax && self::tax_digits( $draft->buyer_tax ) !== self::tax_digits( $snapshot_tax ) )
+			( null !== $draft->buyer_name && self::normalized_name( $draft->buyer_name ) !== self::normalized_name( $snapshot_name ) )
+			|| ( null !== $draft->buyer_tax && '' !== $snapshot_tax && self::tax_digits( $draft->buyer_tax ) !== $snapshot_tax )
 		) {
 			/* translators: %s: reference (MTChieu). */
 			return sprintf( __( 'Hóa đơn nháp mã tham chiếu %s trên Mắt Bão có người mua (tên hoặc mã số thuế) khác thông tin đã chụp của đơn hàng; cần admin kiểm tra.', 'einvoice-matbao' ), $invoice->reference );
 		}
 
 		return null;
+	}
+
+	/**
+	 * A buyer name made comparable: single spaces, no edge whitespace, lower case, composed Unicode form when intl exists.
+	 *
+	 * @param string $name Name.
+	 */
+	private static function normalized_name( string $name ): string {
+		if ( class_exists( \Normalizer::class ) ) {
+			$name = \Normalizer::normalize( $name, \Normalizer::FORM_C ) ?: $name;
+		}
+
+		return mb_strtolower( trim( (string) preg_replace( '/\s+/u', ' ', $name ) ) );
 	}
 
 	/**

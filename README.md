@@ -300,6 +300,11 @@ suites through the same Docker Compose stack used locally.
   without personal data and fires `einvoice_matbao_invoice_needs_attention` once per change. The draft is
   never updated, cancelled or recreated; the accountant fixes it by hand. The warning stays on the row
   until the next change or a restart.
+- The digests are keyed with `wp_salt('auth')`. Rotating the site salts changes every digest, so the next
+  save of each order that already has a draft raises one false `order_amounts_changed` or
+  `order_buyer_changed` warning (nothing else changes). A separate key was not added: one derived from
+  `EINVOICE_MATBAO_ENCRYPTION_KEY` would be absent on sites without it, and any key switch has the same
+  effect, so the risk is documented instead. Digests ignore line order and repeated spaces.
 - Before the draft exists, an Administrator's (`manage_options`) buyer edit captures the snapshot again
   (validated first; invalid keeps the old snapshot and alerts `buyer_invalid`). After an attempt that may
   have reached Mat Bao the snapshot is kept, because adopting may bring the old buyer; the change is
