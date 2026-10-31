@@ -137,6 +137,28 @@ final class BuyerPersonalDataPrivacyTest extends InvoiceWorkflowTestCase {
 		$this->assertStringContainsString( 'Nguyễn Văn A', $this->stored_attempt_messages( $untouched ) );
 	}
 
+	public function test_eraser_clears_the_order_state_digest_of_that_email_only(): void {
+		$order = $this->completed_individual_order( self::EMAIL );
+		$other = $this->completed_individual_order( self::OTHER_EMAIL );
+		$repository = new InvoiceRepository();
+		$repository->remember_order_state( (int) $this->invoice_of( $order )?->id, 'a:1;b:2;c:3' );
+		$repository->remember_order_state( (int) $this->invoice_of( $other )?->id, 'a:1;b:2;c:3' );
+
+		BuyerPersonalData::erase( self::EMAIL, 1 );
+
+		$this->assertSame( '', $this->invoice_of( $order )?->order_state );
+		$this->assertSame( 'a:1;b:2;c:3', $this->invoice_of( $other )?->order_state );
+	}
+
+	public function test_export_never_lists_the_order_state_digest(): void {
+		$order = $this->completed_individual_order( self::EMAIL );
+		( new InvoiceRepository() )->remember_order_state( (int) $this->invoice_of( $order )?->id, 'a:1;b:2;c:3' );
+
+		$data = BuyerPersonalData::export( self::EMAIL, 1 )['data'][0]['data'];
+
+		$this->assertStringNotContainsString( 'a:1;b:2;c:3', (string) wp_json_encode( $data ) );
+	}
+
 	public function test_eraser_does_not_claim_anonymization_for_a_walk_in_order(): void {
 		$this->configure_matbao();
 		$this->fake_create_invoice_ok();
