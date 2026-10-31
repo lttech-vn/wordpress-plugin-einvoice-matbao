@@ -86,6 +86,8 @@ function einv_e2e_reset_data(): void {
 		}
 	}
 	delete_option( 'einvoice_matbao_token_keys' );
+	// Every plugin transient (token, templates cache) goes by name, also under a persistent object cache.
+	delete_transient( 'einvoice_matbao_templates' );
 }
 
 add_action(
@@ -127,12 +129,14 @@ add_action(
 					return array( 'ok' => false );
 				}
 				$order->update_status( (string) $request->get_param( 'status' ) );
-				einv_e2e_run_queue();
+				if ( false !== $request->get_param( 'run_queue' ) ) {
+					einv_e2e_run_queue();
+				}
 				return array( 'ok' => true );
 			}
 		);
 
-		// Creates a VND order from product SKUs: {lines:[{sku,qty}], billing?:{...}, request?:{type,...}, status?}.
+		// Creates a VND order from product SKUs. Body: lines (sku and qty), optional billing, request (buyer type fields), total, status.
 		$route(
 			'/order',
 			static function ( WP_REST_Request $request ): array {
@@ -152,7 +156,7 @@ add_action(
 				);
 				$order->set_address( $billing, 'billing' );
 				foreach ( (array) $request->get_param( 'lines' ) as $line ) {
-					$id = wc_get_product_id_by_sku( (string) ( $line['sku'] ?? '' ) );
+					$id      = wc_get_product_id_by_sku( (string) ( $line['sku'] ?? '' ) );
 					$product = $id ? wc_get_product( $id ) : null;
 					if ( $product ) {
 						$order->add_product( $product, (int) ( $line['qty'] ?? 1 ) );
@@ -180,7 +184,7 @@ add_action(
 					);
 				}
 				$order->save();
-				$status = (string) ( $request->get_param( 'status' ) ?: '' );
+				$status = (string) $request->get_param( 'status' );
 				if ( '' !== $status ) {
 					$order->update_status( $status );
 					einv_e2e_run_queue();
@@ -258,13 +262,33 @@ add_action(
 			'/invoice/(?P<id>\d+)',
 			static function ( WP_REST_Request $request ): array {
 				global $wpdb;
-				$row = $wpdb->get_row( $wpdb->prepare( "SELECT id, order_id, reference, status, error_code, error_kind, alert_cycle FROM {$wpdb->prefix}einvoice_matbao_invoice WHERE order_id = %d", (int) $request['id'] ), ARRAY_A ); // phpcs:ignore WordPress.DB
+				$row      = $wpdb->get_row( $wpdb->prepare( "SELECT id, order_id, reference, status, error_code, error_kind, alert_cycle FROM {$wpdb->prefix}einvoice_matbao_invoice WHERE order_id = %d", (int) $request['id'] ), ARRAY_A ); // phpcs:ignore WordPress.DB
 				$attempts = $row ? $wpdb->get_results( $wpdb->prepare( "SELECT outcome, http_status, api_code FROM {$wpdb->prefix}einvoice_matbao_attempt WHERE invoice_id = %d ORDER BY id", (int) $row['id'] ), ARRAY_A ) : array(); // phpcs:ignore WordPress.DB
 				return array(
 					'invoice'  => $row,
 					'attempts' => $attempts,
 				);
 			},
+			'GET'
+		);
+
+		// Order meta the plugin keeps about the buyer, to prove the citizen ID is never stored in the clear.
+		$route(
+			'/order-meta/(?P<id>\\d+)',
+			static function ( WP_REST_Request $request ): array {
+				$order = wc_get_order( (int) $request['id'] );
+				return array(
+					'request'  => $order ? $order->get_meta( '_einvoice_buyer_request' ) : null,
+					'snapshot' => $order ? $order->get_meta( '_einvoice_buyer_snapshot' ) : null,
+				);
+			},
+			'GET'
+		);
+
+		// Product ID of a seeded SKU.
+		$route(
+			'/product-id/(?P<sku>[A-Za-z0-9-]+)',
+			static fn( WP_REST_Request $request ): array => array( 'id' => (int) wc_get_product_id_by_sku( (string) $request['sku'] ) ),
 			'GET'
 		);
 
@@ -299,7 +323,16 @@ add_action(
 			'/queued',
 			static function (): array {
 				return array(
-					'drafts' => count( as_get_scheduled_actions( array( 'hook' => 'einvoice_matbao_create_draft', 'status' => 'pending', 'per_page' => 100 ), 'ids' ) ),
+					'drafts' => count(
+						as_get_scheduled_actions(
+							array(
+								'hook'     => 'einvoice_matbao_create_draft',
+								'status'   => 'pending',
+								'per_page' => 100,
+							),
+							'ids'
+						)
+					),
 				);
 			},
 			'GET'
@@ -319,11 +352,15 @@ add_action(
 						'role'       => (string) $request->get_param( 'role' ),
 					)
 				);
-				return is_wp_error( $id ) ? array( 'ok' => false ) : array( 'ok' => true, 'login' => $login, 'password' => $password );
+				return is_wp_error( $id ) ? array( 'ok' => false ) : array(
+					'ok'       => true,
+					'login'    => $login,
+					'password' => $password,
+				);
 			}
 		);
 
-		// Sets plugin settings: {template?:{form,series}|null, prefix?, walk_in?}.
+		// Sets plugin settings. Body: any of prefix (with walk_in), template (form and series), unit.
 		$route(
 			'/settings',
 			static function ( WP_REST_Request $request ): array {

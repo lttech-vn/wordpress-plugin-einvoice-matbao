@@ -1,8 +1,32 @@
 # Browser E2E (e2e framework)
 
-Agentic browser tests for the invoice request at checkout, run with [`e2e`](https://e2e.tester.army/) and modelled on
-the `workvps/manage` setup. **Not part of CI or any release gate.** The Mat Bao demo API checks live in
+Browser tests for the plugin's user stories, run with [`e2e`](https://e2e.tester.army/) and modelled on the
+`workvps/manage` setup. `bun run e2e:replay` is a gate: CI runs it on pushes to `main` and before every release
+(`.github/workflows/ci.yml`, `release.yml`); pull requests do not. The Mat Bao demo API checks live in
 [`demo-api/`](demo-api) (Python, guarded) and their results in `docs/research/e2e-demo-results.md`.
+
+## Suites
+
+| File | Stories (spec #1) | Agent |
+|---|---|---|
+| `checkout-invoice.army.ts` | 13-15, 17, 19: place an order at Classic and Blocks checkout, complete it, see the draft | yes (cached) |
+| `checkout-validation.army.ts` | 16, 18: browser rules mirror the server rules; Store API refuses bad data; CCCD never stored in the clear | no |
+| `settings.army.ts` | 28-31, 33: encrypted credentials, connection check, template pick, MTChieu prefix, walk-in name, unit | no |
+| `invoices.army.ts` | 1, 3, 20-26: list, filters, search, detail, status check, resend (with the confirmations), dashboard | no |
+| `failures.army.ts` | 4-6, 8, 10, 12, 38-40: blocked drafts (tax rate, totals, 0 VND, template), 503/lost reply/305/exhausted retries | no |
+| `order-changes.army.ts` | 11, 12, 27: warnings after the draft, retry from the snapshot, refund before the job | no |
+| `units-permissions.army.ts` | 32, 34: unit of measure default and override, non-admins refused | no |
+
+Not covered here: Lark alerts, privacy export/erase, uninstall and the missing-WooCommerce path (PHPUnit covers them).
+
+## Fake Mat Bao
+
+`fake-matbao/router.php` is a small PHP server started in the WordPress container by `setup-site.sh`; the plugin reaches it
+through `EINVOICE_MATBAO_BASE_URL` (set in `wp-config.php`, fake mode only). Tests script failures per endpoint
+(`script("create-invoice", [{ http: 503, store: true }])`: the draft is stored but the reply is an error, the lost-reply
+case) and read what Mat Bao received. Shapes follow the recorded demo answers, including its non-atomic duplicate check.
+`wordpress/einv-e2e-http.php` (mu-plugin) refuses any Mat Bao host except the fake or the demo API and exposes the
+`einv-e2e/v1` seams (create orders, complete, make retries due, read rows) to arrange state quickly.
 
 Stack verified: WordPress 7.1.4, WooCommerce 11.2.1, PHP 8.5.12 (the `compose.yaml` stack), Chromium from the
 `@e2e-dev/web` install, Node 26 on Debian trixie in the runner image (bun for installs).
@@ -50,6 +74,9 @@ container sharing the WordPress network namespace (`http://localhost`), copies `
 The model variables (`E2E_SYSTEMONE_*`, `E2E_TEXT_*`) reach the container only in record/live. The text model URL must be
 reachable from the container.
 
+Only `checkout-invoice.army.ts` uses the model. The new suites use exact `screen`/`expect` steps, need no cache and cost
+no tokens, in every mode.
+
 Cache review: after `record`, inspect `test-results/runs/<id>/army-cache/*.json`, confirm no credentials or personal
 data (admin password is random per run, buyer data is synthetic), copy it to `army-cache/` and commit. A changed
 instruction, app screen or `params` needs a new recording.
@@ -58,6 +85,6 @@ Real demo: `EINV_DEMO_E2E=1 EINV_DEMO_MST=… EINV_DEMO_USER=… EINV_DEMO_PASS=
 
 ## Cost and limits
 
-Recording: about 245k tokens (42 decision-model calls) for all five tests. Replay: no model call.
+Recording: about 245k tokens (42 decision-model calls) for the five checkout tests. Replay: no model call. Full replay run: about 2 minutes (60 tests).
 Limits: walk-in has no agent step (nothing to act on); one browser (Chromium); the cache depends on
 the exact page markup, so WooCommerce updates may require a re-record.

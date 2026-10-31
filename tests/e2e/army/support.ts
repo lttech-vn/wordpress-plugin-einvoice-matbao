@@ -50,7 +50,7 @@ export async function resetWorld(ctx: Pick<Ctx, "app">): Promise<void> {
 	await fake("reset", {});
 	await seam(ctx, "/reset", {});
 	await seam(ctx, "/credentials/restore", {});
-	await seam(ctx, "/settings", { prefix: "E2E", walk_in: "" });
+	await seam(ctx, "/settings", { prefix: "E2E", walk_in: "", unit: "Gói", template: { form: "1", series: `C${String(new Date().getUTCFullYear()).slice(2)}TAT` } });
 }
 
 /** Reads the plugin rows of an order (invoice row and attempt outcomes). */
