@@ -18,6 +18,16 @@ final class MatbaoClient {
 
 	private const TOKEN_TRANSIENT_PREFIX = 'einvoice_matbao_token_';
 
+	/**
+	 * Option listing the token transient names in use. The names hash the MST and username, which
+	 * only live encrypted in the credentials, so uninstall cannot recompute them; with a
+	 * persistent object cache the options table does not show them either.
+	 */
+	public const TOKEN_KEYS_OPTION = 'einvoice_matbao_token_keys';
+
+	/** Most token names remembered; the oldest transient is deleted beyond this. */
+	private const MAX_TOKEN_KEYS = 5;
+
 	/** Upper bound for the cached token lifetime; the token expiry is also honoured when shorter. */
 	private const MAX_TOKEN_TTL = HOUR_IN_SECONDS;
 
@@ -51,7 +61,9 @@ final class MatbaoClient {
 	 * Drops the cached token, e.g. before the credentials it was issued for are replaced.
 	 */
 	public function forget_token(): void {
-		delete_transient( $this->token_transient() );
+		$name = $this->token_transient();
+		delete_transient( $name );
+		update_option( self::TOKEN_KEYS_OPTION, array_values( array_diff( self::token_keys(), array( $name ) ) ), false );
 	}
 
 	/**
@@ -287,8 +299,26 @@ final class MatbaoClient {
 		}
 
 		if ( $ttl > 0 ) {
-			set_transient( $this->token_transient(), $this->encryption->encrypt( $token ), $ttl );
+			$name = $this->token_transient();
+			set_transient( $name, $this->encryption->encrypt( $token ), $ttl );
+			$keys   = array_values( array_diff( self::token_keys(), array( $name ) ) );
+			$keys[] = $name;
+			foreach ( array_splice( $keys, 0, max( 0, count( $keys ) - self::MAX_TOKEN_KEYS ) ) as $evicted ) {
+				delete_transient( $evicted );
+			}
+			update_option( self::TOKEN_KEYS_OPTION, $keys, false );
 		}
+	}
+
+	/**
+	 * Token transient names remembered in the option.
+	 *
+	 * @return list<string>
+	 */
+	private static function token_keys(): array {
+		$keys = get_option( self::TOKEN_KEYS_OPTION, array() );
+
+		return is_array( $keys ) ? array_values( array_filter( $keys, 'is_string' ) ) : array();
 	}
 
 	/**
