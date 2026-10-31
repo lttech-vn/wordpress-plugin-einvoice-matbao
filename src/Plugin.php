@@ -38,6 +38,7 @@ final class Plugin {
 		Invoice\Schema::maybe_install();
 		Invoice\DraftInvoiceWorkflow::register();
 		Checkout\ClassicCheckout::register();
+		Checkout\BlocksCheckout::register();
 		Buyer\OrderRestPrivacy::register();
 		Alert\InvoiceAlerts::register();
 

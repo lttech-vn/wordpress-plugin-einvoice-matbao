@@ -172,9 +172,33 @@ request and snapshot meta are removed from WooCommerce REST order responses (wc/
 experimental wc/v4). When the order completes and its invoice row is reserved, the buyer is checked
 against `BuyerRules` again (billing may have been edited); an invalid buyer fails the draft with a
 reason naming the fields only. Otherwise a **buyer snapshot** is captured into order meta and every
-send builds the payload from it (not from the current order). Blocks checkout (#9) reuses
+send builds the payload from it (not from the current order). Blocks checkout reuses
 `BuyerRules`, `BuyerRequestStore::from_input` and `BuyerSnapshotter`; the browser rules in
 `assets/src/checkout-rules.ts` are covered by `bun run test`.
+
+## Invoice request at Checkout Blocks
+
+The `einvoice-matbao/invoice-request` block (a child of the Checkout fields block, auto-inserted
+after contact information via `blockHooks`) offers the same checkbox and fields. WooCommerce's
+Additional Checkout Fields API cannot hide fields by buyer type or avoid persisting the CCCD, so
+the block is an integration block (`assets/src/checkout-blocks.ts`) posting to a write-only Store
+API checkout extension (`extensions.einvoice-matbao`, `BlocksCheckout`). The server re-validates
+on `woocommerce_store_api_checkout_update_order_from_request` with `BuyerRules` and stores with
+`BuyerRequestStore::from_input`, so a direct Store API call is checked the same way (HTTP 400 with
+the Vietnamese message). The extension has no data callback: the CCCD is never echoed in a Store
+API response, the cart extensions, an order note or the session.
+
+The hook also fires on PUT/PATCH when a pending or failed order is in the session (failed-payment
+retry). Those calls are ignored: only the place-order `POST` validates and stores, so a half-typed
+request never gets a 400 and the encrypted CCCD is written once, on the real placement. A retry
+POST on the failed order stores the request normally. Draft orders (`checkout-draft`) never hold
+the CCCD. The schema caps lengths (CCCD 12, tax code 14, address and name 400), restricts
+`buyer_type` to `individual`/`business`, and `request_invoice` accepts only booleans (WordPress
+REST also accepts `"true"`/`1`); any other value is HTTP 400, never a silent walk-in.
+
+Limits: the block UI has no browser test (Playwright in Docker not set up); the server seam is
+covered by `tests/integration/BlocksCheckoutBuyerTest.php`. On a site whose Checkout page was
+customised before activation, add the "Yêu cầu xuất hóa đơn" block in the editor.
 
 ## Tests, lint and static analysis
 
