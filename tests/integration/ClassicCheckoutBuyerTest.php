@@ -297,6 +297,36 @@ final class ClassicCheckoutBuyerTest extends InvoiceWorkflowTestCase {
 		$this->assertDoesNotMatchRegularExpression( '/value="individual"[^>]*disabled/', $this->render_fields() );
 	}
 
+	public function test_fields_never_echo_a_submitted_id_number(): void {
+		$this->with_encryption_key();
+		$_POST = $this->individual_post();
+
+		$html = $this->render_fields();
+
+		$this->assertStringNotContainsString( self::ID_NUMBER, $html );
+		$this->assertStringContainsString( 'Số 1 Đường Thử', $html );
+	}
+
+	public function test_individual_is_never_both_checked_and_disabled(): void {
+		$_POST = array( 'einv_buyer_type' => 'individual' );
+
+		$html = $this->render_fields();
+
+		$this->assertMatchesRegularExpression( '/value="individual"[^>]*disabled/', $html );
+		$this->assertDoesNotMatchRegularExpression( '/value="individual"[^>]*checked/', $html );
+	}
+
+	public function test_fields_are_accessible(): void {
+		$html = $this->render_fields();
+
+		$this->assertMatchesRegularExpression( '/<fieldset[^>]*id="einv_buyer_type_field"[^>]*>\s*<legend[^>]*>Xuất hóa đơn cho.*?<\/legend>/su', $html );
+		foreach ( array( 'einv_business_name', 'einv_tax_code', 'einv_address', 'einv_id_number' ) as $name ) {
+			$this->assertMatchesRegularExpression( '/<input[^>]*id="' . $name . '"[^>]*aria-required="true"[^>]*aria-describedby="' . $name . '_error"/', $html, $name );
+			$this->assertMatchesRegularExpression( '/id="' . $name . '_error"[^>]*aria-live="polite"/', $html, $name );
+		}
+		$this->assertStringContainsString( 'aria-hidden="true">*</abbr>', $html );
+	}
+
 	public function test_fields_escape_submitted_values(): void {
 		$_POST = array( 'einv_address' => '"><script>alert(1)</script>' );
 
