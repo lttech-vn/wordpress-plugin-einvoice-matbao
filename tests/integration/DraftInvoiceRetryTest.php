@@ -149,6 +149,40 @@ final class DraftInvoiceRetryTest extends InvoiceWorkflowTestCase {
 		$this->assertSame( 0, $this->run_queued_draft_actions() );
 	}
 
+	public function test_listener_that_throws_when_retries_are_used_up_does_not_change_the_status(): void {
+		$this->fake_create_invoice_timeout();
+		$this->fake_lookup_not_found();
+		$throw = static function (): never {
+			throw new \RuntimeException( 'Lark is down' );
+		};
+		add_action( DraftInvoiceWorkflow::EXHAUSTED_HOOK, $throw );
+		add_action( DraftInvoiceWorkflow::NEEDS_ATTENTION_ACTION, $throw );
+		$order = $this->completed_order();
+
+		for ( $run = 0; $run < 6; $run++ ) {
+			$this->run_queued_draft_actions();
+		}
+
+		$record = $this->invoice_of( $order );
+		$this->assertSame( InvoiceStatus::NEEDS_ATTENTION, $record?->status );
+		$this->assertSame( 'matbao_transport', $record->error_code );
+	}
+
+	public function test_listener_that_throws_on_a_final_error_does_not_change_the_code(): void {
+		$this->http->respond_json( self::CREATE_ROUTE, 400, array( 'message' => 'Sai dữ liệu' ) );
+		add_action(
+			DraftInvoiceWorkflow::NEEDS_ATTENTION_ACTION,
+			static function (): never {
+				throw new \RuntimeException( 'Lark is down' );
+			}
+		);
+		$order = $this->completed_order();
+
+		$this->run_queued_draft_actions();
+
+		$this->assertSame( 'matbao_http', $this->invoice_of( $order )?->error_code );
+	}
+
 	public function test_data_errors_are_not_retried(): void {
 		$this->http->respond_json( self::CREATE_ROUTE, 400, array( 'message' => 'Sai dữ liệu' ) );
 		$order = $this->completed_order();
