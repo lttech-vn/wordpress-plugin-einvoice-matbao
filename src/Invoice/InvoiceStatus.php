@@ -21,10 +21,14 @@ final class InvoiceStatus {
 	/** Mat Bao created the draft (`LoaiHDon=0`). */
 	public const DRAFT_CREATED = 'draft_created';
 
-	/** Not retried: bad data, or Mat Bao rejected the invoice or the credentials. */
+	/** Not retried: bad data, Mat Bao rejected the invoice or the credentials, or the queue failed twice. */
 	public const FAILED = 'failed';
 
-	/** Retries are used up; a person must look at it (hook `einvoice_matbao_retries_exhausted`). */
+	/**
+	 * A person must look at it: retries are used up (hooks `einvoice_matbao_retries_exhausted` and
+	 * `einvoice_matbao_invoice_needs_attention`), or the lookup by `MTChieu` found something that may
+	 * not be this order's draft.
+	 */
 	public const NEEDS_ATTENTION = 'needs_attention';
 
 	/** Never sent on purpose, e.g. a 0 VND order. */
@@ -43,15 +47,15 @@ final class InvoiceStatus {
 	 */
 	public static function label( string $status ): string {
 		return match ( $status ) {
-			self::PENDING        => __( 'Chờ gửi', 'einvoice-matbao' ),
-			self::SENDING        => __( 'Đang gửi', 'einvoice-matbao' ),
-			self::DRAFT_CREATED  => __( 'Đã tạo nháp', 'einvoice-matbao' ),
-			self::FAILED         => __( 'Lỗi', 'einvoice-matbao' ),
+			self::PENDING         => __( 'Chờ gửi', 'einvoice-matbao' ),
+			self::SENDING         => __( 'Đang gửi', 'einvoice-matbao' ),
+			self::DRAFT_CREATED   => __( 'Đã tạo nháp', 'einvoice-matbao' ),
+			self::FAILED          => __( 'Lỗi', 'einvoice-matbao' ),
 			self::NEEDS_ATTENTION => __( 'Lỗi cần xử lý', 'einvoice-matbao' ),
-			self::SKIPPED        => __( 'Bỏ qua', 'einvoice-matbao' ),
-			self::NOT_CONFIGURED => __( 'Chưa cấu hình', 'einvoice-matbao' ),
-			self::STOPPED        => __( 'Đã dừng', 'einvoice-matbao' ),
-			default              => $status,
+			self::SKIPPED         => __( 'Bỏ qua', 'einvoice-matbao' ),
+			self::NOT_CONFIGURED  => __( 'Chưa cấu hình', 'einvoice-matbao' ),
+			self::STOPPED         => __( 'Đã dừng', 'einvoice-matbao' ),
+			default               => $status,
 		};
 	}
 }
