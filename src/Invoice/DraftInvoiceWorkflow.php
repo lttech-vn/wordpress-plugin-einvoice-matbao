@@ -7,6 +7,7 @@
 
 namespace LTTech\EinvoiceMatbao\Invoice;
 
+use LTTech\EinvoiceMatbao\Buyer\BuyerSnapshotter;
 use LTTech\EinvoiceMatbao\CredentialStore;
 use LTTech\EinvoiceMatbao\Matbao\MatbaoClient;
 use LTTech\EinvoiceMatbao\Matbao\MatbaoCredentials;
@@ -111,9 +112,11 @@ final class DraftInvoiceWorkflow {
 			return;
 		}
 
-		$settings   = new Settings();
-		$reference  = $settings->reference_prefix() . Settings::REFERENCE_MARKER . $order_id;
-		$buyer_name = $settings->walk_in_buyer_name();
+		$settings    = new Settings();
+		$reference   = $settings->reference_prefix() . Settings::REFERENCE_MARKER . $order_id;
+		$snapshotter = new BuyerSnapshotter();
+		$snapshot    = $snapshotter->build( $order, $settings->walk_in_buyer_name() );
+		$buyer_name  = mb_substr( $snapshot->buyer_name, 0, Settings::MAX_BUYER_NAME_LENGTH );
 
 		if ( strlen( $reference ) > Settings::MAX_REFERENCE_LENGTH ) {
 			$code = InvoiceErrorCode::REFERENCE_TOO_LONG;
@@ -129,9 +132,39 @@ final class DraftInvoiceWorkflow {
 			return;
 		}
 
-		if ( $repository->reserve( $order_id, $reference, $buyer_name, InvoiceStatus::PENDING ) ) {
-			self::enqueue( $repository, $order_id, false );
+		// A missing or changed encryption key is a configuration problem, not invalid buyer data, so
+		// it is told apart before BuyerRules sees an unreadable citizen ID as an invalid one.
+		try {
+			$snapshot->payload_fields();
+		} catch ( InvoiceDataError $error ) {
+			if ( $repository->reserve( $order_id, $reference, $buyer_name, $error->error_code->kind()->status() ) ) {
+				self::record_error( $repository, $order_id, $error->error_code, $error->getMessage() );
+			}
+			return;
 		}
+
+		$buyer_errors = $snapshotter->validate( $order );
+		if ( array() !== $buyer_errors ) {
+			$code = InvoiceErrorCode::BUYER_INVALID;
+			if ( $repository->reserve( $order_id, $reference, $buyer_name, $code->kind()->status() ) ) {
+				self::record_error( $repository, $order_id, $code, self::invalid_buyer_reason( array_keys( $buyer_errors ) ) );
+			}
+			return;
+		}
+
+		// Only the hook that reserves the row captures the snapshot, so a concurrent completion
+		// neither overwrites it nor adds a second note.
+		if ( ! $repository->reserve( $order_id, $reference, $buyer_name, InvoiceStatus::PENDING ) ) {
+			return;
+		}
+
+		$snapshotter->store( $order, $snapshot );
+		if ( '' !== $snapshot->id_mask ) {
+			/* translators: %s: citizen ID with all but the last 4 digits hidden. */
+			$order->add_order_note( sprintf( __( 'Đã chụp thông tin người mua (cá nhân) để xuất hóa đơn, CCCD %s.', 'einvoice-matbao' ), $snapshot->id_mask ) );
+		}
+
+		self::enqueue( $repository, $order_id, false );
 	}
 
 	/**
@@ -180,6 +213,37 @@ final class DraftInvoiceWorkflow {
 	}
 
 	/**
+	 * Reason for a buyer that no longer passes BuyerRules, naming the fields but never their values.
+	 *
+	 * @param array<int, string> $fields BuyerRules error keys.
+	 */
+	private static function invalid_buyer_reason( array $fields ): string {
+		$labels = array(
+			'type'          => __( 'loại người mua', 'einvoice-matbao' ),
+			'full_name'     => __( 'họ tên', 'einvoice-matbao' ),
+			'business_name' => __( 'tên doanh nghiệp', 'einvoice-matbao' ),
+			'tax_code'      => __( 'mã số thuế', 'einvoice-matbao' ),
+			'address'       => __( 'địa chỉ', 'einvoice-matbao' ),
+			'id_number'     => __( 'CCCD', 'einvoice-matbao' ),
+			'phone'         => __( 'số điện thoại', 'einvoice-matbao' ),
+			'email'         => __( 'email', 'einvoice-matbao' ),
+		);
+		$names  = array_map( static fn( string $field ): string => $labels[ $field ] ?? $field, $fields );
+
+		/* translators: %s: comma-separated list of invalid buyer fields. */
+		return sprintf( __( 'Không tạo hóa đơn nháp: thông tin người mua của đơn hàng không hợp lệ (%s). Cần admin kiểm tra; gửi lại sau khi sửa thông tin.', 'einvoice-matbao' ), implode( ', ', $names ) );
+	}
+
+	/**
+	 * A Mat Bao message with any 12-digit run (a citizen ID echoed back) masked to its last 4 digits.
+	 *
+	 * @param string $message Mat Bao message.
+	 */
+	private static function without_id_numbers( string $message ): string {
+		return (string) preg_replace( '/(?<!\d)\d{8}(\d{4})(?!\d)/', '********$1', $message );
+	}
+
+	/**
 	 * Sends the draft of one order. Hooked to the queued action.
 	 *
 	 * @param int $order_id Order ID.
@@ -196,6 +260,7 @@ final class DraftInvoiceWorkflow {
 	 * @param CredentialStore     $store      Mat Bao credentials.
 	 * @param DraftPayloadBuilder $builder    Payload builder.
 	 * @param TemplateCache       $templates  Cached Mat Bao templates list.
+	 * @param BuyerSnapshotter    $snapshotter Buyer snapshot reader.
 	 */
 	public function __construct(
 		private readonly InvoiceRepository $repository = new InvoiceRepository(),
@@ -203,6 +268,7 @@ final class DraftInvoiceWorkflow {
 		private readonly CredentialStore $store = new CredentialStore(),
 		private readonly DraftPayloadBuilder $builder = new DraftPayloadBuilder(),
 		private readonly TemplateCache $templates = new TemplateCache(),
+		private readonly BuyerSnapshotter $snapshotter = new BuyerSnapshotter(),
 	) {
 	}
 
@@ -334,9 +400,15 @@ final class DraftInvoiceWorkflow {
 			return;
 		}
 
+		$snapshot = $this->snapshotter->load( $order );
+		if ( null === $snapshot ) {
+			self::record_error( $this->repository, $order_id, InvoiceErrorCode::BUYER_SNAPSHOT_INVALID, __( 'Đơn hàng chưa có thông tin người mua đã chụp khi hoàn thành.', 'einvoice-matbao' ) );
+			return;
+		}
+
 		$issued_on = new \DateTimeImmutable( 'now', new \DateTimeZone( 'Asia/Ho_Chi_Minh' ) );
 		try {
-			$payload = $this->builder->build( $order, $invoice->reference, $invoice->buyer_name, $template, $issued_on );
+			$payload = $this->builder->build( $order, $invoice->reference, $snapshot->payload_fields(), $template, $issued_on );
 		} catch ( InvoiceDataError $error ) {
 			self::record_error( $this->repository, $order_id, $error->error_code, $error->getMessage() );
 			return;
@@ -575,15 +647,16 @@ final class DraftInvoiceWorkflow {
 	 * @param array{form: string, series: string} $template Template of the call.
 	 */
 	private function fail( InvoiceRecord $invoice, int $attempt, MatbaoError $error, string $outcome, array $template ): void {
-		$this->repository->finish_attempt( $attempt, $outcome, $error->kind, $error->http_status, $error->api_code, $error->getMessage() );
+		$message = self::without_id_numbers( $error->getMessage() );
+		$this->repository->finish_attempt( $attempt, $outcome, $error->kind, $error->http_status, $error->api_code, $message );
 
 		$code = InvoiceErrorCode::from_matbao( $error );
 		if ( InvoiceErrorCode::TEMPLATE_REJECTED === $code ) {
 			TemplateCache::forget();
 			/* translators: 1: Mat Bao message, 2: template form number (KHMSHDon), 3: template series (KHHDon). */
-			$reason = sprintf( __( 'Mắt Bão từ chối mẫu hóa đơn %2$s / %3$s (%1$s); chọn lại mẫu mặc định.', 'einvoice-matbao' ), $error->getMessage(), $template['form'], $template['series'] );
+			$reason = sprintf( __( 'Mắt Bão từ chối mẫu hóa đơn %2$s / %3$s (%1$s); chọn lại mẫu mặc định.', 'einvoice-matbao' ), $message, $template['form'], $template['series'] );
 		} else {
-			$reason = $error->getMessage();
+			$reason = $message;
 		}
 
 		if ( ! $code->is_auto_retryable() ) {

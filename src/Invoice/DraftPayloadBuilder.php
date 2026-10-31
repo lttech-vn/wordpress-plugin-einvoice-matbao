@@ -54,13 +54,13 @@ final class DraftPayloadBuilder {
 	 *
 	 * @param WC_Order                            $order      Completed order.
 	 * @param string                              $reference  `MTChieu`.
-	 * @param string                              $buyer_name `NMua_Ten` (walk-in buyer name).
+	 * @param array<string, string>               $buyer      `NMua_*` fields from the buyer snapshot.
 	 * @param array{form: string, series: string} $template   `KHMSHDon` and `KHHDon`.
 	 * @param \DateTimeImmutable                  $issued_on  `NLap`: the day the draft is sent.
 	 * @return array<string, mixed>
 	 * @throws InvoiceDataError When the order cannot be invoiced as stored.
 	 */
-	public function build( WC_Order $order, string $reference, string $buyer_name, array $template, \DateTimeImmutable $issued_on ): array {
+	public function build( WC_Order $order, string $reference, array $buyer, array $template, \DateTimeImmutable $issued_on ): array {
 		if ( 'VND' !== $order->get_currency() ) {
 			/* translators: %s: order currency code. */
 			self::fail( InvoiceErrorCode::CURRENCY_NOT_VND, sprintf( __( 'Đơn hàng dùng tiền tệ %s; chỉ hỗ trợ VND.', 'einvoice-matbao' ), $order->get_currency() ) );
@@ -101,7 +101,7 @@ final class DraftPayloadBuilder {
 			);
 		}
 
-		return array(
+		return $buyer + array(
 			'KHMSHDon'         => $template['form'],
 			'KHHDon'           => $template['series'],
 			'NLap'             => $issued_on->format( 'Y-m-d' ) . 'T00:00:00',
@@ -113,7 +113,6 @@ final class DraftPayloadBuilder {
 			'TGia'             => 1,
 			'HTTToan'          => self::PAYMENT_METHOD,
 			'MTChieu'          => $reference,
-			'NMua_Ten'         => $buyer_name,
 			'DSHHDVu'          => $lines,
 			'TTCKTMai'         => 0,
 			'TGTKhac'          => 0,

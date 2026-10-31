@@ -35,6 +35,10 @@ final class InvoiceErrorCodeTest extends WP_UnitTestCase {
 			'untaxed_line_with_tax'      => array( 'untaxed_line_with_tax', 'data', 'failed', false ),
 			'totals_mismatch'            => array( 'totals_mismatch', 'data', 'failed', false ),
 			'reference_too_long'         => array( 'reference_too_long', 'data', 'failed', false ),
+			'buyer_invalid'              => array( 'buyer_invalid', 'data', 'failed', false ),
+			'buyer_snapshot_invalid'     => array( 'buyer_snapshot_invalid', 'data', 'failed', false ),
+			'buyer_id_unreadable'        => array( 'buyer_id_unreadable', 'data', 'failed', false ),
+			'buyer_id_key_missing'       => array( 'buyer_id_key_missing', 'config', 'not_configured', false ),
 			'credentials_missing'        => array( 'credentials_missing', 'config', 'not_configured', false ),
 			'template_missing'           => array( 'template_missing', 'config', 'not_configured', false ),
 			'template_unavailable'       => array( 'template_unavailable', 'config', 'not_configured', false ),
@@ -88,7 +92,7 @@ final class InvoiceErrorCodeTest extends WP_UnitTestCase {
 		sort( $listed );
 		sort( $cases );
 		$this->assertSame( $listed, $cases );
-		$this->assertCount( 27, $cases );
+		$this->assertCount( 31, $cases );
 	}
 
 	/**

@@ -46,7 +46,7 @@ When an order moves to `completed` (only while the plugin is active; older order
 scanned), the plugin reserves one row in `{prefix}einvoice_matbao_invoice` (`UNIQUE(order_id)`,
 fixed `MTChieu` = prefix + `WC` + order ID) and queues one Action Scheduler action
 (`einvoice_matbao_create_draft`, group `einvoice-matbao`). The action claims the row and calls
-`create-invoice` with `LoaiHDon=0` (draft) and `KTraMTChieuTrung=1` for a walk-in buyer; each call
+`create-invoice` with `LoaiHDon=0` (draft) and `KTraMTChieuTrung=1`; each call
 is logged in `{prefix}einvoice_matbao_attempt`. Status, `MTChieu`, Mat Bao invoice ID and errors
 show in the **Hóa đơn Mắt Bão** box on the order screen (HPOS and legacy).
 
@@ -101,14 +101,17 @@ label and the reason (`data-einv-error-code` / `data-einv-error-kind` attributes
 
 | Kind     | Status           | Codes                                                                                   | Auto retry |
 |----------|------------------|-----------------------------------------------------------------------------------------|------------|
-| `data`   | `failed`         | non-VND currency, fractional VND, unsupported or missing tax rate, several rates on a line, totals mismatch, `MTChieu` > 20 characters, ... | no |
-| `config` | `not_configured` | credentials missing, template missing, template not offered or out of numbers, template rejected by Mat Bao (`errorCode` 308/327), default template changed after an uncertain create (`template_changed`) | no |
+| `data`   | `failed`         | non-VND currency, fractional VND, unsupported or missing tax rate, several rates on a line, totals mismatch, `MTChieu` > 20 characters, buyer no longer valid at completion (`buyer_invalid`), buyer snapshot missing or unusable (`buyer_snapshot_invalid`), citizen ID cannot be decrypted (`buyer_id_unreadable`), ... | no |
+| `config` | `not_configured` | credentials missing, template missing, template not offered or out of numbers, template rejected by Mat Bao (`errorCode` 308/327), default template changed after an uncertain create (`template_changed`), encryption key missing when a snapshot with a citizen ID is sent (`buyer_id_key_missing`) | no |
 | `order`  | `stopped`        | order left `completed`, refunded before sending                                         | no |
 | `matbao` | `pending` → `needs_attention` | request did not complete, HTTP 5xx/408/429, unreadable 2xx body (create-invoice or templates), duplicate `MTChieu` 305 | yes; a create-invoice retry looks `MTChieu` up first |
 | `matbao` | `failed`         | other HTTP status (4xx), Mat Bao `success` false with another `errorCode` or none (rejected invoice, login) | no |
 | `matbao` | `needs_attention` | the lookup by `MTChieu` found something that may not be this order's draft (`matbao_lookup_mismatch`) | no |
 | `system` | `pending` → `failed` | queueing failed (the sweep tries once more, then final)                          | sweep only |
 | `system` | `failed`         | unexpected exception                                                                    | no |
+
+`InvoiceErrorCode` has 31 codes. Buyer errors name only the invalid field, never its value or the
+citizen ID, and the order stays `completed`.
 
 `InvoiceErrorCode::is_auto_retryable()` is the retry switch: `matbao_transport`,
 `matbao_http_temporary`, `matbao_response_unreadable` and `matbao_duplicate_reference`. These may
@@ -119,7 +122,8 @@ retry MUST look the invoice up by `MTChieu` first. A full refund moves the order
 on fires `do_action( 'einvoice_matbao_invoice_needs_attention', InvoiceRecord $invoice,
 InvoiceErrorCode $code )` once; an order the shop moved out of `completed` on purpose, and an
 error still waiting for a retry, do not.
-Admin and Lark alerts (#7) hook there.
+Admin and Lark alerts (#7) hook there. The `InvoiceRecord` carries `buyer_name` (a person's name or a
+business name), so an alert listener must not forward that column.
 
 ## Unit of measure (`DVTinh`)
 
@@ -129,6 +133,27 @@ variation can override it, and a variation without its own override inherits its
 Limits: the per-product unit can only be edited on the product edit screen (and in its variation
 panels). Quick edit, bulk edit and CSV import do not support it yet; they leave an existing
 override untouched.
+
+## Invoice request at Classic checkout
+
+A **Yêu cầu xuất hóa đơn** checkbox below the billing form opens an individual/business choice.
+Individuals must give address and CCCD (12 digits) besides billing name and phone; businesses give
+business name, MST (10 digits, or 13 with an optional `-`), address, plus billing phone and email.
+`BuyerRules` validates the structure only (never identity) on the server through WooCommerce's
+checkout hooks and again when the order is created; `assets/src/checkout.ts` (built by
+`bun run build`) mirrors it in the browser. Without the checkbox the buyer is always a walk-in
+buyer, even with billing data.
+
+The CCCD is stored only in order meta, encrypted with `EINVOICE_MATBAO_ENCRYPTION_KEY`; without the
+key the individual option is disabled and refused server-side. Logs, order notes and invoice rows
+show only the last 4 digits; 12-digit runs in Mat Bao error messages are masked the same way. The
+request and snapshot meta are removed from WooCommerce REST order responses (wc/v2, wc/v3 and the
+experimental wc/v4). When the order completes and its invoice row is reserved, the buyer is checked
+against `BuyerRules` again (billing may have been edited); an invalid buyer fails the draft with a
+reason naming the fields only. Otherwise a **buyer snapshot** is captured into order meta and every
+send builds the payload from it (not from the current order). Blocks checkout (#9) reuses
+`BuyerRules`, `BuyerRequestStore::from_input` and `BuyerSnapshotter`; the browser rules in
+`assets/src/checkout-rules.ts` are covered by `bun run test`.
 
 ## Tests, lint and static analysis
 
@@ -203,6 +228,11 @@ suites through the same Docker Compose stack used locally.
   and nothing alerts.
 - A draft adopted by the lookup keeps the `NLap` Mat Bao reports, which may predate the day it was adopted.
 - The manual re-send button and the alert for `needs_attention` are #9 and #7.
+- A `buyer_invalid` row is `failed` and holds no buyer snapshot, and nothing restarts a `failed` row yet.
+  A re-send (#9) must run `BuyerSnapshotter::validate()` again and `capture()` when the row has no
+  snapshot or it needs updating. Capturing again is only safe while the invoice cannot have been created
+  (`!may_have_been_created`); otherwise #14 must compare `NMua_Ten`/`NMua_MST` in `lookup_mismatch`,
+  since adopting a draft compares only the total.
 - `DGia` = net / quantity can be a non-terminating fraction (net 100000, quantity 3); behavior on
   the demo API is unverified (#15).
 - `TgTTTBChu` carries Vietnamese diacritics; the proven demo payloads were sent without. Confirm in #15.
