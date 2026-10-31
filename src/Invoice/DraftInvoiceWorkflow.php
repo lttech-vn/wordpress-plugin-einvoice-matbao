@@ -593,7 +593,10 @@ final class DraftInvoiceWorkflow {
 				sprintf( __( 'Đã thử lại tối đa nhưng chưa tạo được hóa đơn nháp. Lỗi gần nhất: %s', 'einvoice-matbao' ), $reason ),
 				InvoiceStatus::NEEDS_ATTENTION
 			);
-			do_action( 'einvoice_matbao_retries_exhausted', $invoice->order_id, $invoice->reference );
+			try {
+				do_action( 'einvoice_matbao_retries_exhausted', $invoice->order_id, $invoice->reference );
+			} catch ( \Throwable ) { // phpcs:ignore Generic.CodeAnalysis.EmptyStatement.DetectedCatch -- a failing alert listener must not overwrite the recorded status.
+			}
 			return;
 		}
 
@@ -630,7 +633,10 @@ final class DraftInvoiceWorkflow {
 		$repository->record_error( $invoice->id, $code, $reason, $status );
 		$invoice = $repository->find_by_order( $order_id );
 		if ( null !== $invoice && InvoiceStatus::PENDING !== $invoice->status && $code->needs_attention() ) {
-			do_action( 'einvoice_matbao_invoice_needs_attention', $invoice, $code );
+			try {
+				do_action( 'einvoice_matbao_invoice_needs_attention', $invoice, $code );
+			} catch ( \Throwable ) { // phpcs:ignore Generic.CodeAnalysis.EmptyStatement.DetectedCatch -- a failing alert listener must not overwrite the recorded error.
+			}
 		}
 	}
 }
