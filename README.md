@@ -24,6 +24,22 @@ WooCommerce version and activates WooCommerce and this plugin. The site is at
 
 Stop with `docker compose down` (add `-v` to wipe the database and WordPress volume).
 
+## Settings and credentials
+
+Settings live under **WooCommerce → Hóa đơn Mắt Bão** (Administrators only). Mat Bao credentials and
+the Lark webhook are stored encrypted (libsodium) with key material from a `wp-config.php` constant:
+
+```php
+define( 'EINVOICE_MATBAO_ENCRYPTION_KEY', '<random string, at least 32 characters>' );
+```
+
+Without the constant the plugin refuses to save credentials and shows a notice. Changing or removing
+the key makes stored credentials unreadable; re-enter them after rotating. Secrets are never rendered
+back in the UI. The Mat Bao access token is cached encrypted in a transient (at most one hour).
+
+The page talks to the `einvoice-matbao/v1` REST namespace through htmx; every route returns an HTML
+fragment, requires `manage_options` and a `wp_rest` nonce in `X-WP-Nonce`.
+
 ## Tests, lint and static analysis
 
 One command runs everything (starts the stack if needed):
@@ -53,7 +69,8 @@ bun run watch:css  # rebuild CSS on change
 ```
 
 Tailwind utilities are scoped under `#einv-app` and preflight is not included, so WordPress admin
-styles are untouched. htmx is copied from the pinned npm package; nothing is loaded from a CDN.
+styles are untouched; `bun run check:css-scope` (run in CI) fails if the build emits an unscoped rule.
+Design tokens (`einv-*`) come from Stripe `DESIGN.md` in VoltAgent/awesome-design-md. htmx is copied from the pinned npm package; nothing is loaded from a CDN.
 `assets/dist/` is gitignored and rebuilt by CI; release packages must run `bun run build` first.
 
 ## CI
