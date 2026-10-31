@@ -72,6 +72,7 @@ final class InvoiceErrorCodeTest extends WP_UnitTestCase {
 			'unreadable body'                    => array( new MatbaoError( MatbaoError::KIND_API, 'Unexpected response.', null, 200 ), 'matbao_response_unreadable' ),
 			'create response without an ID'      => array( new MatbaoError( MatbaoError::KIND_API, 'Create-invoice response has no invoice ID.', 200 ), 'matbao_response_unreadable' ),
 			'invoice rejected by Mat Bao'        => array( new MatbaoError( MatbaoError::KIND_API, 'Sai thông tin', 400 ), 'matbao_api' ),
+			'rejected without an errorCode'      => array( new MatbaoError( MatbaoError::KIND_API, 'Hóa đơn không hợp lệ', null, null, true, true ), 'matbao_api' ),
 			'login rejected inside the envelope' => array( new MatbaoError( MatbaoError::KIND_API, 'Sai mật khẩu', 401, 200 ), 'matbao_api' ),
 			'template not found (308)'           => array( new MatbaoError( MatbaoError::KIND_API, 'Không tìm thấy mẫu số kí hiệu', 308 ), 'template_rejected' ),
 			'template out of numbers (327)'      => array( new MatbaoError( MatbaoError::KIND_API, 'Mẫu hóa đơn đã hết số', 327 ), 'template_rejected' ),

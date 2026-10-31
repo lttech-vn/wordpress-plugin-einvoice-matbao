@@ -242,6 +242,33 @@ final class DraftInvoiceRetryTest extends InvoiceWorkflowTestCase {
 		$this->assertSame( array(), $this->queued_draft_action_ids() );
 	}
 
+	public function test_invoice_explicitly_rejected_without_an_error_code_is_not_retried(): void {
+		$this->http->respond_json(
+			self::CREATE_ROUTE,
+			200,
+			array(
+				'errorCode' => 200,
+				'message'   => 'Thành công',
+				'data'      => array(
+					array(
+						'message' => 'Hóa đơn không hợp lệ',
+						'data'    => null,
+						'success' => false,
+					),
+				),
+				'success'   => true,
+			)
+		);
+		$order = $this->completed_order();
+		$this->run_queued_draft_actions();
+
+		$record = $this->invoice_of( $order );
+		$this->assertSame( InvoiceStatus::FAILED, $record?->status );
+		$this->assertSame( 'matbao_api', $record->error_code );
+		$this->assertStringContainsString( 'Hóa đơn không hợp lệ', $record->status_reason );
+		$this->assertSame( array(), $this->queued_draft_action_ids() );
+	}
+
 	public function test_response_without_invoice_id_is_treated_as_possibly_created(): void {
 		$this->http->respond_json(
 			self::CREATE_ROUTE,
