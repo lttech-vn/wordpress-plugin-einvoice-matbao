@@ -215,6 +215,55 @@ final class InvoiceRepository {
 	}
 
 	/**
+	 * One invoice by row ID.
+	 *
+	 * @param int $invoice_id Invoice row ID.
+	 */
+	public function find( int $invoice_id ): ?InvoiceRecord {
+		global $wpdb;
+
+		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id = %d', Schema::invoice_table(), $invoice_id ), ARRAY_A );
+
+		return is_array( $row ) ? InvoiceRecord::from_row( $row ) : null;
+	}
+
+	/**
+	 * A page of invoices, newest first.
+	 *
+	 * @param string[] $statuses InvoiceStatus values to keep; empty keeps all.
+	 * @param string   $search   Order ID, or the start of `MTChieu` (a prefix match can use its index); empty keeps all.
+	 * @param int      $limit    Page size.
+	 * @param int      $offset   Rows to skip.
+	 * @return array{items: list<InvoiceRecord>, total: int}
+	 */
+	public function search( array $statuses, string $search, int $limit, int $offset ): array {
+		global $wpdb;
+
+		$where  = array();
+		$params = array( Schema::invoice_table() );
+		if ( array() !== $statuses ) {
+			$where[] = 'status IN (' . implode( ',', array_fill( 0, count( $statuses ), '%s' ) ) . ')';
+			$params  = array_merge( $params, $statuses );
+		}
+		if ( '' !== $search ) {
+			$where[]  = '(order_id = %d OR reference LIKE %s)';
+			$params[] = ctype_digit( $search ) ? (int) $search : 0;
+			$params[] = $wpdb->esc_like( $search ) . '%';
+		}
+		$clause = array() === $where ? '' : ' WHERE ' . implode( ' AND ', $where );
+
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- $clause only holds fixed fragments with placeholders.
+		$total = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i' . $clause, $params ) );
+		$rows  = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i' . $clause . ' ORDER BY id DESC LIMIT %d OFFSET %d', array_merge( $params, array( $limit, $offset ) ) ), ARRAY_A );
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber
+
+		return array(
+			'items' => is_array( $rows ) ? array_values( array_map( array( InvoiceRecord::class, 'from_row' ), $rows ) ) : array(),
+			'total' => $total,
+		);
+	}
+
+	/**
 	 * Invoices in a status that have not changed for a while.
 	 *
 	 * @param string $status        InvoiceStatus.

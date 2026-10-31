@@ -172,17 +172,21 @@ final class DraftInvoiceWorkflow {
 	 * is completed again, or an admin resend, #9) in a new retry cycle. Earlier attempts still
 	 * decide whether the run looks the invoice up by `MTChieu` first.
 	 *
-	 * @param int    $order_id Order ID.
-	 * @param string $from     Status the invoice must be in.
+	 * @param int                     $order_id Order ID.
+	 * @param string                  $from     Status the invoice must be in.
+	 * @param (callable(): void)|null $on_claimed Runs only when this call won the restart, before the draft is queued.
 	 * @return bool Whether this call restarted it; false when it is in another status or another call won.
 	 */
-	public static function restart( int $order_id, string $from ): bool {
+	public static function restart( int $order_id, string $from, ?callable $on_claimed = null ): bool {
 		$repository = new InvoiceRepository();
 		$invoice    = $repository->find_by_order( $order_id );
 		if ( null === $invoice || ! $repository->restart( $invoice->id, $from ) ) {
 			return false;
 		}
 
+		if ( null !== $on_claimed ) {
+			$on_claimed();
+		}
 		self::enqueue( $repository, $order_id, false );
 
 		return true;
@@ -217,7 +221,7 @@ final class DraftInvoiceWorkflow {
 	 *
 	 * @param array<int, string> $fields BuyerRules error keys.
 	 */
-	private static function invalid_buyer_reason( array $fields ): string {
+	public static function invalid_buyer_reason( array $fields ): string {
 		$labels = array(
 			'type'          => __( 'loại người mua', 'einvoice-matbao' ),
 			'full_name'     => __( 'họ tên', 'einvoice-matbao' ),

@@ -43,11 +43,13 @@ final class Plugin {
 		Alert\InvoiceAlerts::register();
 
 		add_action( 'rest_api_init', array( Admin\SettingsController::class, 'register_routes' ) );
+		add_action( 'rest_api_init', array( Admin\InvoiceController::class, 'register_routes' ) );
 		add_filter( 'rest_pre_serve_request', array( Admin\SettingsController::class, 'serve_html' ), 10, 4 );
 
 		if ( is_admin() ) {
 			Admin\SettingsPage::register();
 			Admin\OrderInvoiceMetaBox::register();
+			Admin\OrderListInvoiceFilter::register();
 			Admin\ProductUnitField::register();
 		}
 	}

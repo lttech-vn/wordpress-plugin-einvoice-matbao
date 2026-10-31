@@ -50,6 +50,26 @@ fixed `MTChieu` = prefix + `WC` + order ID) and queues one Action Scheduler acti
 is logged in `{prefix}einvoice_matbao_attempt`. Status, `MTChieu`, Mat Bao invoice ID and errors
 show in the **Hóa đơn Mắt Bão** box on the order screen (HPOS and legacy).
 
+Administrators manage invoices under **WooCommerce → Danh sách hóa đơn**: filter by status (including an
+error/needs-attention group), search by order ID or the start of `MTChieu` (prefix match), open a detail
+view with attempt history (national ID numbers always masked), check the draft on Mat Bao, and resend.
+Resend goes through the retry workflow, which looks the invoice up by `MTChieu` before creating, so it
+never makes a duplicate:
+
+- A draft that disappeared from Mat Bao is never recreated automatically; resending it needs an explicit
+  confirmation and an empty lookup under the stored template.
+- A `template_changed` stop is released only by typing back the `MTChieu` **and** an empty lookup under
+  the old (stored) template; anything found, or a failed lookup, refuses and changes nothing. Only the
+  request that wins the restart records the `admin_absent` attempt and clears the stored template.
+- After `buyer_invalid` / `buyer_snapshot_invalid` (no usable snapshot), resend checks the buyer again:
+  still invalid refuses with the field names (never values); valid captures the snapshot, unless an
+  earlier attempt may have reached Mat Bao, in which case the existing snapshot is kept.
+- Each resend starts a new alert cycle, so a plain resend of `template_changed` that stops again sends
+  one new alert (admin notice and Lark) per resend; nothing repeats without an admin action.
+
+The WooCommerce order list has an invoice filter on both HPOS and legacy screens; it adds an `EXISTS`
+on the invoice table to the order query, so it combines with other filters and has no result cap.
+
 The payload uses the amounts and taxes stored on each order line (discounted prices, fees and
 shipping as their own lines, `TSuat` 0/5/8/10 or -1 for tax status `none`) and must reconcile with
 the order totals; otherwise nothing is sent and the invoice is marked failed. 0 VND orders are
