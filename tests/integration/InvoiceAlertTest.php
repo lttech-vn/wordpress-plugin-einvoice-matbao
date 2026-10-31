@@ -9,11 +9,13 @@ namespace LTTech\EinvoiceMatbao\Tests\Integration;
 
 use ActionScheduler;
 use LTTech\EinvoiceMatbao\Alert\AdminAlertNotice;
+use LTTech\EinvoiceMatbao\Alert\AlertStore;
 use LTTech\EinvoiceMatbao\Alert\InvoiceAlerts;
 use LTTech\EinvoiceMatbao\CredentialStore;
 use LTTech\EinvoiceMatbao\Invoice\DraftInvoiceWorkflow;
 use LTTech\EinvoiceMatbao\Invoice\InvoiceStatus;
 use LTTech\EinvoiceMatbao\Lark\LarkWebhook;
+use LTTech\EinvoiceMatbao\Tests\Integration\Support\FakeHttp;
 use LTTech\EinvoiceMatbao\Tests\Integration\Support\InvoiceWorkflowTestCase;
 use WC_Order;
 use WP_Error;
@@ -294,5 +296,225 @@ final class InvoiceAlertTest extends InvoiceWorkflowTestCase {
 		$this->assertSame( 1, $this->run_alert_actions(), 'Third resend alerts Lark again.' );
 		$this->assertCount( 3, $this->http->requests_to( $this->lark_route ) );
 		$this->assertStringContainsString( 'data-einv-alert=', $this->notice_html() );
+	}
+
+	/**
+	 * Adds alerts of orders that do not need anything any more, as if they were left behind.
+	 *
+	 * @param int  $count     How many.
+	 * @param bool $dismissed Whether the admin hid them.
+	 */
+	private function add_leftover_alerts( int $count, bool $dismissed ): void {
+		for ( $n = 0; $n < $count; $n++ ) {
+			$order_id = 900000 + $n + ( $dismissed ? 0 : 5000 );
+			$key      = AlertStore::key( $order_id, 'matbao_http', 1 );
+			AlertStore::create( $key, $order_id, 'matbao_http', 1 );
+			if ( $dismissed ) {
+				AlertStore::set( $key, 'dismissed', true );
+			}
+		}
+	}
+
+	public function test_notice_cost_is_bounded_and_an_old_real_alert_is_not_pushed_out_by_dismissed_ones(): void {
+		global $wpdb;
+		$order = $this->failing_order();
+		$this->add_leftover_alerts( 60, true );
+
+		$before = $wpdb->num_queries;
+		$html   = $this->notice_html();
+		$used   = $wpdb->num_queries - $before;
+
+		$this->assertStringContainsString( '#' . $order->get_id(), $html );
+		$this->assertLessThanOrEqual( 15, $used, 'Queries spent by the notice on one admin page.' );
+	}
+
+	public function test_old_real_alert_is_still_listed_after_the_sweep_removed_newer_expired_alerts(): void {
+		$order = $this->failing_order();
+		$this->add_leftover_alerts( 60, false );
+
+		do_action( DraftInvoiceWorkflow::RECOVERY_ACTION );
+
+		$this->assertStringContainsString( '#' . $order->get_id(), $this->notice_html() );
+	}
+
+	public function test_sweep_removes_expired_alerts_and_old_dismissed_ones_but_keeps_current_ones(): void {
+		global $wpdb;
+		$order   = $this->failing_order();
+		$invoice = $this->invoice_of( $order );
+		$this->assertNotNull( $invoice );
+		$current = AlertStore::key( $order->get_id(), $invoice->error_code, $invoice->alert_cycle );
+		$this->add_leftover_alerts( 3, false );
+
+		do_action( DraftInvoiceWorkflow::RECOVERY_ACTION );
+
+		$this->assertNotNull( AlertStore::get( $current ), 'A current alert stays.' );
+		$names = $wpdb->get_col( $wpdb->prepare( 'SELECT option_name FROM %i WHERE option_name LIKE %s', $wpdb->options, $wpdb->esc_like( 'einvoice_matbao_alert_' ) . '%' ) );
+		$this->assertSame( array( $current ), $names, 'Expired leftovers are gone.' );
+
+		AlertStore::set( $current, 'dismissed', time() - 31 * DAY_IN_SECONDS );
+		do_action( DraftInvoiceWorkflow::RECOVERY_ACTION );
+		$this->assertNull( AlertStore::get( $current ), 'Dismissed more than 30 days ago: gone.' );
+	}
+
+	public function test_recently_dismissed_alert_is_kept_for_its_cycle_and_the_alert_of_a_paid_invoice_is_removed(): void {
+		$order = $this->failing_order();
+		AdminAlertNotice::dismiss( $order->get_id() );
+		do_action( DraftInvoiceWorkflow::RECOVERY_ACTION );
+		$this->assertCount( 1, AlertStore::keys_of_order( $order->get_id() ), 'Dismissed a moment ago: kept so the same cycle does not alert again.' );
+
+		$this->fake_create_invoice_ok();
+		$this->fake_lookup_not_found();
+		$this->assertTrue( DraftInvoiceWorkflow::restart( $order->get_id(), InvoiceStatus::FAILED ) );
+		$this->run_queued_draft_actions();
+		$this->assertSame( InvoiceStatus::DRAFT_CREATED, $this->invoice_of( $order )?->status );
+
+		do_action( DraftInvoiceWorkflow::RECOVERY_ACTION );
+		$this->assertSame( array(), AlertStore::keys_of_order( $order->get_id() ) );
+	}
+
+	public function test_dismiss_reaches_alerts_beyond_the_notice_list(): void {
+		$order = $this->failing_order();
+		$this->add_leftover_alerts( 80, false );
+		$keys = AlertStore::keys_of_order( $order->get_id() );
+		$this->assertCount( 1, $keys );
+
+		AdminAlertNotice::dismiss( $order->get_id() );
+
+		$this->assertTrue( AlertStore::get( $keys[0] )['dismissed'] ?? false );
+	}
+
+	public function test_lark_server_error_is_retried_with_backoff_until_it_succeeds(): void {
+		$this->configure_lark();
+		$calls = 0;
+		$this->http->respond_with(
+			$this->lark_route,
+			static function () use ( &$calls ): array {
+				++$calls;
+				return $calls < 3 ? FakeHttp::json_response( 503, array( 'msg' => 'busy' ) ) : FakeHttp::json_response(
+					200,
+					array(
+						'code' => 0,
+						'msg'  => 'success',
+					)
+				);
+			}
+		);
+		$this->failing_order();
+
+		$this->assertSame( 1, $this->run_alert_actions() );
+		$first = as_next_scheduled_action( InvoiceAlerts::SEND_ACTION );
+		$this->assertIsInt( $first );
+		$this->assertEqualsWithDelta( time() + 60, $first, 5, 'First retry after 1 minute.' );
+		$this->assertSame( 1, $this->run_alert_actions() );
+		$second = as_next_scheduled_action( InvoiceAlerts::SEND_ACTION );
+		$this->assertEqualsWithDelta( time() + 300, (int) $second, 5, 'Second retry after 5 minutes.' );
+		$this->assertSame( 1, $this->run_alert_actions() );
+
+		$this->assertSame( 3, $calls );
+		$this->assertSame( 0, $this->run_alert_actions(), 'Delivered: nothing left to run.' );
+		$this->assertStringNotContainsString( 'Không gửi được tin Lark', $this->notice_html() );
+	}
+
+	public function test_lark_server_error_stops_after_three_retries_and_leaves_the_invoice_alone(): void {
+		$this->configure_lark();
+		$this->http->respond_json( $this->lark_route, 502, array( 'msg' => 'bad gateway' ) );
+		$order = $this->failing_order();
+
+		$runs = 0;
+		while ( $this->run_alert_actions() > 0 && $runs < 10 ) {
+			++$runs;
+		}
+
+		$this->assertSame( 4, $runs, 'One try and three retries.' );
+		$this->assertCount( 4, $this->http->requests_to( $this->lark_route ) );
+		$this->assertStringContainsString( 'Không gửi được tin Lark', $this->notice_html() );
+		$this->assertSame( InvoiceStatus::FAILED, $this->invoice_of( $order )?->status );
+		$this->assertCount( 1, $this->http->requests_to( self::CREATE_ROUTE ) );
+		$this->assertSame( array(), $this->queued_draft_action_ids() );
+	}
+
+	public function test_lark_network_error_and_429_are_retried_but_a_4xx_is_not(): void {
+		$this->configure_lark();
+		$this->http->respond_with( $this->lark_route, static fn(): WP_Error => new WP_Error( 'http_request_failed', 'cURL error 28' ) );
+		$this->failing_order();
+		$this->assertSame( 1, $this->run_alert_actions() );
+		$this->assertIsInt( as_next_scheduled_action( InvoiceAlerts::SEND_ACTION ), 'A network error is retried.' );
+		$this->http->respond_json( $this->lark_route, 429, array( 'msg' => 'slow down' ) );
+		$this->assertSame( 1, $this->run_alert_actions() );
+		$this->assertIsInt( as_next_scheduled_action( InvoiceAlerts::SEND_ACTION ), '429 is retried.' );
+
+		$this->http->respond_json( $this->lark_route, 400, array( 'msg' => 'bad webhook' ) );
+		$this->assertSame( 1, $this->run_alert_actions() );
+		$this->assertFalse( as_next_scheduled_action( InvoiceAlerts::SEND_ACTION ), '4xx is final.' );
+	}
+
+	public function test_lark_client_error_is_not_retried(): void {
+		$this->configure_lark();
+		$this->http->respond_json( $this->lark_route, 400, array( 'msg' => 'bad webhook' ) );
+		$this->failing_order();
+
+		$this->assertSame( 1, $this->run_alert_actions() );
+
+		$this->assertFalse( as_next_scheduled_action( InvoiceAlerts::SEND_ACTION ) );
+		$this->assertSame( 0, $this->run_alert_actions() );
+		$this->assertCount( 1, $this->http->requests_to( $this->lark_route ) );
+		$this->assertStringContainsString( 'Không gửi được tin Lark', $this->notice_html() );
+	}
+
+	public function test_missing_lark_configuration_is_not_retried(): void {
+		$this->failing_order();
+
+		$this->assertSame( 1, $this->run_alert_actions() );
+
+		$this->assertFalse( as_next_scheduled_action( InvoiceAlerts::SEND_ACTION ) );
+	}
+
+	public function test_queue_exception_marks_the_alert_queue_failed(): void {
+		add_filter(
+			'pre_as_enqueue_async_action',
+			static function ( $pre, string $hook ) {
+				if ( InvoiceAlerts::SEND_ACTION === $hook ) {
+					throw new \RuntimeException( 'queue down' );
+				}
+				return $pre;
+			},
+			10,
+			2
+		);
+		$order = $this->failing_order();
+
+		$keys = AlertStore::keys_of_order( $order->get_id() );
+		$this->assertCount( 1, $keys );
+		$this->assertSame( 'queue_failed', AlertStore::get( $keys[0] )['lark'] ?? '' );
+	}
+
+	public function test_dismiss_link_needs_the_capability_and_a_valid_nonce(): void {
+		$order = $this->failing_order();
+		$keys  = AlertStore::keys_of_order( $order->get_id() );
+		$nonce = wp_create_nonce( AdminAlertNotice::DISMISS_ACTION . '_' . $order->get_id() );
+		$_GET  = array(
+			'order_id' => (string) $order->get_id(),
+			'_wpnonce' => $nonce,
+		);
+
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'shop_manager' ) ) );
+		try {
+			AdminAlertNotice::handle_dismiss();
+			$this->fail( 'A user without manage_options must be stopped.' );
+		} catch ( \WPDieException $stopped ) {
+			$this->assertSame( 403, $stopped->getCode() );
+		}
+		$this->assertFalse( AlertStore::get( $keys[0] )['dismissed'] ?? true );
+
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+		$_GET['_wpnonce'] = 'wrong';
+		try {
+			AdminAlertNotice::handle_dismiss();
+			$this->fail( 'A wrong nonce must be stopped.' );
+		} catch ( \WPDieException $stopped ) {
+			$this->assertFalse( AlertStore::get( $keys[0] )['dismissed'] ?? true );
+		} finally {
+			$_GET = array();
+		}
 	}
 }
