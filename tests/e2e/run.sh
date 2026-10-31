@@ -17,12 +17,13 @@ fi
 port="${EINV_HTTP_PORT:-${port:-8080}}"
 mode="${EINV_E2E_MODE:-fake}"
 
-EINV_E2E_MODE="$mode" ./setup-site.sh
+setup_log="$(EINV_E2E_MODE="$mode" ./setup-site.sh)"
+product_id="$(printf '%s\n' "$setup_log" | sed -n 's/^product //p' | tail -1)"
 mkdir -p results
 
 # Host networking: the site URL is http://localhost:$port both for the browser and WordPress.
 docker run --rm --network host --ipc host \
 	-v "$PWD:/e2e" -w /e2e \
-	-e EINV_E2E_MODE="$mode" -e EINV_E2E_BASE_URL="http://localhost:$port" \
+	-e EINV_E2E_MODE="$mode" -e EINV_E2E_PRODUCT_ID="$product_id" -e EINV_E2E_BASE_URL="http://localhost:$port" \
 	mcr.microsoft.com/playwright:v1.64.1-noble \
 	npx --no-install playwright test "$@"

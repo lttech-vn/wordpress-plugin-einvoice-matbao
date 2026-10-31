@@ -22,20 +22,14 @@ const BUSINESS: Buyer = { type: "business", name: "CÔNG TY TNHH THỬ NGHIỆM 
 const BILLING = { first: "Nguyễn", last: "Văn Thử", phone: "0912345678", email: "e2e-buyer@example.invalid", address: "3 Đường Thử Nghiệm", city: "Hồ Chí Minh" };
 
 async function addProductToCart(page: Page): Promise<void> {
-	await page.goto("/?post_type=product&s=E2E");
-	const response = await page.request.post("/?wc-ajax=add_to_cart", { form: { product_sku: "E2E-SVC", product_id: await productId(page), quantity: "1" } });
-	expect(response.ok()).toBeTruthy();
-}
-
-async function productId(page: Page): Promise<string> {
-	const id = await page.locator("[data-product_sku='E2E-SVC'], [data-product_id]").first().getAttribute("data-product_id");
-	expect(id).toBeTruthy();
-	return id as string;
+	const id = process.env.EINV_E2E_PRODUCT_ID;
+	expect(id, "EINV_E2E_PRODUCT_ID is exported by run.sh").toBeTruthy();
+	await page.goto(`/?add-to-cart=${id}`);
 }
 
 async function classicCheckout(page: Page, buyer: Buyer): Promise<number> {
 	await addProductToCart(page);
-	await page.goto("/classic-checkout/");
+	await page.goto("/?pagename=classic-checkout");
 	await page.locator("#billing_first_name").fill(BILLING.first);
 	await page.locator("#billing_last_name").fill(BILLING.last);
 	await page.locator("#billing_address_1").fill(BILLING.address);
@@ -60,7 +54,7 @@ async function classicCheckout(page: Page, buyer: Buyer): Promise<number> {
 
 async function blocksCheckout(page: Page, buyer: Buyer): Promise<number> {
 	await addProductToCart(page);
-	await page.goto("/checkout/");
+	await page.goto("/?pagename=checkout");
 	await page.locator("#email").fill(BILLING.email);
 	await page.locator("#billing-first_name").fill(BILLING.first);
 	await page.locator("#billing-last_name").fill(BILLING.last);
@@ -83,8 +77,8 @@ async function blocksCheckout(page: Page, buyer: Buyer): Promise<number> {
 }
 
 async function orderReceivedId(page: Page): Promise<number> {
-	await page.waitForURL(/order-received\/(\d+)/, { timeout: 60_000 });
-	return Number(/order-received\/(\d+)/.exec(page.url())?.[1]);
+	await page.waitForURL(/order-received(?:\/|=)(\d+)/, { timeout: 60_000 });
+	return Number(/order-received(?:\/|=)(\d+)/.exec(page.url())?.[1]);
 }
 
 async function loginAsAdmin(page: Page): Promise<void> {
