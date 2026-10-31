@@ -1,0 +1,54 @@
+# Local dev + CI stack. Project name and port come from .env (see .env.example)
+# so several worktrees can run in parallel.
+services:
+  db:
+    image: mariadb:11.8
+    environment:
+      MARIADB_ROOT_PASSWORD: root
+      MARIADB_DATABASE: wordpress
+      MARIADB_USER: wordpress
+      MARIADB_PASSWORD: wordpress
+    volumes:
+      - db:/var/lib/mysql
+      - ./docker/db-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 3s
+      timeout: 5s
+      retries: 40
+
+  wordpress:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${EINV_HTTP_PORT:-8080}:80"
+    environment:
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: wordpress
+      WORDPRESS_DB_NAME: wordpress
+      WORDPRESS_DEBUG: "1"
+      EINV_SITE_URL: "http://localhost:${EINV_HTTP_PORT:-8080}"
+      WOOCOMMERCE_VERSION: "11.2.1"
+      WP_TESTS_DB_HOST: db
+      WP_TESTS_DB_NAME: wordpress_test
+      WP_TESTS_DB_USER: wordpress
+      WP_TESTS_DB_PASSWORD: wordpress
+    volumes:
+      - wordpress:/var/www/html
+      - .:/var/www/html/wp-content/plugins/einvoice-matbao
+    # Do not set working_dir to the plugin mount: the image entrypoint copies
+    # WordPress core into the working directory when it looks empty of core files.
+    healthcheck:
+      test: ["CMD", "test", "-f", "/var/www/html/wp-includes/version.php"]
+      interval: 2s
+      timeout: 3s
+      retries: 60
+
+volumes:
+  db:
+  wordpress:

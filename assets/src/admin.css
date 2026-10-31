@@ -1,0 +1,14 @@
+/*
+ * Admin UI styles. Only theme variables and utilities are imported: Tailwind's preflight
+ * (global reset) is intentionally left out so WordPress admin CSS is not affected, and every
+ * utility is nested under #einv-app so it only applies inside the plugin's own UI.
+ */
+@layer theme, utilities;
+
+@import "tailwindcss/theme.css" layer(theme);
+
+@source "../../src";
+
+#einv-app {
+	@import "tailwindcss/utilities.css" layer(utilities);
+}

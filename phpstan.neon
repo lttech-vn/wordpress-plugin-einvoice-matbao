@@ -1,0 +1,12 @@
+# szepeviktor/phpstan-wordpress is loaded automatically by phpstan/extension-installer.
+parameters:
+	level: 8
+	phpVersion: 80500
+	paths:
+		- einvoice-matbao.php
+		- src
+	scanFiles:
+		- vendor/php-stubs/woocommerce-stubs/woocommerce-stubs.php
+		- vendor/php-stubs/woocommerce-stubs/woocommerce-packages-stubs.php
+	bootstrapFiles:
+		- tests/phpstan-bootstrap.php

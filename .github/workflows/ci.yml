@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  assets:
+    name: Build admin assets
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+      - run: bun install --frozen-lockfile
+      - run: bun run build
+      - name: Assert no CDN references in built assets
+        run: |
+          test -s assets/dist/admin.css
+          test -s assets/dist/htmx.min.js
+          ! grep -rEl 'https?://(cdn|unpkg|cdnjs|jsdelivr)' assets/dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: assets-dist
+          path: assets/dist
+
+  php:
+    name: Lint, static analysis and integration tests (Docker)
+    runs-on: ubuntu-latest
+    env:
+      COMPOSE_PROJECT_NAME: einv-ci
+      EINV_HTTP_PORT: "8080"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker compose build
+      - name: Start WordPress + WooCommerce
+        run: |
+          docker compose up -d --wait
+          docker compose exec -T wordpress einv-setup
+      - name: PHPCS
+        run: docker compose exec -T -w /var/www/html/wp-content/plugins/einvoice-matbao wordpress composer lint
+      - name: PHPStan
+        run: docker compose exec -T -w /var/www/html/wp-content/plugins/einvoice-matbao wordpress composer analyse
+      - name: PHPUnit (with WooCommerce)
+        run: docker compose exec -T -w /var/www/html/wp-content/plugins/einvoice-matbao wordpress composer test:integration
+      - name: PHPUnit (without WooCommerce)
+        run: docker compose exec -T -w /var/www/html/wp-content/plugins/einvoice-matbao wordpress composer test:without-woocommerce
+      - name: Container logs
+        if: failure()
+        run: docker compose logs
+      - name: Stop stack
+        if: always()
+        run: docker compose down -v
