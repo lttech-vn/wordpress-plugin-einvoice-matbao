@@ -19,6 +19,20 @@ final class InvoiceAdminListRestTest extends SettingsRestTestCase {
 
 	private const RAW_CCCD = '012345678901';
 
+	public function set_up(): void {
+		parent::set_up();
+		$this->empty_invoice_table();
+	}
+
+	/**
+	 * Starts from an empty invoice table: earlier tests may have committed rows.
+	 */
+	private function empty_invoice_table(): void {
+		global $wpdb;
+
+		$wpdb->query( "DELETE FROM {$wpdb->prefix}einvoice_matbao_invoice" ); // phpcs:ignore WordPress.DB -- test cleanup.
+	}
+
 	/**
 	 * Every invoice admin route, as [method, route].
 	 *

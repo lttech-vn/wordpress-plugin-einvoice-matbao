@@ -21,16 +21,27 @@ final class OrderListInvoiceFilterTest extends WP_UnitTestCase {
 
 	public function set_up(): void {
 		parent::set_up();
+		$this->empty_invoice_table();
 
 		$repository = new InvoiceRepository();
-		$repository->reserve( 11, 'WC11', 'Khách lẻ', InvoiceStatus::FAILED );
-		$repository->reserve( 12, 'WC12', 'Khách lẻ', InvoiceStatus::NEEDS_ATTENTION );
-		$repository->reserve( 13, 'WC13', 'Khách lẻ', InvoiceStatus::DRAFT_CREATED );
+		$repository->reserve( 9011, 'WC11', 'Khách lẻ', InvoiceStatus::FAILED );
+		$repository->reserve( 9012, 'WC12', 'Khách lẻ', InvoiceStatus::NEEDS_ATTENTION );
+		$repository->reserve( 9013, 'WC13', 'Khách lẻ', InvoiceStatus::DRAFT_CREATED );
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
 	}
 
+
+	/**
+	 * Starts from an empty invoice table: earlier tests may have committed rows.
+	 */
+	private function empty_invoice_table(): void {
+		global $wpdb;
+
+		$wpdb->query( "DELETE FROM {$wpdb->prefix}einvoice_matbao_invoice" ); // phpcs:ignore WordPress.DB -- test cleanup.
+	}
 	public function tear_down(): void {
 		unset( $_GET[ OrderListInvoiceFilter::PARAM ] );
+		$this->empty_invoice_table();
 		parent::tear_down();
 	}
 
@@ -39,7 +50,7 @@ final class OrderListInvoiceFilterTest extends WP_UnitTestCase {
 
 		$args = OrderListInvoiceFilter::filter_hpos_query_args( array( 'status' => 'all' ) );
 
-		$this->assertEqualsCanonicalizing( array( 11, 12 ), $args['post__in'] );
+		$this->assertEqualsCanonicalizing( array( 9011, 9012 ), $args['post__in'] );
 		$this->assertSame( 'all', $args['status'] );
 	}
 
@@ -77,7 +88,7 @@ final class OrderListInvoiceFilterTest extends WP_UnitTestCase {
 
 		OrderListInvoiceFilter::filter_legacy_query( $query );
 
-		$this->assertEqualsCanonicalizing( array( 11, 12 ), $query->get( 'post__in' ) );
+		$this->assertEqualsCanonicalizing( array( 9011, 9012 ), $query->get( 'post__in' ) );
 	}
 
 	public function test_dropdown_lists_error_group_and_statuses_and_keeps_selection(): void {

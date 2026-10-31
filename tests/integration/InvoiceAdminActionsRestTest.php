@@ -7,6 +7,7 @@
 
 namespace LTTech\EinvoiceMatbao\Tests\Integration;
 
+use LTTech\EinvoiceMatbao\Invoice\DraftInvoiceWorkflow;
 use LTTech\EinvoiceMatbao\Invoice\InvoiceRecord;
 use LTTech\EinvoiceMatbao\Invoice\InvoiceRepository;
 use LTTech\EinvoiceMatbao\Invoice\InvoiceStatus;
@@ -20,6 +21,13 @@ use WC_Order;
  */
 final class InvoiceAdminActionsRestTest extends InvoiceWorkflowTestCase {
 
+	public function set_up(): void {
+		parent::set_up();
+
+		global $wpdb;
+		$wpdb->query( "DELETE FROM {$wpdb->prefix}einvoice_matbao_invoice" ); // phpcs:ignore WordPress.DB -- rows committed by other tests would collide on order IDs.
+	}
+
 	/**
 	 * A completed order whose create call timed out, so Mat Bao may already hold the draft.
 	 */
@@ -28,6 +36,7 @@ final class InvoiceAdminActionsRestTest extends InvoiceWorkflowTestCase {
 		$this->fake_create_invoice_timeout();
 		$order = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
 		$this->complete_and_run( $order );
+		as_unschedule_all_actions( DraftInvoiceWorkflow::ACTION ); // Drop the automatic retry; the tests resend by hand.
 
 		return $order;
 	}
@@ -230,6 +239,7 @@ final class InvoiceAdminActionsRestTest extends InvoiceWorkflowTestCase {
 		( new Settings() )->save_default_template( '1', 'C26TBB' );
 		$this->fake_lookup_not_found();
 		$this->fake_create_invoice_ok( 'bmV3LXRlbXBsYXRl' );
+		as_enqueue_async_action( DraftInvoiceWorkflow::ACTION, array( $order->get_id() ), DraftInvoiceWorkflow::GROUP ); // The retry the helper dropped.
 		$this->run_queued_draft_actions();
 		$record = $this->record( $order );
 		$this->assertSame( 'template_changed', $record->error_code );
@@ -255,13 +265,15 @@ final class InvoiceAdminActionsRestTest extends InvoiceWorkflowTestCase {
 		$lookups_before = count( $this->http->requests_to( self::LOOKUP_ROUTE ) );
 		$this->run_queued_draft_actions();
 
-		$this->assertCount( $lookups_before, $this->http->requests_to( self::LOOKUP_ROUTE ), 'The admin confirmation replaces the lookup.' );
+		$lookups = $this->http->requests_to( self::LOOKUP_ROUTE );
+		$this->assertCount( $lookups_before + 1, $lookups, 'The run still looks up, now under the current template.' );
+		$this->assertSame( 'C26TBB', end( $lookups )['body']['kiHieu'] );
 		$this->assertCount( 2, $this->http->requests_to( self::CREATE_ROUTE ) );
 		$this->assertSame( 'C26TBB', $this->sent_invoices()[1]['KHHDon'] );
 		$this->assertSame( InvoiceStatus::DRAFT_CREATED, $this->record( $order )->status );
 
 		$detail = $this->html( $this->htmx( 'GET', '/invoices/' . $record->id ) );
-		$this->assertStringContainsString( 'data-einv-attempt="admin_confirmed_absent"', $detail );
+		$this->assertStringContainsString( 'data-einv-attempt="admin_absent"', $detail );
 	}
 
 	public function test_no_invoice_confirmation_is_only_accepted_for_template_changed(): void {

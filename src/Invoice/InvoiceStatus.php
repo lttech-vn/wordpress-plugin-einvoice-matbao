@@ -40,6 +40,46 @@ final class InvoiceStatus {
 	/** Not sent because the order left `completed` or was refunded before sending. */
 	public const STOPPED = 'stopped';
 
+	/** Filter value grouping the statuses an admin has to look at. */
+	public const FILTER_ERROR = 'error';
+
+	/**
+	 * Statuses an admin has to look at: not created, and not just waiting.
+	 *
+	 * @return list<string>
+	 */
+	public static function error_statuses(): array {
+		return array( self::FAILED, self::NEEDS_ATTENTION, self::NOT_CONFIGURED );
+	}
+
+	/**
+	 * Statuses a list filter value stands for: the error group, a single status, or none for an unknown value.
+	 *
+	 * @param string $filter FILTER_ERROR or one status constant.
+	 * @return list<string>
+	 */
+	public static function statuses_for_filter( string $filter ): array {
+		if ( self::FILTER_ERROR === $filter ) {
+			return self::error_statuses();
+		}
+
+		return array_key_exists( $filter, self::filter_labels() ) ? array( $filter ) : array();
+	}
+
+	/**
+	 * Filter values and their labels, the error group first.
+	 *
+	 * @return array<string, string>
+	 */
+	public static function filter_labels(): array {
+		$labels = array( self::FILTER_ERROR => __( 'Lỗi / cần xử lý', 'einvoice-matbao' ) );
+		foreach ( array( self::PENDING, self::SENDING, self::DRAFT_CREATED, self::FAILED, self::NEEDS_ATTENTION, self::SKIPPED, self::NOT_CONFIGURED, self::STOPPED ) as $status ) {
+			$labels[ $status ] = self::label( $status );
+		}
+
+		return $labels;
+	}
+
 	/**
 	 * Vietnamese label of a status.
 	 *

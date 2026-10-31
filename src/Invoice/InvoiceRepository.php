@@ -215,6 +215,74 @@ final class InvoiceRepository {
 	}
 
 	/**
+	 * One invoice by row ID.
+	 *
+	 * @param int $invoice_id Invoice row ID.
+	 */
+	public function find( int $invoice_id ): ?InvoiceRecord {
+		global $wpdb;
+
+		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id = %d', Schema::invoice_table(), $invoice_id ), ARRAY_A );
+
+		return is_array( $row ) ? InvoiceRecord::from_row( $row ) : null;
+	}
+
+	/**
+	 * A page of invoices, newest first.
+	 *
+	 * @param list<string> $statuses InvoiceStatus values to keep; empty keeps all.
+	 * @param string       $search   Order ID or part of `MTChieu`; empty keeps all.
+	 * @param int          $limit    Page size.
+	 * @param int          $offset   Rows to skip.
+	 * @return array{items: list<InvoiceRecord>, total: int}
+	 */
+	public function search( array $statuses, string $search, int $limit, int $offset ): array {
+		global $wpdb;
+
+		$where  = array();
+		$params = array( Schema::invoice_table() );
+		if ( array() !== $statuses ) {
+			$where[] = 'status IN (' . implode( ',', array_fill( 0, count( $statuses ), '%s' ) ) . ')';
+			$params  = array_merge( $params, $statuses );
+		}
+		if ( '' !== $search ) {
+			$where[]  = '(order_id = %d OR reference LIKE %s)';
+			$params[] = ctype_digit( $search ) ? (int) $search : 0;
+			$params[] = '%' . $wpdb->esc_like( $search ) . '%';
+		}
+		$clause = array() === $where ? '' : ' WHERE ' . implode( ' AND ', $where );
+
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- $clause only holds fixed fragments with placeholders.
+		$total = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i' . $clause, $params ) );
+		$rows  = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i' . $clause . ' ORDER BY id DESC LIMIT %d OFFSET %d', array_merge( $params, array( $limit, $offset ) ) ), ARRAY_A );
+		// phpcs:enable
+
+		return array(
+			'items' => is_array( $rows ) ? array_values( array_map( array( InvoiceRecord::class, 'from_row' ), $rows ) ) : array(),
+			'total' => $total,
+		);
+	}
+
+	/**
+	 * Order IDs whose invoice is in one of the statuses (for the order list filter).
+	 *
+	 * @param list<string> $statuses InvoiceStatus values.
+	 * @return list<int>
+	 */
+	public function order_ids_with_status( array $statuses ): array {
+		global $wpdb;
+
+		if ( array() === $statuses ) {
+			return array();
+		}
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- the IN list is generated placeholders only.
+		$ids = $wpdb->get_col( $wpdb->prepare( 'SELECT order_id FROM %i WHERE status IN (' . implode( ',', array_fill( 0, count( $statuses ), '%s' ) ) . ') ORDER BY id DESC LIMIT 5000', array_merge( array( Schema::invoice_table() ), $statuses ) ) );
+
+		return array_values( array_map( 'intval', $ids ) );
+	}
+
+	/**
 	 * Invoices in a status that have not changed for a while.
 	 *
 	 * @param string $status        InvoiceStatus.

@@ -31,6 +31,7 @@ final class SettingsPage {
 	public static function register(): void {
 		add_action( 'admin_menu', array( self::class, 'register_menu' ), 60 );
 		add_action( 'admin_enqueue_scripts', array( self::class, 'enqueue_assets' ) );
+		InvoicePage::register();
 	}
 
 	/**
@@ -54,7 +55,7 @@ final class SettingsPage {
 	 * @param string $hook_suffix Current admin page hook.
 	 */
 	public static function enqueue_assets( string $hook_suffix ): void {
-		if ( 'woocommerce_page_' . self::SLUG !== $hook_suffix ) {
+		if ( ! in_array( $hook_suffix, array( 'woocommerce_page_' . self::SLUG, 'woocommerce_page_' . InvoicePage::SLUG ), true ) ) {
 			return;
 		}
 
