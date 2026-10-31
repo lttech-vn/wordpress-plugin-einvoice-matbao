@@ -74,6 +74,32 @@ final class InvoiceRepository {
 	}
 
 	/**
+	 * Moves an invoice to another status only if neither its status nor `updated_at` changed since
+	 * it was read, so the recovery sweep cannot take back a row another runner has just claimed.
+	 *
+	 * @param InvoiceRecord $invoice Invoice as read.
+	 * @param string        $to      New status.
+	 * @return bool Whether this call made the change.
+	 */
+	public function claim_unchanged( InvoiceRecord $invoice, string $to ): bool {
+		global $wpdb;
+
+		$updated = $wpdb->query(
+			$wpdb->prepare(
+				'UPDATE %i SET status = %s, updated_at = %s WHERE id = %d AND status = %s AND updated_at = %s',
+				Schema::invoice_table(),
+				$to,
+				current_time( 'mysql', true ),
+				$invoice->id,
+				$invoice->status,
+				$invoice->updated_at
+			)
+		);
+
+		return 1 === $updated;
+	}
+
+	/**
 	 * Moves an invoice from a stopped or final status back to `pending` and starts a new retry
 	 * cycle: attempts before this call no longer count as tries, but still decide whether the
 	 * next run looks the invoice up first.

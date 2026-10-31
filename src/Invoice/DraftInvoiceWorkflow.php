@@ -156,7 +156,7 @@ final class DraftInvoiceWorkflow {
 	}
 
 	/**
-	 * Queues the draft action of an order. When queueing
+	 * Queues the draft action of an order unless one is already pending or running. When queueing
 	 * fails the row stays `pending` with QUEUE_FAILED and no alert, and the recovery sweep tries
 	 * again; when the sweep cannot queue it either, QUEUE_FAILED becomes final and alerts.
 	 *
@@ -165,7 +165,8 @@ final class DraftInvoiceWorkflow {
 	 * @param bool              $from_sweep Whether the recovery sweep is queueing it.
 	 */
 	private static function enqueue( InvoiceRepository $repository, int $order_id, bool $from_sweep ): bool {
-		if ( 0 !== as_enqueue_async_action( self::ACTION, array( $order_id ), self::GROUP ) ) {
+		// Unique: a draft action already pending or running for the order is enough (0 then means "exists").
+		if ( 0 !== as_enqueue_async_action( self::ACTION, array( $order_id ), self::GROUP, true ) || as_has_scheduled_action( self::ACTION, array( $order_id ), self::GROUP ) ) {
 			return true;
 		}
 
@@ -231,7 +232,7 @@ final class DraftInvoiceWorkflow {
 	 */
 	public function recover_stuck(): void {
 		foreach ( $this->repository->unchanged_for( InvoiceStatus::SENDING, self::STUCK_AFTER_SECONDS ) as $invoice ) {
-			if ( $this->repository->claim( $invoice->id, InvoiceStatus::SENDING, InvoiceStatus::PENDING ) ) {
+			if ( $this->repository->claim_unchanged( $invoice, InvoiceStatus::PENDING ) ) {
 				$this->mark_uncertain( $invoice, __( 'Tác vụ gửi dừng giữa chừng; sẽ tra cứu theo mã tham chiếu trước khi gửi lại.', 'einvoice-matbao' ) );
 				self::enqueue( $this->repository, $invoice->order_id, true );
 			}
@@ -609,6 +610,8 @@ final class DraftInvoiceWorkflow {
 			sprintf( __( 'Lỗi tạm thời, sẽ thử lại sau %1$d giây. Lỗi: %2$s', 'einvoice-matbao' ), $delay, $reason ),
 			InvoiceStatus::PENDING
 		);
+		// Not unique: this runs inside the order's own action, which Action Scheduler still counts as
+		// running, so a unique retry would never be queued. The claim prevents a double send.
 		if ( 0 === as_schedule_single_action( time() + $delay, self::ACTION, array( $invoice->order_id ), self::GROUP ) ) {
 			self::record_error( $this->repository, $invoice->order_id, InvoiceErrorCode::QUEUE_FAILED, __( 'Không xếp được lần thử lại vào hàng đợi; tác vụ quét sẽ thử lại.', 'einvoice-matbao' ), InvoiceStatus::PENDING );
 		}

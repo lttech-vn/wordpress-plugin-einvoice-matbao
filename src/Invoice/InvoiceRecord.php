@@ -28,6 +28,7 @@ final class InvoiceRecord {
 	 * @param string|null $matbao_invoice_id `maSoHDon` returned by Mat Bao.
 	 * @param string|null $issued_on         `NLap` date (Y-m-d) of the successful create call.
 	 * @param int         $retry_cycle_start Attempt ID from which retries are counted; 0 = all attempts.
+	 * @param string      $updated_at        Last change (UTC, `Y-m-d H:i:s`), compared by the recovery sweep's claim.
 	 */
 	public function __construct(
 		public readonly int $id,
@@ -43,6 +44,7 @@ final class InvoiceRecord {
 		public readonly ?string $matbao_invoice_id,
 		public readonly ?string $issued_on,
 		public readonly int $retry_cycle_start = 0,
+		public readonly string $updated_at = '',
 	) {
 	}
 
@@ -66,6 +68,7 @@ final class InvoiceRecord {
 			is_string( $row['matbao_invoice_id'] ?? null ) ? $row['matbao_invoice_id'] : null,
 			is_string( $row['issued_on'] ?? null ) ? $row['issued_on'] : null,
 			is_numeric( $row['retry_cycle_start'] ?? null ) ? (int) $row['retry_cycle_start'] : 0,
+			self::text( $row['updated_at'] ?? null ),
 		);
 	}
 
