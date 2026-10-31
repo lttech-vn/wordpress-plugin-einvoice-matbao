@@ -158,6 +158,44 @@ final class DraftInvoiceBuyerSnapshotTest extends InvoiceWorkflowTestCase {
 		$this->assertStringNotContainsString( self::ID_NUMBER, (string) $record->status_reason );
 	}
 
+	public function test_completing_an_individual_order_without_the_encryption_key_is_a_config_error(): void {
+		$this->configure_matbao();
+		$this->fake_create_invoice_ok();
+		$order = $this->order_with_request( $this->individual_post() );
+		remove_all_filters( 'einvoice_matbao_encryption_key' );
+		$needs_attention = $this->collect_needs_attention();
+
+		$this->complete_and_run( $order );
+
+		$record = $this->invoice_of( $order );
+		$this->assertSame( InvoiceStatus::NOT_CONFIGURED, $record?->status );
+		$this->assertSame( 'buyer_id_key_missing', $record->error_code );
+		$this->assertSame( array( 'buyer_id_key_missing' ), $needs_attention->codes, 'The hook fires exactly once.' );
+		$this->assertSame( 'completed', wc_get_order( $order->get_id() )?->get_status() );
+		$this->assertSame( array(), $this->queued_draft_action_ids() );
+		$this->assertStringNotContainsString( self::ID_NUMBER, (string) $record->status_reason );
+		$this->assertCount( 0, $this->http->requests_to( self::CREATE_ROUTE ) );
+	}
+
+	public function test_completing_an_individual_order_with_a_changed_encryption_key_is_unreadable(): void {
+		$this->configure_matbao();
+		$this->fake_create_invoice_ok();
+		$order = $this->order_with_request( $this->individual_post() );
+		remove_all_filters( 'einvoice_matbao_encryption_key' );
+		add_filter( 'einvoice_matbao_encryption_key', static fn(): string => 'another-test-key-another-test-key-0123456789' );
+		$needs_attention = $this->collect_needs_attention();
+
+		$this->complete_and_run( $order );
+
+		$record = $this->invoice_of( $order );
+		$this->assertSame( InvoiceStatus::FAILED, $record?->status );
+		$this->assertSame( 'buyer_id_unreadable', $record->error_code );
+		$this->assertSame( array( 'buyer_id_unreadable' ), $needs_attention->codes );
+		$this->assertSame( 'completed', wc_get_order( $order->get_id() )?->get_status() );
+		$this->assertStringNotContainsString( self::ID_NUMBER, (string) $record->status_reason );
+		$this->assertCount( 0, $this->http->requests_to( self::CREATE_ROUTE ) );
+	}
+
 	public function test_snapshot_with_an_id_number_but_no_encryption_key_is_a_config_error(): void {
 		$this->with_encryption_key();
 		$order    = $this->order_with_request( $this->individual_post() );
