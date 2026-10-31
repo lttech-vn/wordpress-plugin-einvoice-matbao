@@ -35,7 +35,7 @@ describe("checkout invoice request", { serial: false }, () => {
 					}
 				} else {
 					for (const [field, value] of [["Email address", BILLING.email], ["First name", BILLING.first_name], ["Last name", BILLING.last_name], ["Address", BILLING.address], ["City", BILLING.city], ["Phone", BILLING.phone]]) {
-						await screen.getByLabel(field, { exact: false }).first().fill(value);
+						await screen.getByLabel(field, { exact: true }).fill(value); // "Address" must not match "Email address"
 					}
 				}
 				if (buyer !== "walk_in") {

@@ -68,8 +68,8 @@ wp option update woocommerce_cod_settings --format=json '{"enabled":"yes","title
 	// checkout page created before the plugin was active needs it placed explicitly.
 	$checkout = get_post( wc_get_page_id( "checkout" ) );
 	$anchor   = "<!-- /wp:woocommerce/checkout-contact-information-block -->";
-	if ( $checkout && false === strpos( $checkout->post_content, "wp:einvoice-matbao/invoice-request" ) && false !== strpos( $checkout->post_content, $anchor ) ) {
-		wp_update_post( array( "ID" => $checkout->ID, "post_content" => str_replace( $anchor, $anchor . "\n\n<!-- wp:einvoice-matbao/invoice-request /-->", $checkout->post_content ) ) );
+	if ( $checkout && false === strpos( $checkout->post_content, "data-block-name=\"einvoice-matbao/invoice-request\"" ) && false !== strpos( $checkout->post_content, $anchor ) ) {
+		wp_update_post( array( "ID" => $checkout->ID, "post_content" => str_replace( $anchor, $anchor . "\n\n<!-- wp:einvoice-matbao/invoice-request -->\n<div data-block-name=\"einvoice-matbao/invoice-request\" class=\"wp-block-einvoice-matbao-invoice-request\"></div>\n<!-- /wp:einvoice-matbao/invoice-request -->", str_replace( "<!-- wp:einvoice-matbao/invoice-request /-->", "", $checkout->post_content ) ) ) );
 	}
 	echo "product ", wc_get_product_id_by_sku( "E2E-SVC" ), "\n";
 ' 2>/dev/null
