@@ -397,6 +397,91 @@ final class DraftInvoiceRetryTest extends InvoiceWorkflowTestCase {
 	}
 
 	/**
+	 * Lookup answers that must not be adopted as this order's draft.
+	 *
+	 * @return array<string, array{0: list<array<string, mixed>>, 1: string}>
+	 */
+	public static function lookup_mismatches(): array {
+		return array(
+			'several invoices with the reference' => array( array( array(), array() ), '2 hóa đơn' ),
+			'another reference'                   => array( array( array( 'mtChieu' => 'XWC1' ) ), 'XWC1' ),
+			'issued, not a draft'                 => array(
+				array(
+					array(
+						'tenTThaiHDon' => 'Đã cấp mã',
+						'maTThaiHDon'  => 4,
+						'shDon'        => 12,
+					),
+				),
+				'Đã cấp mã',
+			),
+			'total differs from the order'        => array( array( array( 'tgTTTBSo' => 999000 ) ), 'tổng tiền' ),
+		);
+	}
+
+	/**
+	 * A found invoice that may not be this order's draft stops for an admin, without adopting it.
+	 *
+	 * @dataProvider lookup_mismatches
+	 *
+	 * @param list<array<string, mixed>> $rows     Lookup rows.
+	 * @param string                     $fragment Text the reason must contain.
+	 */
+	public function test_lookup_result_that_is_not_this_orders_draft_needs_attention( array $rows, string $fragment ): void {
+		$this->fake_create_invoice_timeout();
+		$order = $this->completed_order();
+		$this->run_queued_draft_actions();
+		$attention = $this->record_attention();
+
+		$this->fake_lookup_rows( $rows );
+		$this->fake_create_invoice_ok();
+		$this->run_queued_draft_actions();
+
+		$this->assertCount( 1, $this->http->requests_to( self::CREATE_ROUTE ) );
+		$record = $this->invoice_of( $order );
+		$this->assertSame( InvoiceStatus::NEEDS_ATTENTION, $record?->status );
+		$this->assertSame( 'matbao_lookup_mismatch', $record->error_code );
+		$this->assertSame( 'matbao', $record->error_kind );
+		$this->assertNull( $record->matbao_invoice_id );
+		$this->assertStringContainsString( $fragment, $record->status_reason );
+		$this->assertSame( array(), $this->queued_draft_action_ids() );
+		$this->assertSame( array( 'matbao_lookup_mismatch' ), $attention->codes );
+	}
+
+	public function test_found_draft_with_the_order_total_is_adopted(): void {
+		$this->fake_create_invoice_timeout();
+		$order = $this->completed_order();
+		$this->run_queued_draft_actions();
+
+		$this->fake_lookup_rows( array( array( 'tgTTTBSo' => 110000 ) ) );
+		$this->run_queued_draft_actions();
+
+		$record = $this->invoice_of( $order );
+		$this->assertSame( InvoiceStatus::DRAFT_CREATED, $record?->status );
+		$this->assertSame( 'cm93LQ==0', $record->matbao_invoice_id );
+	}
+
+	public function test_error_305_whose_lookup_finds_an_issued_invoice_needs_attention(): void {
+		$this->http->respond_json( self::CREATE_ROUTE, 200, $this->rejected_item( 305, 'Trùng mã tham chiếu' ) );
+		$this->fake_lookup_rows(
+			array(
+				array(
+					'tenTThaiHDon' => 'Đã cấp mã',
+					'maTThaiHDon'  => 4,
+				),
+			)
+		);
+		$order = $this->completed_order();
+
+		$this->run_queued_draft_actions();
+
+		$record = $this->invoice_of( $order );
+		$this->assertSame( InvoiceStatus::NEEDS_ATTENTION, $record?->status );
+		$this->assertSame( 'matbao_lookup_mismatch', $record->error_code );
+		$this->assertSame( array(), $this->queued_draft_action_ids() );
+	}
+
+	/**
 	 * Adds a second VAT template, 1/C26TBB, to the templates Mat Bao offers.
 	 */
 	private function offer_another_vat_template(): void {

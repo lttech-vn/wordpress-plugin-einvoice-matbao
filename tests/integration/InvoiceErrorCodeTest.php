@@ -48,6 +48,7 @@ final class InvoiceErrorCodeTest extends WP_UnitTestCase {
 			'matbao_http'                => array( 'matbao_http', 'matbao', 'failed', false ),
 			'matbao_api'                 => array( 'matbao_api', 'matbao', 'failed', false ),
 			'matbao_duplicate_reference' => array( 'matbao_duplicate_reference', 'matbao', 'failed', true ),
+			'matbao_lookup_mismatch'     => array( 'matbao_lookup_mismatch', 'matbao', 'failed', false ),
 			'queue_failed'               => array( 'queue_failed', 'system', 'failed', false ),
 			'unexpected'                 => array( 'unexpected', 'system', 'failed', false ),
 		);
@@ -86,7 +87,7 @@ final class InvoiceErrorCodeTest extends WP_UnitTestCase {
 		sort( $listed );
 		sort( $cases );
 		$this->assertSame( $listed, $cases );
-		$this->assertCount( 26, $cases );
+		$this->assertCount( 27, $cases );
 	}
 
 	/**

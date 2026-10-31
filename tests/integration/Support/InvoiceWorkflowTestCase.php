@@ -155,15 +155,65 @@ abstract class InvoiceWorkflowTestCase extends SettingsRestTestCase {
 						'data'      => array(
 							'invoices' => array(
 								array(
-									'maSoHDon'    => $invoice_id,
-									'khmshDon'    => is_array( $sent ) ? $sent['mauSo'] : '',
-									'khhDon'      => is_array( $sent ) ? $sent['kiHieu'] : '',
-									'shDon'       => 0,
-									'nLap'        => $issued_on,
-									'mtChieu'     => is_array( $sent ) ? $sent['danhSach'][0] : '',
-									'tenLoaiHDon' => 'Nháp',
+									'maSoHDon'     => $invoice_id,
+									'khmshDon'     => is_array( $sent ) ? $sent['mauSo'] : '',
+									'khhDon'       => is_array( $sent ) ? $sent['kiHieu'] : '',
+									'shDon'        => 0,
+									'nLap'         => $issued_on,
+									'mtChieu'      => is_array( $sent ) ? $sent['danhSach'][0] : '',
+									'tenLoaiHDon'  => 'Nháp',
+									'tenTThaiHDon' => 'Nháp',
+									'maLoaiHDon'   => 1,
+									'maTThaiHDon'  => 1,
 								),
 							),
+							'notFound' => array(),
+						),
+						'success'   => true,
+					)
+				);
+			}
+		);
+	}
+
+	/**
+	 * Makes the lookup by `MTChieu` answer with the given invoice rows. Each row starts as a draft
+	 * of the requested reference (fields as in docs/research/demo-results.json); `$overrides`
+	 * replaces fields of each row.
+	 *
+	 * @param list<array<string, mixed>> $overrides One entry per returned row.
+	 */
+	protected function fake_lookup_rows( array $overrides ): void {
+		$this->http->respond_with(
+			self::LOOKUP_ROUTE,
+			static function ( array $args ) use ( $overrides ): array {
+				$sent = json_decode( (string) $args['body'], true );
+				$rows = array();
+				foreach ( $overrides as $index => $override ) {
+					$rows[] = array_merge(
+						array(
+							'maSoHDon'     => 'cm93LQ==' . $index,
+							'khmshDon'     => is_array( $sent ) ? $sent['mauSo'] : '',
+							'khhDon'       => is_array( $sent ) ? $sent['kiHieu'] : '',
+							'shDon'        => 0,
+							'nLap'         => '2026-10-14T00:00:00',
+							'mtChieu'      => is_array( $sent ) ? $sent['danhSach'][0] : '',
+							'tenLoaiHDon'  => 'Nháp',
+							'tenTThaiHDon' => 'Nháp',
+							'maLoaiHDon'   => 1,
+							'maTThaiHDon'  => 1,
+						),
+						$override
+					);
+				}
+
+				return FakeHttp::json_response(
+					200,
+					array(
+						'errorCode' => 200,
+						'message'   => 'Thành công',
+						'data'      => array(
+							'invoices' => $rows,
 							'notFound' => array(),
 						),
 						'success'   => true,
