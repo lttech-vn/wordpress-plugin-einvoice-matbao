@@ -14,7 +14,7 @@ namespace LTTech\EinvoiceMatbao\Uninstall;
  * Mat Bao token and templates list) and the plugin's queued Action Scheduler actions.
  *
  * Kept by default: the invoice and attempt tables, the buyer order meta, the per-product unit, the
- * settings and alert records (#7), so a reinstall resumes with the same `MTChieu` and history.
+ * settings and the alert records (`einvoice_matbao_alert_*`), so a reinstall resumes with the same `MTChieu` and history.
  *
  * With the "delete all data on uninstall" setting on, also removed: both tables, every
  * `einvoice_matbao_*` option, the buyer order meta (legacy and HPOS tables) and the product unit

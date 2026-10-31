@@ -248,7 +248,7 @@ the user with that email, ten per page, like WooCommerce does.
 ### Deactivate and uninstall
 
 Deactivating cancels every queued plugin action (Action Scheduler group `einvoice-matbao`: drafts,
-the recovery sweep and, once #7 lands, alerts); data stays and the sweep is queued again after
+the recovery sweep and the alert sends `einvoice_matbao_send_alert`); data stays and the sweep is queued again after
 reactivation.
 
 `uninstall.php` runs only when WordPress deletes the plugin. It loads `Uninstall\Uninstaller` by
@@ -263,7 +263,7 @@ in the Action Scheduler tables directly). On multisite it runs on every site.
 | Tables `{prefix}einvoice_matbao_invoice` and `_attempt` | kept | dropped |
 | Order meta `_einvoice_buyer_request`, `_einvoice_buyer_snapshot` (legacy and HPOS) | kept | deleted |
 | Product meta `_einvoice_matbao_unit` | kept | deleted |
-| Every other `einvoice_matbao_*` option (settings, schema version, alert records of #7) | kept | deleted |
+| Every other `einvoice_matbao_*` option (settings, schema version, alert records `einvoice_matbao_alert_*`) | kept | deleted |
 | WooCommerce orders and products | kept | kept |
 
 The switch is in the **Gỡ plugin** section of the settings page (`POST settings/uninstall`): off by

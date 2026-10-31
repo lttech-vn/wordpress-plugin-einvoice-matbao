@@ -8,6 +8,8 @@
 namespace LTTech\EinvoiceMatbao\Tests\Integration;
 
 use LTTech\EinvoiceMatbao\Admin\ProductUnitField;
+use LTTech\EinvoiceMatbao\Alert\AlertStore;
+use LTTech\EinvoiceMatbao\Alert\InvoiceAlerts;
 use LTTech\EinvoiceMatbao\Buyer\BuyerRequestStore;
 use LTTech\EinvoiceMatbao\Buyer\BuyerSnapshotter;
 use LTTech\EinvoiceMatbao\CredentialStore;
@@ -31,9 +33,6 @@ use WP_UnitTestCase;
 final class UninstallTest extends WP_UnitTestCase {
 
 	private const TEST_ENCRYPTION_KEY = 'test-only-key-material-0123456789abcdef';
-
-	/** Fake alert option in the shape #7 uses (`einvoice_matbao_alert_*`). */
-	private const ALERT_OPTION = 'einvoice_matbao_alert_1_matbao_http_0';
 
 	/**
 	 * Queries seen while the uninstaller ran.
@@ -89,7 +88,7 @@ final class UninstallTest extends WP_UnitTestCase {
 		$this->assertSame( 'Thùng', get_post_meta( $fixture['product_id'], ProductUnitField::META_KEY, true ) );
 		$this->assertSame( 'INV', ( new Settings() )->reference_prefix() );
 		$this->assertSame( $version, get_option( Schema::VERSION_OPTION ) );
-		$this->assertNotFalse( get_option( self::ALERT_OPTION ) );
+		$this->assertNotNull( AlertStore::get( AlertStore::key( $fixture['order']->get_id(), 'matbao_http', 0 ) ), 'Alert records (#7) are kept.' );
 	}
 
 	public function test_delete_all_uninstall_removes_every_plugin_record(): void {
@@ -164,10 +163,12 @@ final class UninstallTest extends WP_UnitTestCase {
 		set_transient( 'einvoice_matbao_token_abc', 'v1.fake-encrypted-token', HOUR_IN_SECONDS );
 		set_transient( 'einvoice_matbao_templates', array( 'account' => 'x' ), HOUR_IN_SECONDS );
 		( new Settings() )->save_invoicing( 'INV', '' );
-		update_option( self::ALERT_OPTION, array( 'order_id' => 1 ), false );
 
 		$order = wc_create_order();
 		$this->assertInstanceOf( WC_Order::class, $order );
+		$alert = AlertStore::key( $order->get_id(), 'matbao_http', 0 );
+		AlertStore::create( $alert, $order->get_id(), 'matbao_http', 0 );
+		as_enqueue_async_action( InvoiceAlerts::SEND_ACTION, array( $alert ), DraftInvoiceWorkflow::GROUP );
 		$order->update_meta_data( BuyerRequestStore::META_KEY, '{"type":"individual"}' );
 		$order->update_meta_data( BuyerSnapshotter::META_KEY, '{"type":"individual"}' );
 		$order->save();
