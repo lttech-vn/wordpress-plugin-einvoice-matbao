@@ -18,7 +18,6 @@ final class ClassicCheckoutScriptTest extends InvoiceWorkflowTestCase {
 
 	public function tear_down(): void {
 		wp_dequeue_script( ClassicCheckout::SCRIPT_HANDLE );
-		$GLOBALS['wp_scripts'] = null;
 
 		parent::tear_down();
 	}
