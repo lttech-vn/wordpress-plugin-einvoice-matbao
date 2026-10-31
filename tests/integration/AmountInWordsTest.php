@@ -28,7 +28,7 @@ final class AmountInWordsTest extends TestCase {
 			'ten to nineteen with lăm'      => array( 15, 'Mười lăm đồng' ),
 			'hundred and one'               => array( 101, 'Một trăm linh một đồng' ),
 			'one million'                   => array( 1000000, 'Một triệu đồng' ),
-			'one two three four five six seven' => array( 1234567, 'Một triệu hai trăm ba mươi bốn nghìn năm trăm sáu mươi bảy đồng' ),
+			'seven digits'                  => array( 1234567, 'Một triệu hai trăm ba mươi bốn nghìn năm trăm sáu mươi bảy đồng' ),
 			'tens with mốt'                 => array( 21, 'Hai mươi mốt đồng' ),
 			'tens with lăm'                 => array( 45, 'Bốn mươi lăm đồng' ),
 			'hundreds with linh'            => array( 105, 'Một trăm linh năm đồng' ),

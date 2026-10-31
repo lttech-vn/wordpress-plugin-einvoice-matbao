@@ -111,3 +111,15 @@ suites through the same Docker Compose stack used locally.
   next admin request and shows a Vietnamese admin notice.
 - Without `composer install` (no `vendor/`), the plugin stays inert instead of fataling. Release
   packages must include `vendor/` built with `composer install --no-dev`.
+
+### Draft invoice rules and limits
+
+- Money is whole VND: a line whose net, tax or total is fractional is refused (`failed`), whatever
+  `price_num_decimals` is. Fee and shipping lines of 0 đồng are left off the invoice; a free product
+  line is sent with `TSuat` from its tax status (`none` → -1, otherwise 0).
+- Every `failed` after the create call was sent may still have created a draft at Mat Bao (timeout,
+  5xx, odd response). Ticket #6 must look the invoice up by `MTChieu` before any resend.
+- `stopped` is final: an order cancelled and then completed again gets no invoice (#6).
+- `DGia` = net / quantity can be a non-terminating fraction (net 100000, quantity 3); behavior on
+  the demo API is unverified (#15).
+- `TgTTTBChu` carries Vietnamese diacritics; the proven demo payloads were sent without. Confirm in #15.

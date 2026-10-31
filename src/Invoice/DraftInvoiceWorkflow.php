@@ -75,7 +75,13 @@ final class DraftInvoiceWorkflow {
 		}
 
 		if ( $repository->reserve( $order_id, $reference, $buyer_name, InvoiceStatus::PENDING ) ) {
-			as_enqueue_async_action( self::ACTION, array( $order_id ), self::GROUP );
+			$action_id = as_enqueue_async_action( self::ACTION, array( $order_id ), self::GROUP );
+			if ( 0 === $action_id ) {
+				$invoice = ( new InvoiceRepository() )->find_by_order( $order_id );
+				if ( null !== $invoice ) {
+					$repository->update_status( $invoice->id, InvoiceStatus::FAILED, __( 'Không xếp được tác vụ tạo hóa đơn nháp vào hàng đợi.', 'einvoice-matbao' ) );
+				}
+			}
 		}
 	}
 
@@ -115,6 +121,21 @@ final class DraftInvoiceWorkflow {
 			return;
 		}
 
+		try {
+			$this->send_claimed( $invoice, $order_id );
+		} catch ( \Throwable ) {
+			// Details may carry URLs or tokens, so the stored reason stays generic.
+			$this->repository->update_status( $invoice->id, InvoiceStatus::FAILED, __( 'Lỗi không xác định khi gửi hóa đơn nháp; cần admin kiểm tra.', 'einvoice-matbao' ) );
+		}
+	}
+
+	/**
+	 * Sends an invoice this run has already claimed.
+	 *
+	 * @param InvoiceRecord $invoice  Claimed invoice.
+	 * @param int           $order_id Order ID.
+	 */
+	private function send_claimed( InvoiceRecord $invoice, int $order_id ): void {
 		$order = wc_get_order( $order_id );
 		if ( ! $order instanceof WC_Order || 'completed' !== $order->get_status() ) {
 			$this->repository->update_status( $invoice->id, InvoiceStatus::STOPPED, __( 'Đơn hàng không còn ở trạng thái hoàn thành khi gửi.', 'einvoice-matbao' ) );

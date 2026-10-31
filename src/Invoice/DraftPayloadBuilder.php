@@ -71,25 +71,29 @@ final class DraftPayloadBuilder {
 		$lines = array();
 		$items = $order->get_items( array( 'line_item', 'fee', 'shipping' ) );
 		foreach ( $items as $item ) {
-			$lines[] = $this->line( $item, count( $lines ) + 1, $rates );
+			$line = $this->line( $item, count( $lines ) + 1, $rates );
+			if ( null !== $line ) {
+				$lines[] = $line;
+			}
 		}
 
 		if ( array() === $lines ) {
 			self::fail( __( 'Đơn hàng không có dòng hàng hóa, dịch vụ nào.', 'einvoice-matbao' ) );
 		}
 
-		$net   = array_sum( array_column( $lines, 'ThTien' ) );
-		$tax   = array_sum( array_column( $lines, 'TThue' ) );
-		$gross = array_sum( array_column( $lines, 'TgTien' ) );
+		// Line amounts are whole VND (checked in line()), so the sums are exact integers.
+		$net   = (int) array_sum( array_column( $lines, 'ThTien' ) );
+		$tax   = (int) array_sum( array_column( $lines, 'TThue' ) );
+		$gross = (int) array_sum( array_column( $lines, 'TgTien' ) );
 
-		if ( ! self::same( $tax, (float) $order->get_total_tax() ) || ! self::same( $gross, (float) $order->get_total() ) ) {
+		if ( ! self::same( (float) $tax, (float) $order->get_total_tax() ) || ! self::same( (float) $gross, (float) $order->get_total() ) ) {
 			self::fail(
 				sprintf(
 					/* translators: 1: sum of line totals, 2: order total, 3: sum of line taxes, 4: order tax total. */
 					__( 'Tổng các dòng (%1$s, thuế %3$s) không khớp tổng đơn hàng (%2$s, thuế %4$s).', 'einvoice-matbao' ),
-					self::format( $gross ),
+					self::format( (float) $gross ),
 					self::format( (float) $order->get_total() ),
-					self::format( $tax ),
+					self::format( (float) $tax ),
 					self::format( (float) $order->get_total_tax() )
 				)
 			);
@@ -111,10 +115,10 @@ final class DraftPayloadBuilder {
 			'DSHHDVu'          => $lines,
 			'TTCKTMai'         => 0,
 			'TGTKhac'          => 0,
-			'TgThTien'         => self::number( $net ),
-			'TgTThue'          => self::number( $tax ),
-			'TgTTTBSo'         => self::number( $gross ),
-			'TgTTTBChu'        => AmountInWords::vnd( (int) round( $gross ) ),
+			'TgThTien'         => $net,
+			'TgTThue'          => $tax,
+			'TgTTTBSo'         => $gross,
+			'TgTTTBChu'        => AmountInWords::vnd( $gross ),
 		);
 	}
 
@@ -124,21 +128,21 @@ final class DraftPayloadBuilder {
 	 * @param WC_Order_Item      $item  Product, fee or shipping item.
 	 * @param int                $index `STT`.
 	 * @param array<int, string> $rates Stored rate percent by tax rate ID.
-	 * @return array<string, int|float|string>
-	 * @throws InvoiceDataError When the line has an unusable tax rate or a negative amount.
+	 * @return array<string, int|float|string>|null Null for a fee or shipping line of 0 đồng, which is left off.
+	 * @throws InvoiceDataError When the line has an unusable tax rate, a negative or fractional amount.
 	 */
-	private function line( WC_Order_Item $item, int $index, array $rates ): array {
+	private function line( WC_Order_Item $item, int $index, array $rates ): ?array {
 		$name = $item->get_name();
 		if ( $item instanceof WC_Order_Item_Product ) {
 			$quantity = (float) $item->get_quantity();
-			$net      = (float) $item->get_total();
+			$net      = $item->get_total();
 			$taxes    = $item->get_taxes();
 			$taxable  = 'none' !== $item->get_tax_status();
 			$product  = $item->get_product();
 			$code     = $product instanceof \WC_Product ? (string) $product->get_sku() : '';
 		} elseif ( $item instanceof WC_Order_Item_Fee || $item instanceof WC_Order_Item_Shipping ) {
 			$quantity = 1.0;
-			$net      = (float) $item->get_total();
+			$net      = $item->get_total();
 			$taxes    = $item->get_taxes();
 			$taxable  = 'none' !== $item->get_tax_status();
 			$code     = '';
@@ -146,16 +150,29 @@ final class DraftPayloadBuilder {
 			self::fail( __( 'Đơn hàng có loại dòng không hỗ trợ.', 'einvoice-matbao' ) );
 		}
 
+		$net = self::whole_vnd( $net, $name );
 		if ( $net < 0 || $quantity <= 0 ) {
 			/* translators: %s: order line name. */
 			self::fail( sprintf( __( 'Dòng "%s" có số tiền âm hoặc số lượng không hợp lệ.', 'einvoice-matbao' ), $name ) );
 		}
 
 		$line_taxes = is_array( $taxes['total'] ?? null ) ? array_filter( $taxes['total'], static fn( $amount ): bool => '' !== $amount && null !== $amount ) : array();
-		$tax        = round( (float) array_sum( array_map( 'floatval', $line_taxes ) ), wc_get_price_decimals() );
-		$rate       = $taxable ? $this->rate( $name, $line_taxes, $rates ) : self::TAX_RATE_NOT_TAXABLE;
+		$tax        = self::whole_vnd( array_sum( array_map( 'floatval', $line_taxes ) ), $name );
 
-		if ( ! $taxable && ! self::same( $tax, 0.0 ) ) {
+		if ( 0 === $net && 0 === $tax ) {
+			if ( ! $item instanceof WC_Order_Item_Product ) {
+				return null;
+			}
+			// A free product line has no tax amount, so WooCommerce may store no rate for it.
+			$rate = $taxable ? 0 : self::TAX_RATE_NOT_TAXABLE;
+			if ( $taxable && 1 === count( $line_taxes ) ) {
+				$rate = $this->rate( $name, $line_taxes, $rates );
+			}
+		} else {
+			$rate = $taxable ? $this->rate( $name, $line_taxes, $rates ) : self::TAX_RATE_NOT_TAXABLE;
+		}
+
+		if ( ! $taxable && 0 !== $tax ) {
 			/* translators: %s: order line name. */
 			self::fail( sprintf( __( 'Dòng "%s" không chịu thuế nhưng có tiền thuế.', 'einvoice-matbao' ), $name ) );
 		}
@@ -174,13 +191,13 @@ final class DraftPayloadBuilder {
 			'DVTinh'       => self::DEFAULT_UNIT,
 			'SLuong'       => self::number( $quantity ),
 			'DGia'         => self::number( round( $net / $quantity, 6 ) ),
-			'ThTienChuaCK' => self::number( $net ),
+			'ThTienChuaCK' => $net,
 			'TLCKhau'      => 0,
 			'STCKhau'      => 0,
-			'ThTien'       => self::number( $net ),
+			'ThTien'       => $net,
 			'TSuat'        => $rate,
-			'TThue'        => self::number( $tax ),
-			'TgTien'       => self::number( $net + $tax ),
+			'TThue'        => $tax,
+			'TgTien'       => $net + $tax,
 		);
 	}
 
@@ -245,6 +262,24 @@ final class DraftPayloadBuilder {
 	 */
 	private static function fail( string $reason ): never {
 		throw new InvoiceDataError( $reason ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- plain text, escaped where rendered.
+	}
+
+	/**
+	 * An amount as whole VND, whatever the shop's `price_num_decimals`.
+	 *
+	 * @param string|int|float $amount Amount as stored by WooCommerce.
+	 * @param string           $name   Line name, for the error message.
+	 * @throws InvoiceDataError When the amount has a fractional part.
+	 */
+	private static function whole_vnd( string|int|float $amount, string $name ): int {
+		$value   = (float) $amount;
+		$rounded = round( $value );
+		if ( abs( $value - $rounded ) >= self::AMOUNT_TOLERANCE ) {
+			/* translators: 1: order line name, 2: amount. */
+			self::fail( sprintf( __( 'Dòng "%1$s" có số tiền %2$s không phải số nguyên đồng (VND).', 'einvoice-matbao' ), $name, wc_format_localized_decimal( (string) $value ) ) );
+		}
+
+		return (int) $rounded;
 	}
 
 	/**
