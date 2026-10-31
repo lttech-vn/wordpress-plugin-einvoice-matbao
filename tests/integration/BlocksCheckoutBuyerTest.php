@@ -241,7 +241,12 @@ final class BlocksCheckoutBuyerTest extends InvoiceWorkflowTestCase {
 		rest_do_request( new WP_REST_Request( 'GET', '/wc/store/v1/checkout' ) );
 		$this->send( 'PATCH', array( 'extensions' => array( self::NAMESPACE_KEY => $this->individual() ) ) );
 
-		$drafts = wc_get_orders( array( 'status' => 'checkout-draft', 'limit' => -1 ) );
+		$drafts = wc_get_orders(
+			array(
+				'status' => 'checkout-draft',
+				'limit'  => -1,
+			)
+		);
 		foreach ( $drafts as $draft ) {
 			$meta = (string) wp_json_encode( $draft->get_meta_data() );
 			$this->assertStringNotContainsString( self::ID_NUMBER, $meta );
@@ -320,7 +325,7 @@ final class BlocksCheckoutBuyerTest extends InvoiceWorkflowTestCase {
 			$this->assertStringNotContainsString( self::ID_NUMBER, (string) wp_json_encode( $response->get_data() ) );
 		}
 		$order = $this->order_of( $first );
-		$this->assertCount( 1, array_filter( $order->get_meta_data(), static fn( $m ) => str_contains( $m->key, 'buyer' ) && str_contains( (string) $m->key, 'request' ) ) ?: array( 1 ) );
+		$this->assertNotNull( ( new BuyerRequestStore() )->load( $order ) );
 	}
 
 	public function test_the_id_number_does_not_leak_to_the_order_received_page_email_rest_transients_or_logs(): void {
@@ -334,7 +339,7 @@ final class BlocksCheckoutBuyerTest extends InvoiceWorkflowTestCase {
 			}
 		);
 
-		$order = $this->order_of( $this->place_order( $this->individual() ) );
+		$order   = $this->order_of( $this->place_order( $this->individual() ) );
 		$request = ( new BuyerRequestStore() )->load( $order );
 		$this->assertNotNull( $request );
 
@@ -349,10 +354,11 @@ final class BlocksCheckoutBuyerTest extends InvoiceWorkflowTestCase {
 		wp_set_current_user( 0 );
 
 		global $wpdb;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery -- Test reads raw options.
 		$options = (string) $wpdb->get_var( $wpdb->prepare( "SELECT GROUP_CONCAT(option_value) FROM {$wpdb->options} WHERE option_name LIKE %s OR option_name LIKE %s", '%transient%', '%einvoice%log%' ) );
 		$logs    = '';
 		foreach ( (array) glob( WC_LOG_DIR . '*.log' ) as $file ) {
-			$logs .= (string) file_get_contents( $file );
+			$logs .= (string) file_get_contents( $file ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- Local log file.
 		}
 
 		foreach ( array( $rendered, (string) wp_json_encode( $rest->get_data() ), $options, $logs ) as $output ) {
