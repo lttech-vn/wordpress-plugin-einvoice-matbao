@@ -44,7 +44,7 @@ final class OrderInvoiceMetaBoxTest extends InvoiceWorkflowTestCase {
 
 	public function test_shows_the_error_escaped(): void {
 		$this->configure_matbao();
-		$this->http->respond_json( self::CREATE_ROUTE, 500, array( 'message' => '<b>Lỗi</b> hệ thống' ) );
+		$this->http->respond_json( self::CREATE_ROUTE, 400, array( 'message' => '<b>Lỗi</b> hệ thống' ) );
 		$order = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
 		$this->complete_and_run( $order );
 

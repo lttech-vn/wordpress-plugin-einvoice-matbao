@@ -23,6 +23,12 @@ final class MatbaoError extends RuntimeException {
 	/** HTTP 2xx but `success` false, or an unreadable body. */
 	public const KIND_API = 'api';
 
+	/** Mat Bao `errorCode` for a duplicate reference. */
+	public const API_DUPLICATE_REFERENCE = 305;
+
+	/** Mat Bao `errorCode` when a lookup finds none of the references. */
+	public const API_NOT_FOUND = 301;
+
 	/**
 	 * Creates the error.
 	 *
@@ -30,23 +36,41 @@ final class MatbaoError extends RuntimeException {
 	 * @param string   $message     Secret-free message (Mat Bao `message` or a fixed text).
 	 * @param int|null $api_code    Mat Bao `errorCode`, when present.
 	 * @param int|null $http_status HTTP status, when a response was received.
+	 * @param bool     $target_sent Whether the request the caller asked for (e.g. create-invoice) was sent. False
+	 *                              when the call failed earlier, e.g. at login, so nothing can have been created.
 	 */
 	public function __construct(
 		public readonly string $kind,
 		string $message,
 		public readonly ?int $api_code = null,
 		public readonly ?int $http_status = null,
+		public readonly bool $target_sent = true,
 	) {
 		parent::__construct( $message );
 	}
 
 	/**
+	 * The same error, marked as raised before the requested call was sent.
+	 */
+	public function before_target_request(): self {
+		return new self( $this->kind, $this->getMessage(), $this->api_code, $this->http_status, false );
+	}
+
+	/**
+	 * Whether Mat Bao reported a duplicate reference (`MTChieu`, error 305).
+	 */
+	public function is_duplicate_reference(): bool {
+		return self::KIND_API === $this->kind && self::API_DUPLICATE_REFERENCE === $this->api_code;
+	}
+
+	/**
 	 * Whether the failure looks temporary, so trying again later can succeed: the request did not
-	 * complete, a 5xx/408/429 status, or a response that could not be understood. Anything else
-	 * (other 4xx, a rejected invoice, bad credentials) needs a person.
+	 * complete, a 5xx/408/429 status, a duplicate reference (settled by a lookup by `MTChieu`), or
+	 * a response that could not be understood. Anything else (other 4xx, a rejected invoice, bad
+	 * credentials) needs a person.
 	 */
 	public function is_retryable(): bool {
-		if ( self::KIND_TRANSPORT === $this->kind ) {
+		if ( self::KIND_TRANSPORT === $this->kind || $this->is_duplicate_reference() ) {
 			return true;
 		}
 		if ( self::KIND_HTTP === $this->kind ) {

@@ -105,16 +105,64 @@ final class MatbaoClient {
 	}
 
 	/**
+	 * Looks up the invoice created for a reference (`invoice-detail-batch`, `loai` 1 = by `MTChieu`).
+	 *
+	 * @param string $reference `MTChieu`.
+	 * @param string $form      `KHMSHDon` the invoice was sent with.
+	 * @param string $series    `KHHDon` the invoice was sent with.
+	 * @return array{invoice_id: string, issued_on: string|null}|null Null when Mat Bao has no such invoice.
+	 * @throws MatbaoError When the call fails or the answer is unusable.
+	 */
+	public function find_invoice_by_reference( string $reference, string $form, string $series ): ?array {
+		try {
+			$data = $this->authorized(
+				'POST',
+				'/api/invoice/invoice-detail-batch',
+				array(
+					'loai'     => 1,
+					'mauSo'    => $form,
+					'kiHieu'   => $series,
+					'danhSach' => array( $reference ),
+				)
+			);
+		} catch ( MatbaoError $error ) {
+			if ( MatbaoError::API_NOT_FOUND === $error->api_code ) {
+				return null;
+			}
+			throw $error;
+		}
+
+		$invoices = is_array( $data ) && is_array( $data['invoices'] ?? null ) ? $data['invoices'] : array();
+		foreach ( $invoices as $found ) {
+			if ( ! is_array( $found ) || ( $found['mtChieu'] ?? null ) !== $reference ) {
+				continue;
+			}
+			$invoice_id = is_string( $found['maSoHDon'] ?? null ) ? $found['maSoHDon'] : '';
+			if ( '' === $invoice_id ) {
+				throw new MatbaoError( MatbaoError::KIND_API, 'Lookup response has no invoice ID.' ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- plain text, escaped where rendered.
+			}
+			$issued_on = is_string( $found['nLap'] ?? null ) && 1 === preg_match( '/^\d{4}-\d{2}-\d{2}/', $found['nLap'] ) ? substr( $found['nLap'], 0, 10 ) : null;
+
+			return array(
+				'invoice_id' => $invoice_id,
+				'issued_on'  => $issued_on,
+			);
+		}
+
+		return null;
+	}
+
+	/**
 	 * Calls an endpoint with the cached token, logging in again once if Mat Bao rejects it.
 	 *
 	 * @param string            $method HTTP method.
 	 * @param string            $path   Path with query string.
 	 * @param array<mixed>|null $body   JSON body.
 	 * @return mixed Decoded `data` of the response.
-	 * @throws MatbaoError When the call fails.
+	 * @throws MatbaoError When the call fails; errors from logging in are marked as raised before the call was sent.
 	 */
 	private function authorized( string $method, string $path, ?array $body = null ): mixed {
-		$token = $this->cached_token() ?? $this->login();
+		$token = $this->cached_token() ?? $this->login_before_call();
 
 		try {
 			return $this->request( $method, $path, $body, $token );
@@ -123,7 +171,20 @@ final class MatbaoClient {
 				throw $error;
 			}
 
-			return $this->request( $method, $path, $body, $this->login() );
+			return $this->request( $method, $path, $body, $this->login_before_call() );
+		}
+	}
+
+	/**
+	 * Logs in for another call, marking a failure as "that call was not sent".
+	 *
+	 * @throws MatbaoError When login fails.
+	 */
+	private function login_before_call(): string {
+		try {
+			return $this->login();
+		} catch ( MatbaoError $error ) {
+			throw $error->before_target_request();
 		}
 	}
 

@@ -20,16 +20,38 @@ use WC_Order;
  * queues one Action Scheduler action that sends the draft. The action claims the row
  * (`pending` → `sending`) before calling Mat Bao, so a duplicate run cannot send twice.
  *
+ * Temporary failures (no response, 5xx/408/429, duplicate reference 305) put the row back to
+ * `pending` and queue the same action again after 1 min, 5 min, 15 min, 1 h and 6 h; after the
+ * fifth retry the row becomes `needs_attention` and the `einvoice_matbao_retries_exhausted` action
+ * fires. Whenever an earlier create call may have reached Mat Bao, the next run first looks the
+ * invoice up by `MTChieu` and adopts an existing draft instead of creating another (ADR 0001).
+ * Rows stuck in `sending` (the runner died after the claim) or in `pending` without a queued
+ * action are put through the same lookup by a recurring sweep.
+ *
  * Only orders completing while the plugin is active are handled; older orders are never scanned.
  * Every reason a draft is not created is recorded as an InvoiceErrorCode (code, kind, status and
- * Vietnamese reason) and announced through NEEDS_ATTENTION_ACTION. Failures are not retried here
- * (background retry of codes where InvoiceErrorCode::is_auto_retryable() is true and recovery of
- * rows left in `sending` are ticket #6).
+ * Vietnamese reason). NEEDS_ATTENTION_ACTION fires only when an admin has to act: an error that is
+ * not retried, or the retries are used up (then EXHAUSTED_HOOK fires too). A temporary error
+ * that will be retried keeps the row `pending` with its code and fires nothing.
  */
 final class DraftInvoiceWorkflow {
 
 	public const ACTION = 'einvoice_matbao_create_draft';
 	public const GROUP  = 'einvoice-matbao';
+
+	/** Recurring sweep that recovers stuck rows. */
+	public const RECOVERY_ACTION = 'einvoice_matbao_recover_stuck_invoices';
+
+	/** Fired once with `( int $order_id, string $reference )` when the retries are used up. */
+	public const EXHAUSTED_HOOK = 'einvoice_matbao_retries_exhausted';
+
+	/** Seconds to wait before retry 1..5. */
+	public const BACKOFF_SECONDS = array( 60, 300, 900, 3600, 21600 );
+
+	/** A claim or reservation older than this with no live action is considered stuck. */
+	private const STUCK_AFTER_SECONDS = 15 * MINUTE_IN_SECONDS;
+
+	private const SWEEP_INTERVAL_SECONDS = 15 * MINUTE_IN_SECONDS;
 
 	/**
 	 * Fired once each time an invoice records an error an admin has to act on
@@ -44,6 +66,24 @@ final class DraftInvoiceWorkflow {
 	public static function register(): void {
 		add_action( 'woocommerce_order_status_completed', array( self::class, 'on_order_completed' ), 10, 2 );
 		add_action( self::ACTION, array( self::class, 'run' ) );
+		add_action( self::RECOVERY_ACTION, array( self::class, 'sweep' ) );
+		add_action( 'action_scheduler_init', array( self::class, 'schedule_recovery' ) );
+	}
+
+	/**
+	 * Queues the recurring recovery sweep unless it is already queued.
+	 */
+	public static function schedule_recovery(): void {
+		if ( ! as_has_scheduled_action( self::RECOVERY_ACTION, array(), self::GROUP ) ) {
+			as_schedule_recurring_action( time() + self::SWEEP_INTERVAL_SECONDS, self::SWEEP_INTERVAL_SECONDS, self::RECOVERY_ACTION, array(), self::GROUP );
+		}
+	}
+
+	/**
+	 * Runs the recovery sweep. Hooked to the recurring action.
+	 */
+	public static function sweep(): void {
+		( new self() )->recover_stuck();
 	}
 
 	/**
@@ -60,7 +100,13 @@ final class DraftInvoiceWorkflow {
 		}
 
 		$repository = new InvoiceRepository();
-		if ( null !== $repository->find_by_order( $order_id ) ) {
+		$existing   = $repository->find_by_order( $order_id );
+		if ( null !== $existing ) {
+			// Cancelled and then completed again: queue it again. An earlier attempt may have
+			// reached Mat Bao, so the run looks the invoice up first when needed.
+			if ( InvoiceStatus::STOPPED === $existing->status && $repository->claim( $existing->id, InvoiceStatus::STOPPED, InvoiceStatus::PENDING ) ) {
+				self::enqueue( $repository, $order_id, false );
+			}
 			return;
 		}
 
@@ -83,11 +129,31 @@ final class DraftInvoiceWorkflow {
 		}
 
 		if ( $repository->reserve( $order_id, $reference, $buyer_name, InvoiceStatus::PENDING ) ) {
-			$action_id = as_enqueue_async_action( self::ACTION, array( $order_id ), self::GROUP );
-			if ( 0 === $action_id ) {
-				self::record_error( $repository, $order_id, InvoiceErrorCode::QUEUE_FAILED, __( 'Không xếp được tác vụ tạo hóa đơn nháp vào hàng đợi.', 'einvoice-matbao' ) );
-			}
+			self::enqueue( $repository, $order_id, false );
 		}
+	}
+
+	/**
+	 * Queues the draft action of an order. When queueing
+	 * fails the row stays `pending` with QUEUE_FAILED and no alert, and the recovery sweep tries
+	 * again; when the sweep cannot queue it either, QUEUE_FAILED becomes final and alerts.
+	 *
+	 * @param InvoiceRepository $repository Invoice storage.
+	 * @param int               $order_id   Order ID.
+	 * @param bool              $from_sweep Whether the recovery sweep is queueing it.
+	 */
+	private static function enqueue( InvoiceRepository $repository, int $order_id, bool $from_sweep ): bool {
+		if ( 0 !== as_enqueue_async_action( self::ACTION, array( $order_id ), self::GROUP ) ) {
+			return true;
+		}
+
+		if ( $from_sweep ) {
+			self::record_error( $repository, $order_id, InvoiceErrorCode::QUEUE_FAILED, __( 'Không xếp được tác vụ tạo hóa đơn nháp vào hàng đợi, kể cả khi quét lại; cần admin gửi lại.', 'einvoice-matbao' ) );
+		} else {
+			self::record_error( $repository, $order_id, InvoiceErrorCode::QUEUE_FAILED, __( 'Không xếp được tác vụ tạo hóa đơn nháp vào hàng đợi; tác vụ quét sẽ thử lại.', 'einvoice-matbao' ), InvoiceStatus::PENDING );
+		}
+
+		return false;
 	}
 
 	/**
@@ -137,6 +203,63 @@ final class DraftInvoiceWorkflow {
 	}
 
 	/**
+	 * Puts rows stuck after a dead runner or a failed enqueue back through the lookup and queues them:
+	 * `sending` older than the claim window, and `pending` with no queued action. A row that
+	 * waits for a scheduled retry has an action and is left alone.
+	 */
+	public function recover_stuck(): void {
+		foreach ( $this->repository->unchanged_for( InvoiceStatus::SENDING, self::STUCK_AFTER_SECONDS ) as $invoice ) {
+			if ( $this->repository->claim( $invoice->id, InvoiceStatus::SENDING, InvoiceStatus::PENDING ) ) {
+				$this->mark_uncertain( $invoice, __( 'Tác vụ gửi dừng giữa chừng; sẽ tra cứu theo mã tham chiếu trước khi gửi lại.', 'einvoice-matbao' ) );
+				self::enqueue( $this->repository, $invoice->order_id, true );
+			}
+		}
+
+		foreach ( $this->repository->unchanged_for( InvoiceStatus::PENDING, self::STUCK_AFTER_SECONDS ) as $invoice ) {
+			if ( ! as_has_scheduled_action( self::ACTION, array( $invoice->order_id ), self::GROUP ) ) {
+				$this->mark_uncertain( $invoice, __( 'Hóa đơn chờ gửi nhưng không có tác vụ; sẽ tra cứu theo mã tham chiếu trước khi gửi.', 'einvoice-matbao' ) );
+				self::enqueue( $this->repository, $invoice->order_id, true );
+			}
+		}
+	}
+
+	/**
+	 * Records that the last send may have reached Mat Bao, so the next run looks it up first.
+	 * An attempt left open by a dead runner is closed; otherwise a closed one is added.
+	 *
+	 * @param InvoiceRecord $invoice Invoice.
+	 * @param string        $reason  Admin-facing reason.
+	 */
+	private function mark_uncertain( InvoiceRecord $invoice, string $reason ): void {
+		foreach ( $this->repository->attempts( $invoice->id ) as $attempt ) {
+			if ( null === $attempt['outcome'] ) {
+				$this->repository->finish_attempt( (int) $attempt['id'], 'failed', 'abandoned', null, null, $reason );
+				return;
+			}
+		}
+
+		$attempt = $this->repository->start_attempt( $invoice->id );
+		$this->repository->finish_attempt( $attempt, 'failed', 'abandoned', null, null, $reason );
+	}
+
+	/**
+	 * Whether an earlier run may have created the invoice at Mat Bao. Attempts that never got as far
+	 * as sending (`not_sent`) say nothing; the latest other attempt decides, and anything but a
+	 * success (a failed or unanswered create, or a lookup that failed) means "maybe created".
+	 *
+	 * @param InvoiceRecord $invoice Invoice.
+	 */
+	private function may_have_been_created( InvoiceRecord $invoice ): bool {
+		foreach ( array_reverse( $this->repository->attempts( $invoice->id ) ) as $attempt ) {
+			if ( 'not_sent' !== $attempt['outcome'] ) {
+				return 'success' !== $attempt['outcome'];
+			}
+		}
+
+		return false;
+	}
+
+	/**
 	 * Sends an invoice this run has already claimed.
 	 *
 	 * @param InvoiceRecord $invoice  Claimed invoice.
@@ -176,7 +299,8 @@ final class DraftInvoiceWorkflow {
 		try {
 			$template_available = $this->template_available( $client, $credentials, $template, $issued_on );
 		} catch ( MatbaoError $error ) {
-			self::record_error( $this->repository, $order_id, InvoiceErrorCode::from_matbao( $error ), $error->getMessage() );
+			// Before create-invoice: nothing can have been created, so a retry needs no lookup.
+			$this->fail( $invoice, $this->repository->start_attempt( $invoice->id ), $error, 'not_sent', $template );
 			return;
 		}
 		if ( ! $template_available ) {
@@ -196,31 +320,79 @@ final class DraftInvoiceWorkflow {
 			return;
 		}
 
-		$attempt = $this->repository->start_attempt( $invoice->id );
+		$look_up_first = $this->may_have_been_created( $invoice );
+		$attempt       = $this->repository->start_attempt( $invoice->id );
+
+		if ( $look_up_first ) {
+			try {
+				$existing = $client->find_invoice_by_reference( $invoice->reference, $template['form'], $template['series'] );
+			} catch ( MatbaoError $error ) {
+				$this->fail( $invoice, $attempt, $error, $error->target_sent ? 'lookup_failed' : 'not_sent', $template );
+				return;
+			}
+			if ( null !== $existing ) {
+				$this->adopt( $invoice, $attempt, $existing['invoice_id'], $existing['issued_on'] ?? $issued_on->format( 'Y-m-d' ), $template );
+				return;
+			}
+		}
+
 		try {
 			$invoice_id = $client->create_invoice( $payload );
 		} catch ( MatbaoError $error ) {
-			$this->repository->finish_attempt( $attempt, 'failed', $error->kind, $error->http_status, $error->api_code, $error->getMessage() );
-			$code = InvoiceErrorCode::from_matbao( $error );
-			if ( InvoiceErrorCode::TEMPLATE_REJECTED === $code ) {
-				TemplateCache::forget();
+			if ( ! $error->target_sent ) {
+				$this->fail( $invoice, $attempt, $error, 'not_sent', $template );
+				return;
 			}
-			$reason = InvoiceErrorCode::TEMPLATE_REJECTED === $code
-				/* translators: 1: Mat Bao message, 2: template form number (KHMSHDon), 3: template series (KHHDon). */
-				? sprintf( __( 'Mắt Bão từ chối mẫu hóa đơn %2$s / %3$s (%1$s); chọn lại mẫu mặc định.', 'einvoice-matbao' ), $error->getMessage(), $template['form'], $template['series'] )
-				: $error->getMessage();
-			self::record_error( $this->repository, $order_id, $code, $reason );
+			if ( $error->is_duplicate_reference() ) {
+				// Already created under this MTChieu: look it up, never change the reference.
+				try {
+					$existing = $client->find_invoice_by_reference( $invoice->reference, $template['form'], $template['series'] );
+				} catch ( MatbaoError ) {
+					$existing = null;
+				}
+				if ( null !== $existing ) {
+					$this->adopt( $invoice, $attempt, $existing['invoice_id'], $existing['issued_on'] ?? $issued_on->format( 'Y-m-d' ), $template );
+					return;
+				}
+			}
+			$this->fail( $invoice, $attempt, $error, 'failed', $template );
 			return;
 		}
 
 		$this->repository->finish_attempt( $attempt, 'success' );
+		$this->mark_created( $invoice, $invoice_id, $issued_on->format( 'Y-m-d' ), $template );
+	}
+
+	/**
+	 * Takes over a draft that already exists at Mat Bao under this invoice's `MTChieu`.
+	 *
+	 * @param InvoiceRecord                       $invoice    Invoice.
+	 * @param int                                 $attempt    Attempt ID.
+	 * @param string                              $invoice_id `maSoHDon`.
+	 * @param string                              $issued_on  `NLap` date (Y-m-d) of the existing draft.
+	 * @param array{form: string, series: string} $template  Template used for the lookup.
+	 */
+	private function adopt( InvoiceRecord $invoice, int $attempt, string $invoice_id, string $issued_on, array $template ): void {
+		$this->repository->finish_attempt( $attempt, 'success', null, null, null, 'Draft already existed at Mat Bao; adopted.' );
+		$this->mark_created( $invoice, $invoice_id, $issued_on, $template );
+	}
+
+	/**
+	 * Stores a created or adopted draft.
+	 *
+	 * @param InvoiceRecord                       $invoice    Invoice.
+	 * @param string                              $invoice_id `maSoHDon`.
+	 * @param string                              $issued_on  `NLap` date (Y-m-d).
+	 * @param array{form: string, series: string} $template  Template of the draft.
+	 */
+	private function mark_created( InvoiceRecord $invoice, string $invoice_id, string $issued_on, array $template ): void {
 		$this->repository->update_status(
 			$invoice->id,
 			InvoiceStatus::DRAFT_CREATED,
 			'',
 			array(
 				'matbao_invoice_id' => $invoice_id,
-				'issued_on'         => $issued_on->format( 'Y-m-d' ),
+				'issued_on'         => $issued_on,
 				'template_form'     => $template['form'],
 				'template_series'   => $template['series'],
 			)
@@ -249,23 +421,81 @@ final class DraftInvoiceWorkflow {
 	}
 
 	/**
+	 * Records a failed Mat Bao call on the attempt and the invoice. A code that is not auto-retried
+	 * is final and alerts; a retryable one leaves the row `pending` and queues the same action after
+	 * the next backoff delay, or, once the retries are used up, sets `needs_attention` and fires
+	 * both hooks.
+	 *
+	 * @param InvoiceRecord                       $invoice  Invoice.
+	 * @param int                                 $attempt  Attempt ID.
+	 * @param MatbaoError                         $error    The failure.
+	 * @param string                              $outcome  `failed` (create was sent), `lookup_failed` or `not_sent`.
+	 * @param array{form: string, series: string} $template Template of the call.
+	 */
+	private function fail( InvoiceRecord $invoice, int $attempt, MatbaoError $error, string $outcome, array $template ): void {
+		$this->repository->finish_attempt( $attempt, $outcome, $error->kind, $error->http_status, $error->api_code, $error->getMessage() );
+
+		$code = InvoiceErrorCode::from_matbao( $error );
+		if ( InvoiceErrorCode::TEMPLATE_REJECTED === $code ) {
+			TemplateCache::forget();
+			/* translators: 1: Mat Bao message, 2: template form number (KHMSHDon), 3: template series (KHHDon). */
+			$reason = sprintf( __( 'Mắt Bão từ chối mẫu hóa đơn %2$s / %3$s (%1$s); chọn lại mẫu mặc định.', 'einvoice-matbao' ), $error->getMessage(), $template['form'], $template['series'] );
+		} else {
+			$reason = $error->getMessage();
+		}
+
+		if ( ! $code->is_auto_retryable() ) {
+			self::record_error( $this->repository, $invoice->order_id, $code, $reason );
+			return;
+		}
+
+		$tries = count( $this->repository->attempts( $invoice->id ) );
+		if ( $tries > count( self::BACKOFF_SECONDS ) ) {
+			self::record_error(
+				$this->repository,
+				$invoice->order_id,
+				$code,
+				/* translators: %s: last Mat Bao error. */
+				sprintf( __( 'Đã thử lại tối đa nhưng chưa tạo được hóa đơn nháp. Lỗi gần nhất: %s', 'einvoice-matbao' ), $reason ),
+				InvoiceStatus::NEEDS_ATTENTION
+			);
+			do_action( 'einvoice_matbao_retries_exhausted', $invoice->order_id, $invoice->reference );
+			return;
+		}
+
+		$delay = self::BACKOFF_SECONDS[ $tries - 1 ];
+		self::record_error(
+			$this->repository,
+			$invoice->order_id,
+			$code,
+			/* translators: 1: seconds until the retry, 2: last Mat Bao error. */
+			sprintf( __( 'Lỗi tạm thời, sẽ thử lại sau %1$d giây. Lỗi: %2$s', 'einvoice-matbao' ), $delay, $reason ),
+			InvoiceStatus::PENDING
+		);
+		if ( 0 === as_schedule_single_action( time() + $delay, self::ACTION, array( $invoice->order_id ), self::GROUP ) ) {
+			self::record_error( $this->repository, $invoice->order_id, InvoiceErrorCode::QUEUE_FAILED, __( 'Không xếp được lần thử lại vào hàng đợi; tác vụ quét sẽ thử lại.', 'einvoice-matbao' ), InvoiceStatus::PENDING );
+		}
+	}
+
+	/**
 	 * Records an error on the invoice of an order and fires NEEDS_ATTENTION_ACTION when an admin
-	 * has to act.
+	 * has to act. A row left `pending` is still being retried or recovered, so nothing fires.
 	 *
 	 * @param InvoiceRepository $repository Invoice storage.
 	 * @param int               $order_id   Order ID.
 	 * @param InvoiceErrorCode  $code       Error code.
 	 * @param string            $reason     Vietnamese reason.
+	 * @param string|null       $status     InvoiceStatus to set instead of the one of the code's kind.
 	 */
-	private static function record_error( InvoiceRepository $repository, int $order_id, InvoiceErrorCode $code, string $reason ): void {
+	private static function record_error( InvoiceRepository $repository, int $order_id, InvoiceErrorCode $code, string $reason, ?string $status = null ): void {
 		$invoice = $repository->find_by_order( $order_id );
 		if ( null === $invoice ) {
 			return;
 		}
 
-		$repository->record_error( $invoice->id, $code, $reason );
+		$repository->record_error( $invoice->id, $code, $reason, $status );
 		$invoice = $repository->find_by_order( $order_id );
-		if ( null !== $invoice && $code->needs_attention() ) {
+		if ( null !== $invoice && InvoiceStatus::PENDING !== $invoice->status && $code->needs_attention() ) {
 			do_action( 'einvoice_matbao_invoice_needs_attention', $invoice, $code );
 		}
 	}

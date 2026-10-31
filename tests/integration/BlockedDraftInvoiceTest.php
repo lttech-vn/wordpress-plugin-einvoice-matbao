@@ -238,16 +238,21 @@ final class BlockedDraftInvoiceTest extends InvoiceWorkflowTestCase {
 		$this->assert_blocked( $order, InvoiceErrorCode::ORDER_REFUNDED, 'order', InvoiceStatus::STOPPED, 'hoàn tiền' );
 	}
 
-	public function test_matbao_http_5xx_is_a_temporary_matbao_error(): void {
+	public function test_matbao_http_5xx_is_a_temporary_matbao_error_that_waits_for_a_retry_without_attention(): void {
 		$this->configure_matbao();
 		$this->http->respond_json( self::CREATE_ROUTE, 500, array( 'message' => 'Lỗi hệ thống' ) );
 		$order = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
 
 		$this->complete_and_run( $order );
 
-		$record = $this->assert_classified( $order, InvoiceErrorCode::MATBAO_HTTP_TEMPORARY, 'matbao', InvoiceStatus::FAILED, 'Lỗi hệ thống' );
+		$record = $this->invoice_of( $order );
+		$this->assertSame( InvoiceStatus::PENDING, $record?->status );
 		$this->assertSame( 'matbao_http_temporary', $record->error_code );
+		$this->assertSame( 'matbao', $record->error_kind );
+		$this->assertStringContainsString( 'Lỗi hệ thống', $record->status_reason );
 		$this->assertTrue( $record->error()?->is_auto_retryable() );
+		$this->assertCount( 1, $this->queued_draft_action_ids() );
+		$this->assertSame( array(), $this->attention, 'A retry is pending; nobody has to act yet.' );
 	}
 
 	public function test_matbao_http_4xx_is_a_matbao_error_that_is_not_retried(): void {
@@ -369,12 +374,32 @@ final class BlockedDraftInvoiceTest extends InvoiceWorkflowTestCase {
 		$this->assert_blocked( $order, InvoiceErrorCode::TAX_RATE_NOT_STORED, 'data', InvoiceStatus::FAILED, 'thuế suất đã lưu' );
 	}
 
-	public function test_failing_to_queue_the_action_is_a_system_error(): void {
+	public function test_failing_to_queue_the_action_leaves_it_pending_for_the_sweep_without_attention(): void {
 		$this->configure_matbao();
 		add_filter( 'pre_as_enqueue_async_action', static fn(): int => 0 );
 		$order = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
 
 		$order->update_status( 'completed' );
+
+		$record = $this->invoice_of( $order );
+		$this->assertSame( InvoiceStatus::PENDING, $record?->status );
+		$this->assertSame( 'queue_failed', $record->error_code );
+		$this->assertSame( 'system', $record->error_kind );
+		$this->assertStringContainsString( 'hàng đợi', $record->status_reason );
+		$this->assertSame( array(), $this->attention );
+	}
+
+	public function test_failing_to_queue_the_action_again_on_the_sweep_is_a_final_system_error(): void {
+		$this->configure_matbao();
+		add_filter( 'pre_as_enqueue_async_action', static fn(): int => 0 );
+		$order = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
+		$order->update_status( 'completed' );
+		$record = $this->invoice_of( $order );
+		$this->assertNotNull( $record );
+
+		$this->age_invoice( $record, HOUR_IN_SECONDS );
+		( new DraftInvoiceWorkflow() )->recover_stuck();
+		( new DraftInvoiceWorkflow() )->recover_stuck();
 
 		$record = $this->assert_classified( $order, InvoiceErrorCode::QUEUE_FAILED, 'system', InvoiceStatus::FAILED, 'hàng đợi' );
 		$this->assertFalse( $record->error()?->is_auto_retryable() );
@@ -396,7 +421,7 @@ final class BlockedDraftInvoiceTest extends InvoiceWorkflowTestCase {
 		$this->assertFalse( $record->error()?->is_auto_retryable() );
 	}
 
-	public function test_templates_call_that_does_not_complete_is_a_matbao_error_and_nothing_is_created(): void {
+	public function test_templates_call_that_does_not_complete_is_retried_without_a_lookup(): void {
 		$this->configure_matbao();
 		$this->fake_create_invoice_ok();
 		$this->http->respond_with( 'GET /api/invoice/templates', static fn(): \WP_Error => new \WP_Error( 'http_request_failed', 'cURL error 28' ) );
@@ -405,8 +430,19 @@ final class BlockedDraftInvoiceTest extends InvoiceWorkflowTestCase {
 		$this->complete_and_run( $order );
 
 		$this->assertCount( 0, $this->http->requests_to( self::CREATE_ROUTE ) );
-		$record = $this->assert_classified( $order, InvoiceErrorCode::MATBAO_TRANSPORT, 'matbao', InvoiceStatus::FAILED, '' );
-		$this->assertTrue( $record->error()?->is_auto_retryable() );
+		$record = $this->invoice_of( $order );
+		$this->assertSame( InvoiceStatus::PENDING, $record?->status );
+		$this->assertSame( 'matbao_transport', $record->error_code );
+		$this->assertSame( array( 'not_sent' ), array_column( $this->attempts_of( $record ), 'outcome' ) );
+		$this->assertSame( array(), $this->attention );
+
+		$this->fake_matbao_templates();
+		$this->run_queued_draft_actions();
+
+		$this->assertCount( 0, $this->http->requests_to( self::LOOKUP_ROUTE ), 'Nothing was created before the templates call.' );
+		$this->assertCount( 1, $this->http->requests_to( self::CREATE_ROUTE ) );
+		$this->assertSame( InvoiceStatus::DRAFT_CREATED, $this->invoice_of( $order )?->status );
+		$this->assertSame( array(), $this->attention );
 	}
 
 	public function test_data_errors_are_not_retried(): void {

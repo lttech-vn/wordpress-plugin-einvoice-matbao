@@ -109,11 +109,13 @@ final class InvoiceRepository {
 	 * @param int              $invoice_id Invoice row ID.
 	 * @param InvoiceErrorCode $code       Error code.
 	 * @param string           $reason     Vietnamese reason, without secrets or personal data.
+	 * @param string|null      $status     InvoiceStatus instead of the one of the code's kind, e.g. `pending`
+	 *                                     while a retry waits or `needs_attention` once retries are used up.
 	 */
-	public function record_error( int $invoice_id, InvoiceErrorCode $code, string $reason ): void {
+	public function record_error( int $invoice_id, InvoiceErrorCode $code, string $reason, ?string $status = null ): void {
 		$this->update_status(
 			$invoice_id,
-			$code->kind()->status(),
+			$status ?? $code->kind()->status(),
 			$reason,
 			array(
 				'error_code' => $code->value,
@@ -133,6 +135,29 @@ final class InvoiceRepository {
 		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE order_id = %d', Schema::invoice_table(), $order_id ), ARRAY_A );
 
 		return is_array( $row ) ? InvoiceRecord::from_row( $row ) : null;
+	}
+
+	/**
+	 * Invoices in a status that have not changed for a while.
+	 *
+	 * @param string $status        InvoiceStatus.
+	 * @param int    $older_than    Minimum age of the last change, in seconds.
+	 * @return list<InvoiceRecord>
+	 */
+	public function unchanged_for( string $status, int $older_than ): array {
+		global $wpdb;
+
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				'SELECT * FROM %i WHERE status = %s AND updated_at < %s ORDER BY id LIMIT 100',
+				Schema::invoice_table(),
+				$status,
+				gmdate( 'Y-m-d H:i:s', time() - $older_than )
+			),
+			ARRAY_A
+		);
+
+		return is_array( $rows ) ? array_values( array_map( array( InvoiceRecord::class, 'from_row' ), $rows ) ) : array();
 	}
 
 	/**

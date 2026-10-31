@@ -46,6 +46,7 @@ final class InvoiceErrorCodeTest extends WP_UnitTestCase {
 			'matbao_response_unreadable' => array( 'matbao_response_unreadable', 'matbao', 'failed', true ),
 			'matbao_http'                => array( 'matbao_http', 'matbao', 'failed', false ),
 			'matbao_api'                 => array( 'matbao_api', 'matbao', 'failed', false ),
+			'matbao_duplicate_reference' => array( 'matbao_duplicate_reference', 'matbao', 'failed', true ),
 			'queue_failed'               => array( 'queue_failed', 'system', 'failed', false ),
 			'unexpected'                 => array( 'unexpected', 'system', 'failed', false ),
 		);
@@ -73,6 +74,7 @@ final class InvoiceErrorCodeTest extends WP_UnitTestCase {
 			'template not found (308)'           => array( new MatbaoError( MatbaoError::KIND_API, 'Không tìm thấy mẫu số kí hiệu', 308 ), 'template_rejected' ),
 			'template out of numbers (327)'      => array( new MatbaoError( MatbaoError::KIND_API, 'Mẫu hóa đơn đã hết số', 327 ), 'template_rejected' ),
 			'template code on an HTTP error'     => array( new MatbaoError( MatbaoError::KIND_HTTP, 'Không tìm thấy mẫu số kí hiệu', 308, 400 ), 'template_rejected' ),
+			'duplicate reference (305)'          => array( new MatbaoError( MatbaoError::KIND_API, 'Trùng mã tham chiếu', 305 ), 'matbao_duplicate_reference' ),
 		);
 	}
 
@@ -83,7 +85,7 @@ final class InvoiceErrorCodeTest extends WP_UnitTestCase {
 		sort( $listed );
 		sort( $cases );
 		$this->assertSame( $listed, $cases );
-		$this->assertCount( 24, $cases );
+		$this->assertCount( 25, $cases );
 	}
 
 	/**
@@ -123,14 +125,15 @@ final class InvoiceErrorCodeTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * A duplicate reference is a plain Mat Bao rejection here. Ticket #6 (PR #20) makes it
-	 * retryable once a retry first looks the invoice up by `MTChieu`; this test is expected to
-	 * change, and conflict, when that lands.
+	 * A duplicate reference has its own code and is retried, because the retry first looks the
+	 * invoice up by `MTChieu` and adopts the existing draft (DraftInvoiceRetryTest).
 	 */
-	public function test_duplicate_reference_305_is_a_matbao_api_error_and_not_retried(): void {
-		$code = InvoiceErrorCode::from_matbao( new MatbaoError( MatbaoError::KIND_API, 'Trùng mã tham chiếu', 305 ) );
+	public function test_duplicate_reference_305_has_its_own_code_and_is_retried_through_the_lookup(): void {
+		$error = new MatbaoError( MatbaoError::KIND_API, 'Trùng mã tham chiếu', 305 );
+		$code  = InvoiceErrorCode::from_matbao( $error );
 
-		$this->assertSame( 'matbao_api', $code->value );
-		$this->assertFalse( $code->is_auto_retryable() );
+		$this->assertSame( 'matbao_duplicate_reference', $code->value );
+		$this->assertTrue( $code->is_auto_retryable() );
+		$this->assertTrue( $error->is_retryable() );
 	}
 }
