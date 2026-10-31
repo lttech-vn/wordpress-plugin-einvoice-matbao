@@ -372,6 +372,70 @@ final class DraftInvoiceRetryTest extends InvoiceWorkflowTestCase {
 		$this->assertSame( InvoiceStatus::DRAFT_CREATED, $this->invoice_of( $order )?->status );
 	}
 
+	public function test_success_attempt_on_a_row_stuck_before_it_was_marked_created_is_looked_up_and_adopted(): void {
+		$this->fake_create_invoice_ok();
+		$order  = $this->completed_order();
+		$record = $this->invoice_of( $order );
+		$this->assertNotNull( $record );
+		$repository = new InvoiceRepository();
+		as_unschedule_all_actions( DraftInvoiceWorkflow::ACTION );
+		$repository->claim( $record->id, InvoiceStatus::PENDING, InvoiceStatus::SENDING );
+		// The process died after the attempt was closed as success but before the row was marked created.
+		$repository->finish_attempt( $repository->start_attempt( $record->id ), 'success' );
+
+		$this->age_invoice( $record, HOUR_IN_SECONDS );
+		( new DraftInvoiceWorkflow() )->recover_stuck();
+		$this->fake_lookup_found( 'ZXhpc3RpbmctZHJhZnQ=' );
+		$this->run_queued_draft_actions();
+
+		$this->assertCount( 0, $this->http->requests_to( self::CREATE_ROUTE ), 'The draft may exist, so the lookup comes first.' );
+		$adopted = $this->invoice_of( $order );
+		$this->assertSame( InvoiceStatus::DRAFT_CREATED, $adopted?->status );
+		$this->assertSame( 'ZXhpc3RpbmctZHJhZnQ=', $adopted->matbao_invoice_id );
+	}
+
+	/**
+	 * Lookup `data` values that prove nothing about the reference.
+	 *
+	 * @return array<string, array{0: mixed}>
+	 */
+	public static function unreadable_lookup_data(): array {
+		return array(
+			'data null'           => array( null ),
+			'no invoices key'     => array( array( 'notFound' => array() ) ),
+			'invoices not a list' => array( array( 'invoices' => 'none' ) ),
+		);
+	}
+
+	/**
+	 * A 200 lookup with no readable list is a failed lookup, never "not found".
+	 *
+	 * @dataProvider unreadable_lookup_data
+	 * @param mixed $data `data` of the lookup response.
+	 */
+	public function test_lookup_answering_200_without_a_readable_invoice_list_is_not_treated_as_not_found( mixed $data ): void {
+		$this->fake_create_invoice_timeout();
+		$order = $this->completed_order();
+		$this->run_queued_draft_actions();
+
+		$this->http->respond_json(
+			self::LOOKUP_ROUTE,
+			200,
+			array(
+				'errorCode' => 200,
+				'message'   => 'Thành công',
+				'data'      => $data,
+				'success'   => true,
+			)
+		);
+		$this->run_queued_draft_actions();
+
+		$this->assertCount( 1, $this->http->requests_to( self::CREATE_ROUTE ), 'An unreadable lookup must not lead to a second create.' );
+		$this->assertSame( InvoiceStatus::PENDING, $this->invoice_of( $order )?->status );
+		$outcomes = array_column( $this->attempts_of( $this->invoice_of( $order ) ), 'outcome' );
+		$this->assertSame( 'lookup_failed', end( $outcomes ) );
+	}
+
 	public function test_pending_row_without_an_action_is_recovered_and_sent_without_a_lookup_when_nothing_was_sent(): void {
 		$this->fake_create_invoice_ok();
 		$this->fake_lookup_not_found();
