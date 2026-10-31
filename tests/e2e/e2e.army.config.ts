@@ -1,6 +1,7 @@
 import type { E2EConfig } from "e2e";
 import { web } from "@e2e-dev/web";
 import { isReplay, modeOf } from "./army/config.ts";
+import { lightpanda } from "@e2e-dev/lightpanda";
 import { decisionExecutor } from "@e2e-dev/decision";
 import { createModels } from "./army/models.ts";
 
@@ -9,6 +10,7 @@ import { createModels } from "./army/models.ts";
 const mode = modeOf(process.env);
 const replay = isReplay(process.env);
 const models = createModels(process.env, replay);
+// E2E_BROWSER=chromium (default) | lightpanda. The runner passes it into the container.
 const browser = process.env.E2E_BROWSER ?? "chromium";
 
 export default {
@@ -17,7 +19,7 @@ export default {
 	targets: [
 		{
 			name: browser,
-			engine: web({ locale: "vi-VN" }),
+			engine: browser === "lightpanda" ? web({ browser: lightpanda({ loadResources: ["stylesheet"] }), locale: "vi-VN" }) : web({ locale: "vi-VN" }),
 			// The browser container shares the WordPress container's network namespace.
 			app: { url: "http://localhost", identity: "einvoice-matbao-contained" },
 		},
