@@ -1,0 +1,118 @@
+{
+  "schemaVersion": "trace-1",
+  "createdAt": "2026-10-31T16:09:08.312Z",
+  "payload": {
+    "actions": [
+      {
+        "name": "check",
+        "summary": "check checkbox \"Yêu cầu xuất hóa đơn\"",
+        "target": {
+          "role": "checkbox",
+          "name": "Yêu cầu xuất hóa đơn"
+        },
+        "checked": true
+      },
+      {
+        "name": "check",
+        "summary": "check radio \"Cá nhân\" in \"Xuất hóa đơn cho\"",
+        "target": {
+          "role": "radio",
+          "name": "Cá nhân",
+          "within": "Xuất hóa đơn cho"
+        },
+        "checked": true
+      },
+      {
+        "name": "type",
+        "summary": "type \"1 Đường Thử Nghiệm, Quận 1, TP HCM\" into textbox \"Địa chỉ xuất hóa đơn\"",
+        "target": {
+          "role": "textbox",
+          "name": "Địa chỉ xuất hóa đơn"
+        },
+        "value": "1 Đường Thử Nghiệm, Quận 1, TP HCM"
+      },
+      {
+        "name": "type",
+        "summary": "type \"000000000000\" into textbox \"Số CCCD\"",
+        "target": {
+          "role": "textbox",
+          "name": "Số CCCD"
+        },
+        "value": "000000000000"
+      }
+    ],
+    "executor": {
+      "name": "decision",
+      "version": "2"
+    },
+    "recordedFor": {
+      "testId": "army/checkout-invoice.army.ts::checkout%20invoice%20request::classic%20checkout%2C%20individual%20buyer%3A%20completed%20order%20gets%20a%20draft",
+      "targetId": "chromium",
+      "instructionDigest": "5381bba33c9c509e226406a5efc1790dec67c8a737f6da44687bda5a625fd564",
+      "paramsDigest": "5b3abef9010f167096d701f08e4dacece34d94a72ae36fb513a3c7618c908fc4",
+      "callIndex": 0,
+      "agent": "default"
+    },
+    "recordedBy": {
+      "provider": "e2e-text.chat",
+      "model": "gpt-6-luna"
+    },
+    "summary": "The screen shows the step is done (p=1.000, confidence 1.000).",
+    "startPath": "/?pagename=classic-checkout",
+    "endPath": "/?pagename=classic-checkout",
+    "endAnchors": [
+      {
+        "role": "checkbox",
+        "name": "Yêu cầu xuất hóa đơn",
+        "states": [
+          "checked"
+        ]
+      },
+      {
+        "text": "Xuất hóa đơn cho"
+      },
+      {
+        "role": "radio",
+        "name": "Cá nhân",
+        "states": [
+          "checked"
+        ]
+      },
+      {
+        "text": "Cá nhân"
+      },
+      {
+        "role": "radio",
+        "name": "Doanh nghiệp"
+      },
+      {
+        "text": "Doanh nghiệp"
+      },
+      {
+        "text": "Địa chỉ xuất hóa đơn"
+      },
+      {
+        "role": "textbox",
+        "name": "Địa chỉ xuất hóa đơn",
+        "value": "1 Đường Thử Nghiệm, Quận 1, TP HCM"
+      }
+    ],
+    "goneAnchors": [
+      {
+        "role": "checkbox",
+        "name": "Yêu cầu xuất hóa đơn"
+      }
+    ],
+    "endWaitMs": 11107,
+    "keyedBy": {
+      "cacheSchema": "trace-1",
+      "policyVersion": "conservative/6",
+      "project": "2b483fc49e5e740989e492050e28e6fb856764a2ed52d31c600d470a05baba44",
+      "platform": "web",
+      "engineName": "web",
+      "engineSpiVersion": 1,
+      "appIdentity": "2ce612fe684f904f96ec07f53bc449688a65d26e28e9999fd2a1cec1cbd6fc2d",
+      "agentContextDigest": "159aaf6c2569c41232b319c295da511f2853ffba956e9e1245e15977cbb35019"
+    }
+  }
+}

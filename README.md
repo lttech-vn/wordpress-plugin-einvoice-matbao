@@ -376,3 +376,8 @@ suites through the same Docker Compose stack used locally.
 - `DGia` = net / quantity can be a non-terminating fraction (net 100000, quantity 3); behavior on
   the demo API is unverified (#15).
 - `TgTTTBChu` carries Vietnamese diacritics; the proven demo payloads were sent without. Confirm in #15.
+
+## Browser E2E and Mat Bao demo checks
+
+`tests/e2e/` holds the agentic browser suite (Classic checkout, fake Mat Bao; not run in CI) and the guarded demo-API
+harness. See [tests/e2e/README.md](tests/e2e/README.md) and [docs/research/e2e-demo-results.md](docs/research/e2e-demo-results.md).

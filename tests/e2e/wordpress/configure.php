@@ -14,7 +14,10 @@ use LTTech\EinvoiceMatbao\CredentialStore;
 use LTTech\EinvoiceMatbao\Matbao\MatbaoCredentials;
 use LTTech\EinvoiceMatbao\Settings;
 
-$einv_mode = getenv( 'EINV_E2E_MODE' ) ?: 'fake';
+$einv_mode = (string) getenv( 'EINV_E2E_MODE' );
+if ( '' === $einv_mode ) {
+	$einv_mode = 'fake';
+}
 if ( 'demo' === $einv_mode ) {
 	$einv_mst  = (string) getenv( 'EINV_DEMO_MST' );
 	$einv_user = (string) getenv( 'EINV_DEMO_USER' );

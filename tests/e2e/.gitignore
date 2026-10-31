@@ -1,5 +1,7 @@
 node_modules/
-results/
+.e2e/
+test-results/
+.env.e2e.local
 __pycache__/
 *.pyc
-.e2e/
+results/

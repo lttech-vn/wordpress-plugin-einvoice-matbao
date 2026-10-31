@@ -5,6 +5,9 @@
     "": {
       "name": "einvoice-matbao-e2e",
       "devDependencies": {
+        "@ai-sdk/openai-compatible": "^3.0.82",
+        "@ai-sdk/typesafe-ai": "^3.0.31",
+        "@e2e-dev/decision": "^0.3.1",
         "@e2e-dev/web": "^0.15.4",
         "@openrouter/ai-sdk-provider": "^3.1.0",
         "ai": "^7",
@@ -15,13 +18,19 @@
   "packages": {
     "@ai-sdk/gateway": ["@ai-sdk/gateway@4.0.132", "", { "dependencies": { "@ai-sdk/provider": "4.0.35", "@ai-sdk/provider-utils": "5.0.72", "@vercel/oidc": "3.2.0" }, "peerDependencies": { "zod": "^3.25.76 || ^4.1.8" } }, "sha512-ppStDEz96g+JEuxGiVTP29OKBjPyYZXRxs38wnq3427U2QbZtxe6TukrgSAAq0n4yaHvSvVAWJY9kBlW8XudYg=="],
 
+    "@ai-sdk/openai-compatible": ["@ai-sdk/openai-compatible@3.0.82", "", { "dependencies": { "@ai-sdk/provider": "4.0.35", "@ai-sdk/provider-utils": "5.0.72" }, "peerDependencies": { "zod": "^3.25.76 || ^4.1.8" } }, "sha512-wey0CbujWRkZbbrJjw/GJHyjXpt0v44PQKaTGTVGmigqnM057G7GQHDyZQQj9O0lICY5qJxzpn4wCSftT8BSQg=="],
+
     "@ai-sdk/provider": ["@ai-sdk/provider@4.0.35", "", { "dependencies": { "json-schema": "^0.4.0" } }, "sha512-yBz6fmLS8MSCIzy7NiHEUAq56ZLD4ZA1GR6bpXBxgbwUacP1La7LuwAr/xy9jSzthem4F8Xu2OrhvU/JrE9fYA=="],
 
     "@ai-sdk/provider-utils": ["@ai-sdk/provider-utils@5.0.72", "", { "dependencies": { "@ai-sdk/provider": "4.0.35", "@standard-schema/spec": "^1.1.0", "@workflow/serde": "4.1.0", "eventsource-parser": "^3.0.8", "undici": "^7.29.0" }, "peerDependencies": { "zod": "^3.25.76 || ^4.1.8" } }, "sha512-M6QAztI84jWumQSvKcGOL91DxhChsWxn3D3gYtV0/7E1TPQg9BmLdIerOolUC/jghQbMlQrHyzp0hqdIhUZ2Rw=="],
 
+    "@ai-sdk/typesafe-ai": ["@ai-sdk/typesafe-ai@3.0.31", "", { "dependencies": { "@ai-sdk/provider": "4.0.35", "@ai-sdk/provider-utils": "5.0.72" }, "peerDependencies": { "zod": "^3.25.76 || ^4.1.8" } }, "sha512-muJlgmHtHEJEmEim+AW7LbiaGWaPhw1oleVtcgNgvL9sE9wuG2iPh+Be/8PEWCksD/IB5wupkHuo7ou+tyUSRA=="],
+
     "@clack/core": ["@clack/core@1.5.1", "", { "dependencies": { "fast-wrap-ansi": "^0.2.0", "sisteransi": "^1.0.5" } }, "sha512-iHTrHA8MtVuLl2TfZySmcKv1qO2PoyC9Z7pfSDozEuV5vtY3/wcOPKJXlqJ5Oq2Cx5DDGQGAMVx6HZfRRoVEbQ=="],
 
     "@clack/prompts": ["@clack/prompts@1.8.1", "", { "dependencies": { "@clack/core": "1.5.1", "fast-string-width": "^3.0.2", "fast-wrap-ansi": "^0.2.0", "sisteransi": "^1.0.5" } }, "sha512-dlT1m5e/0yUL0kRNcQn7yGLVThkgbB0Ga/1AmfDDC/8ik6AIiSf2QLQO2zPYvefsHP0aFgxO93cVLCCfDp7kzQ=="],
+
+    "@e2e-dev/decision": ["@e2e-dev/decision@0.3.1", "", { "dependencies": { "pngjs": "7.0.0", "zod": "4.6.7" }, "peerDependencies": { "ai": "^7.0.134", "e2e": ">=0.21.3 <1" } }, "sha512-PkgBc2EYxL922zx4EiSkGsFz9Lb4b6xnqXcVgihlpq+HvVChzVAvCTkEo3lgXwQNcsSxKQjTn+/NUPg0M4/zTQ=="],
 
     "@e2e-dev/web": ["@e2e-dev/web@0.15.4", "", { "dependencies": { "playwright-core": "1.64.1" }, "peerDependencies": { "e2e": ">=0.18.0 <1" }, "bin": { "e2e-web": "./dist/bin.js" } }, "sha512-j4bDSP6wV310h9LwrMVfsUHv7uAIIzK516NboLco6Ah92B32uShIHne5V3AI1lvKtLip+PWlpJ+aw848vogBwQ=="],
 

@@ -1,0 +1,127 @@
+{
+  "schemaVersion": "trace-1",
+  "createdAt": "2026-10-31T16:09:22.827Z",
+  "payload": {
+    "actions": [
+      {
+        "name": "check",
+        "summary": "check checkbox \"Yêu cầu xuất hóa đơn\"",
+        "target": {
+          "role": "checkbox",
+          "name": "Yêu cầu xuất hóa đơn"
+        },
+        "checked": true
+      },
+      {
+        "name": "check",
+        "summary": "check radio \"Doanh nghiệp\" in \"Xuất hóa đơn cho\"",
+        "target": {
+          "role": "radio",
+          "name": "Doanh nghiệp",
+          "within": "Xuất hóa đơn cho"
+        },
+        "checked": true
+      },
+      {
+        "name": "type",
+        "summary": "type \"CÔNG TY TNHH THỬ NGHIỆM E2E\" into textbox \"Tên doanh nghiệp\"",
+        "target": {
+          "role": "textbox",
+          "name": "Tên doanh nghiệp"
+        },
+        "value": "CÔNG TY TNHH THỬ NGHIỆM E2E"
+      },
+      {
+        "name": "type",
+        "summary": "type \"0000000000\" into textbox \"Mã số thuế\"",
+        "target": {
+          "role": "textbox",
+          "name": "Mã số thuế"
+        },
+        "value": "0000000000"
+      },
+      {
+        "name": "type",
+        "summary": "type \"2 Đường Thử Nghiệm, Quận 3, TP HCM\" into textbox \"Địa chỉ xuất hóa đơn\"",
+        "target": {
+          "role": "textbox",
+          "name": "Địa chỉ xuất hóa đơn"
+        },
+        "value": "2 Đường Thử Nghiệm, Quận 3, TP HCM"
+      }
+    ],
+    "executor": {
+      "name": "decision",
+      "version": "2"
+    },
+    "recordedFor": {
+      "testId": "army/checkout-invoice.army.ts::checkout%20invoice%20request::classic%20checkout%2C%20business%20buyer%3A%20completed%20order%20gets%20a%20draft",
+      "targetId": "chromium",
+      "instructionDigest": "59a100274f15f214b70bf61b160d406f0fedc275a9db801c2a2ad8cbad42ed00",
+      "paramsDigest": "d7b22ba18bb730a293bd6b43c0693a31d085e203f5ae8d805dc9afbc80d4f002",
+      "callIndex": 0,
+      "agent": "default"
+    },
+    "recordedBy": {
+      "provider": "e2e-text.chat",
+      "model": "gpt-6-luna"
+    },
+    "summary": "The screen shows the step is done (p=1.000, confidence 1.000).",
+    "startPath": "/?pagename=classic-checkout",
+    "endPath": "/?pagename=classic-checkout",
+    "endAnchors": [
+      {
+        "role": "checkbox",
+        "name": "Yêu cầu xuất hóa đơn",
+        "states": [
+          "checked"
+        ]
+      },
+      {
+        "text": "Xuất hóa đơn cho"
+      },
+      {
+        "role": "radio",
+        "name": "Cá nhân"
+      },
+      {
+        "text": "Cá nhân"
+      },
+      {
+        "role": "radio",
+        "name": "Doanh nghiệp",
+        "states": [
+          "checked"
+        ]
+      },
+      {
+        "text": "Doanh nghiệp"
+      },
+      {
+        "text": "Tên doanh nghiệp"
+      },
+      {
+        "role": "textbox",
+        "name": "Tên doanh nghiệp",
+        "value": "CÔNG TY TNHH THỬ NGHIỆM E2E"
+      }
+    ],
+    "goneAnchors": [
+      {
+        "role": "checkbox",
+        "name": "Yêu cầu xuất hóa đơn"
+      }
+    ],
+    "endWaitMs": 11085,
+    "keyedBy": {
+      "cacheSchema": "trace-1",
+      "policyVersion": "conservative/6",
+      "project": "2b483fc49e5e740989e492050e28e6fb856764a2ed52d31c600d470a05baba44",
+      "platform": "web",
+      "engineName": "web",
+      "engineSpiVersion": 1,
+      "appIdentity": "2ce612fe684f904f96ec07f53bc449688a65d26e28e9999fd2a1cec1cbd6fc2d",
+      "agentContextDigest": "159aaf6c2569c41232b319c295da511f2853ffba956e9e1245e15977cbb35019"
+    }
+  }
+}

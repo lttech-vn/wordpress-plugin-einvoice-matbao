@@ -81,7 +81,7 @@ Chỉ lập spec triển khai sau khi giải quyết các quyết định còn m
 ## Quyết định vòng grill 2 (chốt)
 
 ### Dữ liệu hóa đơn
-- Người mua vãng lai: `NMua_Ten` = "Khách hàng không lấy hóa đơn" (admin sửa được), field khác để trống. Chưa xác nhận hiển thị trên Mắt Bão.
+- Người mua vãng lai: `NMua_Ten` = "Khách hàng không lấy hóa đơn" (admin sửa được), field khác để trống. Đã xác nhận hiển thị trên demo ngày 31/10/2026 (xem [kết quả](research/e2e-demo-results.md)).
 - Tiền, thuế, fee, coupon lấy từ số liệu WooCommerce đã lưu trên từng dòng. Mỗi dòng gửi giá sau giảm; không tạo dòng chiết khấu (`ThTienChuaCK = ThTien`, `TLCKhau = 0`, `STCKhau = 0`). Fee là dòng riêng.
 - `TSuat` suy từ rate WC đã lưu: 0, 5, 8, 10. `tax_status = none` thì `-1` (KCT). Rate khác (ví dụ 7%, 3.5%) thì chặn nháp và báo admin.
 - Tổng dòng phải bằng `TgThTien`, `TgTThue`, `TgTTTBSo` và `order total` WC; lệch thì chặn nháp. Không tính lại hay điều chỉnh.
@@ -95,7 +95,7 @@ Chỉ lập spec triển khai sau khi giải quyết các quyết định còn m
 - Retry 5 lần, backoff 1p/5p/15p/1h/6h, qua Action Scheduler của WooCommerce.
 - Hết retry: báo admin và Lark một lần cho mỗi đơn và loại lỗi; admin gửi lại thủ công.
 - Nháp bị xóa/phát hành trên Mắt Bão: nút "Kiểm tra trạng thái" cho Administrator, không đồng bộ tự động, không tự tạo lại.
-- Chưa xác minh Mắt Bão chặn trùng nguyên tử. Cần test đồng thời trên API demo. `UNIQUE(order_id)` ở DB phía plugin.
+- Đã xác minh ngày 31/10/2026 trên demo: Mắt Bão KHÔNG chặn trùng nguyên tử (5 request song song cùng MTChieu/mẫu tạo 2 nháp, 3 trả 305). Chống trùng do plugin (`UNIQUE(order_id)`, claim `pending -> sending`, tra cứu trước retry). Chi tiết: [kết quả](research/e2e-demo-results.md).
 
 ### Dữ liệu nhạy cảm
 - CCCD trong order meta, mã hóa, mask 4 số cuối ở danh sách và notes, không vào log/Lark/fixture; có WP privacy exporter/eraser; giữ theo vòng đời đơn. Bảng hóa đơn chỉ giữ bản mask.

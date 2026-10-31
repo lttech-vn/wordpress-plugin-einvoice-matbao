@@ -5,9 +5,16 @@
 	"description": "Agentic browser E2E (e2e framework) for Classic and Blocks checkout. Not run in CI.",
 	"license": "GPL-2.0-or-later",
 	"scripts": {
-		"e2e": "e2e run"
+		"e2e:list": "e2e list --config e2e.army.config.ts",
+		"e2e:record": "bun --no-env-file scripts/run-e2e.ts record",
+		"e2e:live": "bun --no-env-file scripts/run-e2e.ts live",
+		"e2e:replay": "bun --no-env-file scripts/run-e2e.ts replay",
+		"e2e": "bun --no-env-file scripts/run-e2e.ts record"
 	},
 	"devDependencies": {
+		"@ai-sdk/openai-compatible": "^3.0.82",
+		"@ai-sdk/typesafe-ai": "^3.0.31",
+		"@e2e-dev/decision": "^0.3.1",
 		"@e2e-dev/web": "^0.15.4",
 		"@openrouter/ai-sdk-provider": "^3.1.0",
 		"ai": "^7",

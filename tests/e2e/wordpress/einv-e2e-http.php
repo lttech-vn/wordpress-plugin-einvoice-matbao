@@ -91,7 +91,16 @@ function einv_e2e_fake_matbao( string $method, string $path, array $args ): arra
 				),
 			)
 		);
-		update_option( 'einv_e2e_last_create', wp_json_encode( array( 'MTChieu' => $invoice['MTChieu'] ?? '', 'NMua_Ten' => $invoice['NMua_Ten'] ?? '' ) ), false );
+		update_option(
+	'einv_e2e_last_create',
+	wp_json_encode(
+		array(
+			'MTChieu'  => $invoice['MTChieu'] ?? '',
+			'NMua_Ten' => $invoice['NMua_Ten'] ?? '',
+		)
+	),
+	false
+);
 	} elseif ( 'POST /api/invoice/invoice-detail-batch' === $route ) {
 		$json = array(
 			'errorCode' => 301,
@@ -126,3 +135,32 @@ function einv_e2e_fake_matbao( string $method, string $path, array $args ): arra
 		'filename' => null,
 	);
 }
+
+/**
+ * E2E only: completes an order and runs the due Action Scheduler actions, so the browser suite does not
+ * have to drive the admin status dropdown. Refused unless the E2E mode option exists (set by configure.php).
+ */
+add_action(
+	'rest_api_init',
+	static function (): void {
+		register_rest_route(
+			'einv-e2e/v1',
+			'/complete/(?P<id>\d+)',
+			array(
+				'methods'             => 'POST',
+				'permission_callback' => static fn(): bool => false !== get_option( 'einv_e2e_mode', false ),
+				'callback'            => static function ( WP_REST_Request $request ): array {
+					$order = wc_get_order( (int) $request['id'] );
+					if ( ! $order ) {
+						return array( 'completed' => false );
+					}
+					$order->update_status( 'completed' );
+					if ( class_exists( 'ActionScheduler_QueueRunner' ) ) {
+						ActionScheduler_QueueRunner::instance()->run( 'E2E' );
+					}
+					return array( 'completed' => true );
+				},
+			)
+		);
+	}
+);
