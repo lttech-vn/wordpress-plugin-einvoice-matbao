@@ -140,19 +140,7 @@ final class ClassicCheckout {
 			throw new \Exception( esc_html( (string) reset( $errors ) ) );
 		}
 
-		$is_individual = BuyerType::INDIVIDUAL === $input->type;
-		$id_number     = $is_individual ? trim( $input->id_number ) : '';
-		$store->save(
-			$order,
-			array(
-				'type'          => $input->type,
-				'business_name' => $is_individual ? '' : trim( $input->business_name ),
-				'tax_code'      => $is_individual ? '' : trim( $input->tax_code ),
-				'address'       => trim( $input->address ),
-				'id_encrypted'  => '' === $id_number ? '' : $encryption->encrypt( $id_number ),
-				'id_mask'       => '' === $id_number ? '' : BuyerRules::mask_id_number( $id_number ),
-			)
-		);
+		$store->save( $order, BuyerRequestStore::from_input( $input, $encryption ) );
 	}
 
 	/**

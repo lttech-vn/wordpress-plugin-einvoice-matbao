@@ -7,6 +7,8 @@
 
 namespace LTTech\EinvoiceMatbao\Buyer;
 
+use LTTech\EinvoiceMatbao\Encryption;
+use LTTech\EinvoiceMatbao\MissingEncryptionKey;
 use WC_Order;
 
 /**
@@ -18,6 +20,29 @@ use WC_Order;
 final class BuyerRequestStore {
 
 	public const META_KEY = '_einvoice_buyer_request';
+
+	/**
+	 * The request to store for input that already passed BuyerRules. Keeps only the fields of the
+	 * chosen type and encrypts the citizen ID, so every checkout flavour stores the same shape.
+	 *
+	 * @param BuyerInput $input      Validated input.
+	 * @param Encryption $encryption Encryption service (must be available for an individual).
+	 * @return Request
+	 * @throws MissingEncryptionKey When an individual request arrives without a usable key.
+	 */
+	public static function from_input( BuyerInput $input, Encryption $encryption ): array {
+		$is_individual = BuyerType::INDIVIDUAL === $input->type;
+		$id_number     = $is_individual ? trim( $input->id_number ) : '';
+
+		return array(
+			'type'          => $input->type,
+			'business_name' => $is_individual ? '' : trim( $input->business_name ),
+			'tax_code'      => $is_individual ? '' : trim( $input->tax_code ),
+			'address'       => trim( $input->address ),
+			'id_encrypted'  => '' === $id_number ? '' : $encryption->encrypt( $id_number ),
+			'id_mask'       => '' === $id_number ? '' : BuyerRules::mask_id_number( $id_number ),
+		);
+	}
 
 	/**
 	 * Saves a request on the order (the caller saves the order).

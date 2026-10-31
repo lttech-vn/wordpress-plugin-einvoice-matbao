@@ -270,10 +270,11 @@ final class ClassicCheckoutBuyerTest extends InvoiceWorkflowTestCase {
 	public function test_lengths_count_characters_not_bytes(): void {
 		$this->with_encryption_key();
 
-		$at_limit  = $this->validate_checkout( array( 'einv_address' => str_repeat( 'ạ', 400 ) ) + $this->individual_post() );
-		$over      = $this->validate_checkout( array( 'einv_address' => str_repeat( 'ạ', 401 ) ) + $this->individual_post() );
-		$name_ok   = $this->validate_checkout( $this->individual_post(), array( 'billing_first_name' => str_repeat( 'Ư', 50 ), 'billing_last_name' => str_repeat( 'ơ', 49 ) ) );
-		$name_long = $this->validate_checkout( $this->individual_post(), array( 'billing_first_name' => str_repeat( 'Ư', 50 ), 'billing_last_name' => str_repeat( 'ơ', 50 ) ) );
+		$at_limit = $this->validate_checkout( array( 'einv_address' => str_repeat( 'ạ', 400 ) ) + $this->individual_post() );
+		$over     = $this->validate_checkout( array( 'einv_address' => str_repeat( 'ạ', 401 ) ) + $this->individual_post() );
+		// Billing name is "first last": 50 + 1 + 49 = 100 characters, then 101.
+		$name_ok   = $this->validate_checkout( $this->individual_post(), $this->billing_name( str_repeat( 'Ư', 50 ), str_repeat( 'ơ', 49 ) ) );
+		$name_long = $this->validate_checkout( $this->individual_post(), $this->billing_name( str_repeat( 'Ư', 50 ), str_repeat( 'ơ', 50 ) ) );
 
 		$this->assertSame( array(), $at_limit->get_error_codes() );
 		$this->assertSame( array( 'einvoice_buyer_address' ), $over->get_error_codes() );
@@ -343,6 +344,20 @@ final class ClassicCheckoutBuyerTest extends InvoiceWorkflowTestCase {
 			'billing_last_name'  => 'Văn A',
 			'billing_phone'      => '0900000001',
 			'billing_email'      => 'buyer@example.invalid',
+		);
+	}
+
+	/**
+	 * Billing name overrides.
+	 *
+	 * @param string $first First name.
+	 * @param string $last  Last name.
+	 * @return array<string, string>
+	 */
+	private function billing_name( string $first, string $last ): array {
+		return array(
+			'billing_first_name' => $first,
+			'billing_last_name'  => $last,
 		);
 	}
 
