@@ -24,7 +24,8 @@
 	},
 	"autoload-dev": {
 		"psr-4": {
-			"LTTech\\EinvoiceMatbao\\Tests\\": "tests/"
+			"LTTech\\EinvoiceMatbao\\Tests\\": "tests/",
+			"LTTech\\EinvoiceMatbao\\Tests\\Integration\\": "tests/integration/"
 		}
 	},
 	"config": {

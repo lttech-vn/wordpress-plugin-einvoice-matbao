@@ -31,6 +31,14 @@ final class Plugin {
 	public static function boot(): void {
 		if ( ! WooCommerceDependency::is_met() ) {
 			WooCommerceDependency::register_missing_handlers();
+			return;
+		}
+
+		add_action( 'rest_api_init', array( Admin\SettingsController::class, 'register_routes' ) );
+		add_filter( 'rest_pre_serve_request', array( Admin\SettingsController::class, 'serve_html' ), 10, 4 );
+
+		if ( is_admin() ) {
+			Admin\SettingsPage::register();
 		}
 	}
 
