@@ -56,7 +56,8 @@ fi
 rm -f "$pkg/composer.json" "$pkg/composer.lock"
 test -s "$pkg/vendor/autoload.php"
 
-# 4. Reproducible zip: sorted entries, normalised mtimes, no extra attributes.
+# 4. Reproducible zip: sorted entries, normalised modes and mtimes, no extra attributes.
+chmod -R u=rwX,go=rX "$pkg"
 find "$pkg" -exec touch -t 202001010000 {} +
 mkdir -p dist
 out="$PWD/dist/$slug-$version.zip"

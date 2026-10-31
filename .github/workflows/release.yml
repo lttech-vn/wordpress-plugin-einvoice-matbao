@@ -53,9 +53,14 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.4
-      - run: scripts/build-zip.sh "${{ needs.verify.outputs.version }}"
+      - name: Build the zip
+        env:
+          VERSION: ${{ needs.verify.outputs.version }}
+        run: scripts/build-zip.sh "$VERSION"
       - name: Smoke test the zip in a clean WordPress + WooCommerce
-        run: scripts/smoke-zip.sh "dist/einvoice-matbao-${{ needs.verify.outputs.version }}.zip"
+        env:
+          VERSION: ${{ needs.verify.outputs.version }}
+        run: scripts/smoke-zip.sh "dist/einvoice-matbao-$VERSION.zip"
       - uses: actions/attest-build-provenance@v2
         with:
           subject-path: dist/einvoice-matbao-${{ needs.verify.outputs.version }}.zip
