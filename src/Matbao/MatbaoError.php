@@ -38,6 +38,8 @@ final class MatbaoError extends RuntimeException {
 	 * @param int|null $http_status HTTP status, when a response was received.
 	 * @param bool     $target_sent Whether the request the caller asked for (e.g. create-invoice) was sent. False
 	 *                              when the call failed earlier, e.g. at login, so nothing can have been created.
+	 * @param bool     $rejected    Whether Mat Bao explicitly answered `success` false for the item, even
+	 *                              without an `errorCode`; such an answer is understood, not unreadable.
 	 */
 	public function __construct(
 		public readonly string $kind,
@@ -45,6 +47,7 @@ final class MatbaoError extends RuntimeException {
 		public readonly ?int $api_code = null,
 		public readonly ?int $http_status = null,
 		public readonly bool $target_sent = true,
+		public readonly bool $rejected = false,
 	) {
 		parent::__construct( $message );
 	}
@@ -53,7 +56,7 @@ final class MatbaoError extends RuntimeException {
 	 * The same error, marked as raised before the requested call was sent.
 	 */
 	public function before_target_request(): self {
-		return new self( $this->kind, $this->getMessage(), $this->api_code, $this->http_status, false );
+		return new self( $this->kind, $this->getMessage(), $this->api_code, $this->http_status, false, $this->rejected );
 	}
 
 	/**
@@ -90,10 +93,11 @@ final class MatbaoError extends RuntimeException {
 	}
 
 	/**
-	 * Whether a 2xx response could not be understood (no Mat Bao rejection code, or code 200).
+	 * Whether a 2xx response could not be understood (no Mat Bao rejection code, or code 200, and no
+	 * explicit `success` false).
 	 */
 	public function is_unreadable_response(): bool {
-		return self::KIND_API === $this->kind && ( null === $this->api_code || 200 === $this->api_code );
+		return self::KIND_API === $this->kind && ! $this->rejected && ( null === $this->api_code || 200 === $this->api_code );
 	}
 
 	/**
