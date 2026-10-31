@@ -173,6 +173,10 @@ final class BlocksCheckoutBuyerTest extends InvoiceWorkflowTestCase {
 		$this->fake_create_invoice_ok();
 
 		$order = $this->order_of( $this->place_order( $this->individual() ) );
+		// The checkout cart is free so no gateway is needed; give the placed order a priced line.
+		$order->add_product( $this->create_product( 'A', '100000' ), 1 );
+		$order->calculate_totals();
+		$order->save();
 		$order->update_status( 'completed' );
 		$this->run_queued_draft_actions();
 
@@ -186,7 +190,7 @@ final class BlocksCheckoutBuyerTest extends InvoiceWorkflowTestCase {
 	public function test_the_checkout_script_is_registered_for_the_blocks_checkout(): void {
 		do_action( 'woocommerce_blocks_checkout_block_registration', new \Automattic\WooCommerce\Blocks\Integrations\IntegrationRegistry() ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- WooCommerce hook.
 
-		$this->assertTrue( wp_script_is( 'einvoice-matbao-checkout-blocks', 'registered' ) );
+		$this->assertTrue( wp_script_is( "einvoice-matbao-checkout-blocks", "registered" ) );
 	}
 
 	/**

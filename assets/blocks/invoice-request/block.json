@@ -1,0 +1,26 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "einvoice-matbao/invoice-request",
+	"version": "1.0.0",
+	"title": "Yêu cầu xuất hóa đơn",
+	"category": "woocommerce",
+	"description": "Cho khách chọn xuất hóa đơn cho cá nhân hoặc doanh nghiệp.",
+	"parent": [ "woocommerce/checkout-fields-block" ],
+	"supports": {
+		"align": false,
+		"html": false,
+		"multiple": false,
+		"reusable": false
+	},
+	"attributes": {
+		"lock": {
+			"type": "object",
+			"default": { "remove": true, "move": false }
+		}
+	},
+	"blockHooks": {
+		"woocommerce/checkout-contact-information-block": "after"
+	},
+	"textdomain": "einvoice-matbao"
+}
