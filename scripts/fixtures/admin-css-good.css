@@ -1,0 +1,10 @@
+/* comment */
+:root,:host{--einv-x:1}
+@property --tw-x{syntax:"*";inherits:false}
+#einv-app{color:red}
+#einv-app .a,#einv-app>.b,:where(#einv-app) .c{color:red}
+#einv-app .a:hover{color:blue}
+@media (min-width:600px){#einv-app .a{color:red}}
+@supports (display:grid){#einv-app .a{display:grid}}
+@layer utilities{#einv-app .a{color:red}}
+@keyframes spin{from{opacity:0}to{opacity:1}}
