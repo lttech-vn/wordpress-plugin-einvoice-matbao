@@ -95,7 +95,7 @@ final class InvoiceErrorCodeTest extends WP_UnitTestCase {
 		sort( $listed );
 		sort( $cases );
 		$this->assertSame( $listed, $cases );
-		$this->assertCount( 31, $cases );
+		$this->assertCount( 34, $cases );
 	}
 
 	/**

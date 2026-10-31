@@ -180,6 +180,72 @@ final class InvoiceRepository {
 	}
 
 	/**
+	 * Stores the order state a create call is about to be sent with.
+	 *
+	 * @param int    $invoice_id Invoice row ID.
+	 * @param string $state      OrderState::encode().
+	 */
+	public function remember_order_state( int $invoice_id, string $state ): void {
+		global $wpdb;
+
+		$wpdb->update( Schema::invoice_table(), array( 'order_state' => $state ), array( 'id' => $invoice_id ) );
+	}
+
+	/**
+	 * Replaces the stored order state only if it is still the one that was read, so of several
+	 * saves or requests noticing the same change exactly one wins. Optionally records the change
+	 * as a warning on the row without touching its status, and starts a new alert cycle so the
+	 * change alerts although the error code did not change.
+	 *
+	 * @param int                   $invoice_id Invoice row ID.
+	 * @param string                $expected   State as read.
+	 * @param string                $state      New state.
+	 * @param InvoiceErrorCode|null $warning    Warning to store as the error, or null to leave the error alone.
+	 * @param string                $reason     Reason of the warning.
+	 * @return bool Whether this call made the change.
+	 */
+	public function replace_order_state( int $invoice_id, string $expected, string $state, ?InvoiceErrorCode $warning = null, string $reason = '' ): bool {
+		global $wpdb;
+
+		if ( null === $warning ) {
+			$updated = $wpdb->query(
+				$wpdb->prepare( 'UPDATE %i SET order_state = %s WHERE id = %d AND order_state = %s', Schema::invoice_table(), $state, $invoice_id, $expected )
+			);
+		} else {
+			$updated = $wpdb->query(
+				$wpdb->prepare(
+					'UPDATE %i SET order_state = %s, error_code = %s, error_kind = %s, status_reason = %s, alert_cycle = alert_cycle + 1, updated_at = %s WHERE id = %d AND order_state = %s',
+					Schema::invoice_table(),
+					$state,
+					$warning->value,
+					$warning->kind()->value,
+					$reason,
+					current_time( 'mysql', true ),
+					$invoice_id,
+					$expected
+				)
+			);
+		}
+
+		return 1 === $updated;
+	}
+
+	/**
+	 * Whether an earlier attempt may have reached Mat Bao: any attempt other than `not_sent`.
+	 *
+	 * @param InvoiceRecord $invoice Invoice.
+	 */
+	public function may_have_been_created( InvoiceRecord $invoice ): bool {
+		foreach ( $this->attempts( $invoice->id ) as $attempt ) {
+			if ( 'not_sent' !== $attempt['outcome'] ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
 	 * Records why an invoice was not created: the code, its kind, the status of that kind and the
 	 * Vietnamese reason.
 	 *

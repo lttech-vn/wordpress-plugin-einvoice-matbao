@@ -293,11 +293,20 @@ suites through the same Docker Compose stack used locally.
   and nothing alerts.
 - A draft adopted by the lookup keeps the `NLap` Mat Bao reports, which may predate the day it was adopted.
 - The manual re-send button is #9.
-- A `buyer_invalid` row is `failed` and holds no buyer snapshot, and nothing restarts a `failed` row yet.
-  A re-send (#9) must run `BuyerSnapshotter::validate()` again and `capture()` when the row has no
-  snapshot or it needs updating. Capturing again is only safe while the invoice cannot have been created
-  (`!may_have_been_created`); otherwise #14 must compare `NMua_Ten`/`NMua_MST` in `lookup_mismatch`,
-  since adopting a draft compares only the total.
+- Order changes after the draft (#14): `OrderChangeWatcher` compares the order with `order_state`
+  (keyed digests of amounts, buyer and refunded total, schema v5; no readable personal data) once per
+  request at `shutdown`. After `draft_created` a change only sets `order_amounts_changed`,
+  `order_buyer_changed` or `order_refunded_after_draft` (kind `order`, status unchanged), adds a note
+  without personal data and fires `einvoice_matbao_invoice_needs_attention` once per change. The draft is
+  never updated, cancelled or recreated; the accountant fixes it by hand. The warning stays on the row
+  until the next change or a restart.
+- Before the draft exists, an Administrator's (`manage_options`) buyer edit captures the snapshot again
+  (validated first; invalid keeps the old snapshot and alerts `buyer_invalid`). After an attempt that may
+  have reached Mat Bao the snapshot is kept, because adopting may bring the old buyer; the change is
+  warned about once the draft exists. Edits by other roles never re-capture.
+- Adopting compares `nMua_Ten`/`nMua_MST` of the found draft with the snapshot, but only when the
+  lookup response has them; the demo response does not (#15 to confirm the real field names).
+- Changes made through code that bypasses WooCommerce's order CRUD hooks (direct SQL) are not seen.
 - `DGia` = net / quantity can be a non-terminating fraction (net 100000, quantity 3); behavior on
   the demo API is unverified (#15).
 - `TgTTTBChu` carries Vietnamese diacritics; the proven demo payloads were sent without. Confirm in #15.

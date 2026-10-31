@@ -30,6 +30,7 @@ final class InvoiceRecord {
 	 * @param int         $retry_cycle_start Attempt ID from which retries are counted; 0 = all attempts.
 	 * @param int         $alert_cycle       Counts restarts; alerts are deduplicated per value, also when no attempt was made.
 	 * @param string      $updated_at        Last change (UTC, `Y-m-d H:i:s`), compared by the recovery sweep's claim.
+	 * @param string      $order_state       OrderState::encode() of the order as last sent or acknowledged, or empty.
 	 */
 	public function __construct(
 		public readonly int $id,
@@ -47,6 +48,7 @@ final class InvoiceRecord {
 		public readonly int $retry_cycle_start = 0,
 		public readonly int $alert_cycle = 0,
 		public readonly string $updated_at = '',
+		public readonly string $order_state = '',
 	) {
 	}
 
@@ -72,6 +74,7 @@ final class InvoiceRecord {
 			is_numeric( $row['retry_cycle_start'] ?? null ) ? (int) $row['retry_cycle_start'] : 0,
 			is_numeric( $row['alert_cycle'] ?? null ) ? (int) $row['alert_cycle'] : 0,
 			self::text( $row['updated_at'] ?? null ),
+			self::text( $row['order_state'] ?? null ),
 		);
 	}
 
@@ -80,6 +83,18 @@ final class InvoiceRecord {
 	 */
 	public function error(): ?InvoiceErrorCode {
 		return InvoiceErrorCode::tryFrom( $this->error_code );
+	}
+
+	/**
+	 * Whether an admin has to look at the row: an error status, or a draft that the order has
+	 * since drifted away from (the order was changed or refunded after the draft).
+	 */
+	public function needs_admin(): bool {
+		if ( in_array( $this->status, InvoiceStatus::error_statuses(), true ) ) {
+			return true;
+		}
+
+		return InvoiceStatus::DRAFT_CREATED === $this->status && true === $this->error()?->is_post_draft_warning();
 	}
 
 	/**

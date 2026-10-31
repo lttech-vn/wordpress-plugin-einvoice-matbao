@@ -7,6 +7,7 @@
 
 namespace LTTech\EinvoiceMatbao\Invoice;
 
+use LTTech\EinvoiceMatbao\Buyer\BuyerSnapshot;
 use LTTech\EinvoiceMatbao\Buyer\BuyerSnapshotter;
 use LTTech\EinvoiceMatbao\CredentialStore;
 use LTTech\EinvoiceMatbao\Matbao\MatbaoClient;
@@ -159,6 +160,10 @@ final class DraftInvoiceWorkflow {
 		}
 
 		$snapshotter->store( $order, $snapshot );
+		$reserved = $repository->find_by_order( $order_id );
+		if ( null !== $reserved ) {
+			$repository->remember_order_state( $reserved->id, OrderState::encode( $order ) );
+		}
 		if ( '' !== $snapshot->id_mask ) {
 			/* translators: %s: citizen ID with all but the last 4 digits hidden. */
 			$order->add_order_note( sprintf( __( 'Đã chụp thông tin người mua (cá nhân) để xuất hóa đơn, CCCD %s.', 'einvoice-matbao' ), $snapshot->id_mask ) );
@@ -454,11 +459,17 @@ final class DraftInvoiceWorkflow {
 		$look_up_first = $this->may_have_been_created( $invoice );
 		$attempt       = $this->repository->start_attempt( $invoice->id );
 
+		// Only an attempt that cannot have reached Mat Bao re-bases the state later changes are compared
+		// with; after one that may have, the stored state describes what the existing draft was built from.
+		if ( ! $look_up_first || '' === $invoice->order_state ) {
+			$this->repository->remember_order_state( $invoice->id, OrderState::encode( $order ) );
+		}
+
 		$order_total = (int) round( (float) $order->get_total() );
 		if ( $look_up_first ) {
 			$lookup_template = $sent_template ?? $template;
 			try {
-				$settled = $this->settle_by_lookup( $client, $invoice, $attempt, $lookup_template, $order_total, $issued_on );
+				$settled = $this->settle_by_lookup( $client, $invoice, $attempt, $lookup_template, $order_total, $snapshot, $issued_on );
 			} catch ( MatbaoError $error ) {
 				$this->fail( $invoice, $attempt, $error, $error->target_sent ? 'lookup_failed' : 'not_sent', $lookup_template );
 				return;
@@ -483,7 +494,7 @@ final class DraftInvoiceWorkflow {
 			if ( $error->is_duplicate_reference() ) {
 				// Already created under this MTChieu: look it up, never change the reference.
 				try {
-					$settled = $this->settle_by_lookup( $client, $invoice, $attempt, $template, $order_total, $issued_on );
+					$settled = $this->settle_by_lookup( $client, $invoice, $attempt, $template, $order_total, $snapshot, $issued_on );
 				} catch ( MatbaoError ) {
 					$settled = false;
 				}
@@ -532,17 +543,18 @@ final class DraftInvoiceWorkflow {
 	 * @param int                                 $attempt     Attempt ID.
 	 * @param array{form: string, series: string} $template    Template the earlier create was sent with.
 	 * @param int                                 $order_total Order total, VND.
+	 * @param BuyerSnapshot                       $snapshot    Buyer the draft must carry.
 	 * @param \DateTimeImmutable                  $issued_on   `NLap` of this run, used when Mat Bao reports none.
 	 * @return bool Whether the run is settled; false when Mat Bao has no invoice with the reference.
 	 * @throws MatbaoError When the lookup fails or its answer is unusable.
 	 */
-	private function settle_by_lookup( MatbaoClient $client, InvoiceRecord $invoice, int $attempt, array $template, int $order_total, \DateTimeImmutable $issued_on ): bool {
+	private function settle_by_lookup( MatbaoClient $client, InvoiceRecord $invoice, int $attempt, array $template, int $order_total, BuyerSnapshot $snapshot, \DateTimeImmutable $issued_on ): bool {
 		$found = $client->find_invoices_by_reference( $invoice->reference, $template['form'], $template['series'] );
 		if ( array() === $found ) {
 			return false;
 		}
 
-		$mismatch = $this->lookup_mismatch( $invoice, $found, $order_total );
+		$mismatch = $this->lookup_mismatch( $invoice, $found, $order_total, $snapshot );
 		if ( null !== $mismatch ) {
 			$this->repository->finish_attempt( $attempt, 'lookup_mismatch', null, null, null, $mismatch );
 			self::record_error( $this->repository, $invoice->order_id, InvoiceErrorCode::MATBAO_LOOKUP_MISMATCH, $mismatch, InvoiceStatus::NEEDS_ATTENTION );
@@ -568,8 +580,9 @@ final class DraftInvoiceWorkflow {
 	 * @param InvoiceRecord   $invoice     Invoice.
 	 * @param MatbaoInvoice[] $found       Lookup rows, at least one.
 	 * @param int             $order_total Order total, VND.
+	 * @param BuyerSnapshot   $snapshot    Buyer the draft must carry.
 	 */
-	private function lookup_mismatch( InvoiceRecord $invoice, array $found, int $order_total ): ?string {
+	private function lookup_mismatch( InvoiceRecord $invoice, array $found, int $order_total, BuyerSnapshot $snapshot ): ?string {
 		if ( count( $found ) > 1 ) {
 			/* translators: 1: number of invoices, 2: reference (MTChieu). */
 			return sprintf( __( 'Mắt Bão trả về %1$d hóa đơn cùng mã tham chiếu %2$s; cần admin kiểm tra trên Mắt Bão, không tự nhận hóa đơn nào.', 'einvoice-matbao' ), count( $found ), $invoice->reference );
@@ -592,7 +605,27 @@ final class DraftInvoiceWorkflow {
 			return sprintf( __( 'Hóa đơn nháp mã tham chiếu %s trên Mắt Bão có tổng tiền khác tổng đơn hàng; cần admin kiểm tra.', 'einvoice-matbao' ), $invoice->reference );
 		}
 
+		// The lookup only has to agree where the response names the buyer at all (the demo answer does not).
+		$snapshot_name = $snapshot->fields['NMua_Ten'] ?? $snapshot->buyer_name;
+		$snapshot_tax  = $snapshot->fields['NMua_MST'] ?? '';
+		if (
+			( null !== $draft->buyer_name && mb_strtolower( $draft->buyer_name ) !== mb_strtolower( trim( $snapshot_name ) ) )
+			|| ( null !== $draft->buyer_tax && self::tax_digits( $draft->buyer_tax ) !== self::tax_digits( $snapshot_tax ) )
+		) {
+			/* translators: %s: reference (MTChieu). */
+			return sprintf( __( 'Hóa đơn nháp mã tham chiếu %s trên Mắt Bão có người mua (tên hoặc mã số thuế) khác thông tin đã chụp của đơn hàng; cần admin kiểm tra.', 'einvoice-matbao' ), $invoice->reference );
+		}
+
 		return null;
+	}
+
+	/**
+	 * A tax code reduced to its letters and digits, so `0123456789-001` and `0123456789001` compare equal.
+	 *
+	 * @param string $tax_code Tax code.
+	 */
+	private static function tax_digits( string $tax_code ): string {
+		return (string) preg_replace( '/[^0-9A-Za-z]/', '', $tax_code );
 	}
 
 	/**
@@ -615,6 +648,17 @@ final class DraftInvoiceWorkflow {
 				'template_series'   => $template['series'],
 			)
 		);
+
+		// Changes made while the create call was in flight, or since an adopted draft was built, are
+		// warned about now. A failure here must not turn a stored draft into an error.
+		try {
+			$stored = $this->repository->find( $invoice->id );
+			if ( null !== $stored ) {
+				OrderChangeWatcher::check_after_draft( $stored );
+			}
+		} catch ( \Throwable $failure ) {
+			error_log( 'einvoice-matbao: order change check failed (' . get_class( $failure ) . ').' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+		}
 	}
 
 	/**

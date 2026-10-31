@@ -8,7 +8,6 @@
 namespace LTTech\EinvoiceMatbao\Alert;
 
 use LTTech\EinvoiceMatbao\Invoice\InvoiceRepository;
-use LTTech\EinvoiceMatbao\Invoice\InvoiceStatus;
 
 /**
  * One non-autoloaded option per (order, error code, alert cycle). `add_option()` does nothing when
@@ -174,7 +173,7 @@ final class AlertStore {
 				( $hidden_at > 0 && time() - $hidden_at > self::HIDDEN_KEPT_SECONDS )
 				|| null === $invoice
 				|| $invoice->alert_cycle !== $alert['cycle']
-				|| ! in_array( $invoice->status, array( InvoiceStatus::FAILED, InvoiceStatus::NEEDS_ATTENTION, InvoiceStatus::NOT_CONFIGURED ), true )
+				|| ! $invoice->needs_admin()
 			) {
 				delete_option( (string) $row->option_name );
 			}

@@ -168,12 +168,12 @@ final class SchemaUpgradeTest extends WP_UnitTestCase {
 		$wpdb->insert(
 			Schema::invoice_table(),
 			array(
-				'order_id'          => 7004,
-				'reference'         => 'WC7004',
-				'status'            => InvoiceStatus::DRAFT_CREATED,
-				'alert_cycle'       => 2,
-				'created_at'        => '2026-01-02 03:04:05',
-				'updated_at'        => '2026-01-02 03:04:05',
+				'order_id'    => 7004,
+				'reference'   => 'WC7004',
+				'status'      => InvoiceStatus::DRAFT_CREATED,
+				'alert_cycle' => 2,
+				'created_at'  => '2026-01-02 03:04:05',
+				'updated_at'  => '2026-01-02 03:04:05',
 			)
 		);
 		update_option( Schema::VERSION_OPTION, '4' );

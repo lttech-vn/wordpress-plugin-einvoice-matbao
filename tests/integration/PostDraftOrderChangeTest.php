@@ -23,10 +23,16 @@ use WC_Order;
  */
 final class PostDraftOrderChangeTest extends InvoiceWorkflowTestCase {
 
+	/**
+	 * Codes passed to the needs-attention hook.
+	 *
+	 * @var \stdClass
+	 */
 	private \stdClass $attention;
 
 	public function set_up(): void {
 		parent::set_up();
+		OrderChangeWatcher::reset();
 		OrderChangeWatcher::register();
 		$this->attention        = new \stdClass();
 		$this->attention->codes = array();
@@ -48,13 +54,41 @@ final class PostDraftOrderChangeTest extends InvoiceWorkflowTestCase {
 	private function drafted_order(): WC_Order {
 		$this->configure_matbao();
 		$this->fake_create_invoice_ok();
-		$order = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
-		$order->set_billing_phone( '0900000001' );
-		$order->save();
+		$order = $this->individual_order();
 		$this->complete_and_run( $order );
 		OrderChangeWatcher::flush();
 		$this->assertSame( InvoiceStatus::DRAFT_CREATED, $this->invoice_of( $order )?->status );
 		$this->attention->codes = array();
+
+		return $order;
+	}
+
+	/**
+	 * An order whose checkout stored an individual invoice request (so the snapshot has a phone).
+	 */
+	private function individual_order(): WC_Order {
+		$_POST = array(
+			'einv_request_invoice' => '1',
+			'einv_buyer_type'      => 'individual',
+			'einv_address'         => 'Số 1 Đường Thử, Quận Thử',
+			'einv_id_number'       => '000000001234',
+		);
+		$order = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
+		$order->set_billing_phone( '0900000001' );
+		// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- fires a WooCommerce hook.
+		do_action(
+			'woocommerce_checkout_create_order',
+			$order,
+			array(
+				'billing_first_name' => $order->get_billing_first_name(),
+				'billing_last_name'  => $order->get_billing_last_name(),
+				'billing_phone'      => '0900000001',
+				'billing_email'      => $order->get_billing_email(),
+			)
+		);
+		// phpcs:enable
+		$_POST = array();
+		$order->save();
 
 		return $order;
 	}
@@ -227,9 +261,7 @@ final class PostDraftOrderChangeTest extends InvoiceWorkflowTestCase {
 	public function test_admin_editing_the_buyer_before_the_draft_succeeds_makes_the_next_attempt_use_it(): void {
 		$this->configure_matbao();
 		$this->fake_create_invoice_ok();
-		$order = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
-		$order->set_billing_phone( '0900000001' );
-		$order->save();
+		$order = $this->individual_order();
 		$order->update_status( 'completed' );
 
 		$order = $this->fresh( $order );
@@ -250,22 +282,8 @@ final class PostDraftOrderChangeTest extends InvoiceWorkflowTestCase {
 	public function test_a_buyer_edit_that_no_longer_validates_blocks_the_send_and_alerts_once(): void {
 		$this->configure_matbao();
 		$this->fake_create_invoice_ok();
-		$order = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
-		$order->set_billing_phone( '0900000001' );
-		$order->save();
+		$order = $this->individual_order();
 		$order->update_status( 'completed' );
-		$_POST = array(
-			'einv_request_invoice' => '1',
-			'einv_buyer_type'      => 'business',
-			'einv_business_name'   => 'Doanh nghiệp Thử',
-			'einv_tax_code'        => '0000000000-001',
-			'einv_address'         => 'Số 2 Đường Thử, Quận Thử',
-		);
-		do_action( 'woocommerce_checkout_create_order', $order, array() ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- fires a WooCommerce hook.
-		$_POST = array();
-		$order->save();
-		( new BuyerSnapshotter() )->capture( $order, 'Khách lẻ' );
-
 		$order = $this->fresh( $order );
 		$order->set_billing_phone( '12345' );
 		$order->save();
@@ -275,15 +293,13 @@ final class PostDraftOrderChangeTest extends InvoiceWorkflowTestCase {
 
 		$this->assertSame( array( 'buyer_invalid' ), $this->attention->codes );
 		$this->assertCount( 0, $this->http->requests_to( self::CREATE_ROUTE ) );
-		$this->assertSame( '0900000001', ( new BuyerSnapshotter() )->load( $this->fresh( $order ) )?->fields['NMua_SDThoai'] ?? '0900000001' );
+		$this->assertSame( '0900000001', ( new BuyerSnapshotter() )->load( $this->fresh( $order ) )?->fields['NMua_SDThoai'] );
 	}
 
 	public function test_buyer_edit_after_a_create_that_may_have_reached_mat_bao_keeps_the_snapshot_then_warns_on_adopt(): void {
 		$this->configure_matbao();
 		$this->fake_create_invoice_timeout();
-		$order = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
-		$order->set_billing_phone( '0900000001' );
-		$order->save();
+		$order = $this->individual_order();
 		$order->update_status( 'completed' );
 		$this->run_queued_draft_actions();
 		$this->assertSame( InvoiceStatus::PENDING, $this->invoice_of( $order )?->status );
@@ -296,7 +312,6 @@ final class PostDraftOrderChangeTest extends InvoiceWorkflowTestCase {
 
 		$this->fake_lookup_found();
 		$this->http->respond_json( self::CREATE_ROUTE, 500, array() );
-		$this->age_invoice( $this->invoice_of( $order ), 0 );
 		$this->run_queued_draft_actions();
 		OrderChangeWatcher::flush();
 
@@ -309,9 +324,7 @@ final class PostDraftOrderChangeTest extends InvoiceWorkflowTestCase {
 	public function test_only_an_administrator_edit_captures_the_snapshot_again(): void {
 		$this->configure_matbao();
 		$this->fake_create_invoice_ok();
-		$order = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
-		$order->set_billing_phone( '0900000001' );
-		$order->save();
+		$order = $this->individual_order();
 		$order->update_status( 'completed' );
 
 		$this->login_as( 'shop_manager' );
@@ -331,24 +344,26 @@ final class PostDraftOrderChangeTest extends InvoiceWorkflowTestCase {
 	 */
 	public static function buyer_mismatches(): array {
 		return array(
-			'another buyer name' => array( array( 'tenNMua' => 'Người Khác' ) ),
-			'another tax code'   => array( array( 'mstNMua' => '0999999999' ) ),
+			'another buyer name' => array( array( 'nMua_Ten' => 'Người Khác' ) ),
+			'another tax code'   => array( array( 'nMua_MST' => '0999999999' ) ),
 		);
 	}
 
 	/**
+	 * A found draft that names another buyer is not adopted.
+	 *
 	 * @dataProvider buyer_mismatches
 	 *
 	 * @param array<string, mixed> $row Lookup row override.
 	 */
-	public function test_adopt_refuses_a_draft_with_another_buyer(array $row): void {
+	public function test_adopt_refuses_a_draft_with_another_buyer( array $row ): void {
 		$this->configure_matbao();
 		$this->fake_create_invoice_timeout();
-		$order = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
+		$order = $this->individual_order();
 		$order->update_status( 'completed' );
 		$this->run_queued_draft_actions();
 
-		$this->fake_lookup_rows( array( $row + array( 'tenNMua' => 'Nguyễn Văn A' ) ) );
+		$this->fake_lookup_rows( array( $row + array( 'nMua_Ten' => 'Nguyễn Văn A' ) ) );
 		$this->run_queued_draft_actions();
 
 		$record = $this->invoice_of( $order );
@@ -361,11 +376,11 @@ final class PostDraftOrderChangeTest extends InvoiceWorkflowTestCase {
 	public function test_adopt_accepts_a_draft_with_the_same_buyer_or_no_buyer_fields(): void {
 		$this->configure_matbao();
 		$this->fake_create_invoice_timeout();
-		$order = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
+		$order = $this->individual_order();
 		$order->update_status( 'completed' );
 		$this->run_queued_draft_actions();
 
-		$this->fake_lookup_rows( array( array( 'tenNMua' => 'nguyễn văn a' ) ) );
+		$this->fake_lookup_rows( array( array( 'nMua_Ten' => 'nguyễn văn a' ) ) );
 		$this->run_queued_draft_actions();
 
 		$this->assertSame( InvoiceStatus::DRAFT_CREATED, $this->invoice_of( $order )?->status );
