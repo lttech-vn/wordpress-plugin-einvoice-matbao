@@ -131,8 +131,8 @@ final class ProductUnitFieldTest extends InvoiceWorkflowTestCase {
 
 	public function test_each_variation_loop_saves_its_own_value(): void {
 		$this->login_as( 'shop_manager' );
-		$variations = $this->create_variations( 3 );
-		$nonce      = wp_create_nonce( ProductUnitField::NONCE_ACTION );
+		$variations                             = $this->create_variations( 3 );
+		$nonce                                  = wp_create_nonce( ProductUnitField::NONCE_ACTION );
 		$_POST[ ProductUnitField::FIELD ]       = array( 'Hộp', 'Chai', 'Cái' );
 		$_POST[ ProductUnitField::NONCE_FIELD ] = array( $nonce, $nonce, $nonce );
 
@@ -146,8 +146,8 @@ final class ProductUnitFieldTest extends InvoiceWorkflowTestCase {
 
 	public function test_variation_without_its_nonce_is_not_saved(): void {
 		$this->login_as( 'shop_manager' );
-		$variations = $this->create_variations( 3 );
-		$nonce      = wp_create_nonce( ProductUnitField::NONCE_ACTION );
+		$variations                             = $this->create_variations( 3 );
+		$nonce                                  = wp_create_nonce( ProductUnitField::NONCE_ACTION );
 		$_POST[ ProductUnitField::FIELD ]       = array( 'Hộp', 'Chai', 'Cái' );
 		$_POST[ ProductUnitField::NONCE_FIELD ] = array(
 			0 => $nonce,
@@ -201,12 +201,14 @@ final class ProductUnitFieldTest extends InvoiceWorkflowTestCase {
 		$nonce      = wp_create_nonce( ProductUnitField::NONCE_ACTION );
 
 		$this->submit( 'Hộp', true );
+		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- WooCommerce hook under test.
 		do_action( 'woocommerce_admin_process_product_object', $product );
 		$product->save();
 
 		$_POST[ ProductUnitField::FIELD ]       = array( 'Chai', 'Cái' );
 		$_POST[ ProductUnitField::NONCE_FIELD ] = array( $nonce, $nonce );
 		foreach ( $variations as $loop => $variation ) {
+			// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- WooCommerce hook under test.
 			do_action( 'woocommerce_admin_process_variation_object', $variation, $loop );
 			$variation->save();
 		}
@@ -221,9 +223,11 @@ final class ProductUnitFieldTest extends InvoiceWorkflowTestCase {
 		$variations = $this->create_variations( 1 );
 
 		ob_start();
+		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- WooCommerce hook under test.
 		do_action( 'woocommerce_product_options_general_product_data' );
 		$general = (string) ob_get_clean();
 		ob_start();
+		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- WooCommerce hook under test.
 		do_action( 'woocommerce_variation_options_pricing', 0, array(), get_post( $variations[0]->get_id() ) );
 		$variation = (string) ob_get_clean();
 
@@ -236,6 +240,7 @@ final class ProductUnitFieldTest extends InvoiceWorkflowTestCase {
 		$product = $this->create_product( 'A', '100000' );
 		$product->update_meta_data( ProductUnitField::META_KEY, 'Hộp "x" <b>' );
 		$product->save();
+		// phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- the product edit screen reads the global post.
 		$GLOBALS['post'] = get_post( $product->get_id() );
 
 		ob_start();
