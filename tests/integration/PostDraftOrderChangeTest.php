@@ -14,6 +14,7 @@ use LTTech\EinvoiceMatbao\Invoice\InvoiceErrorCode;
 use LTTech\EinvoiceMatbao\Invoice\InvoiceRecord;
 use LTTech\EinvoiceMatbao\Invoice\InvoiceStatus;
 use LTTech\EinvoiceMatbao\Invoice\OrderChangeWatcher;
+use LTTech\EinvoiceMatbao\Invoice\OrderState;
 use LTTech\EinvoiceMatbao\Tests\Integration\Support\InvoiceWorkflowTestCase;
 use WC_Order;
 
@@ -64,10 +65,12 @@ final class PostDraftOrderChangeTest extends InvoiceWorkflowTestCase {
 	}
 
 	/**
-	 * An order whose checkout stored an individual invoice request (so the snapshot has a phone).
+	 * An order whose checkout stored an invoice request (individual unless $post says otherwise), so the snapshot has a phone.
+	 *
+	 * @param array<string, string>|null $post Submitted `einv_*` fields.
 	 */
-	private function individual_order(): WC_Order {
-		$_POST = array(
+	private function individual_order( ?array $post = null ): WC_Order {
+		$_POST = $post ?? array(
 			'einv_request_invoice' => '1',
 			'einv_buyer_type'      => 'individual',
 			'einv_address'         => 'Số 1 Đường Thử, Quận Thử',
@@ -345,7 +348,6 @@ final class PostDraftOrderChangeTest extends InvoiceWorkflowTestCase {
 	public static function buyer_mismatches(): array {
 		return array(
 			'another buyer name' => array( array( 'nMua_Ten' => 'Người Khác' ) ),
-			'another tax code'   => array( array( 'nMua_MST' => '0999999999' ) ),
 		);
 	}
 
@@ -384,5 +386,134 @@ final class PostDraftOrderChangeTest extends InvoiceWorkflowTestCase {
 		$this->run_queued_draft_actions();
 
 		$this->assertSame( InvoiceStatus::DRAFT_CREATED, $this->invoice_of( $order )?->status );
+	}
+
+	public function test_a_customer_buyer_edit_before_the_draft_warns_once_the_draft_with_the_old_buyer_exists(): void {
+		$this->configure_matbao();
+		$this->fake_create_invoice_ok();
+		$order = $this->individual_order();
+		$order->update_status( 'completed' );
+
+		$this->login_as( 'customer' );
+		$order = $this->fresh( $order );
+		$order->set_billing_phone( '0900000002' );
+		$order->save();
+		OrderChangeWatcher::flush();
+		$this->run_queued_draft_actions();
+		OrderChangeWatcher::flush();
+		OrderChangeWatcher::flush();
+
+		$this->assertSame( '0900000001', $this->sent_invoices()[0]['NMua_SDThoai'] );
+		$this->assertSame( InvoiceStatus::DRAFT_CREATED, $this->invoice_of( $order )?->status );
+		$this->assertSame( array( 'order_buyer_changed' ), $this->attention->codes );
+	}
+
+	public function test_a_customer_buyer_edit_after_a_create_that_may_have_reached_mat_bao_warns_once_on_adopt(): void {
+		$this->configure_matbao();
+		$this->fake_create_invoice_timeout();
+		$order = $this->individual_order();
+		$order->update_status( 'completed' );
+		$this->run_queued_draft_actions();
+
+		$this->login_as( 'customer' );
+		$order = $this->fresh( $order );
+		$order->set_billing_phone( '0900000002' );
+		$order->save();
+		OrderChangeWatcher::flush();
+
+		$this->fake_lookup_found();
+		$this->run_queued_draft_actions();
+		OrderChangeWatcher::flush();
+		OrderChangeWatcher::flush();
+
+		$this->assertSame( InvoiceStatus::DRAFT_CREATED, $this->invoice_of( $order )?->status );
+		$this->assertSame( array( 'order_buyer_changed' ), $this->attention->codes );
+	}
+
+	public function test_reordering_lines_and_respacing_names_is_not_a_change(): void {
+		$first  = $this->order_with_items( array( 'Máy tính', 'Chuột' ) );
+		$second = $this->order_with_items( array( '  Chuột ', 'Máy   tính' ) );
+
+		$this->assertSame( OrderState::encode( $first ), OrderState::encode( $second ) );
+	}
+
+	public function test_a_real_line_name_change_is_a_change(): void {
+		$first  = $this->order_with_items( array( 'Máy tính', 'Chuột' ) );
+		$second = $this->order_with_items( array( 'Máy tính', 'Bàn phím' ) );
+
+		$this->assertTrue( OrderState::differences( OrderState::encode( $first ), OrderState::encode( $second ) )['amounts'] );
+	}
+
+	/**
+	 * An order with one line per name, each 100000 x 1.
+	 *
+	 * @param string[] $names Line names, in line order.
+	 */
+	private function order_with_items( array $names ): WC_Order {
+		$lines = array();
+		foreach ( $names as $name ) {
+			$lines[] = array( $this->create_product( 'P', '100000' ), 1 );
+		}
+		$order = $this->create_order( $lines );
+		$items = array_values( $order->get_items() );
+		foreach ( $names as $index => $name ) {
+			$items[ $index ]->set_name( $name );
+			$items[ $index ]->save();
+		}
+		$order->set_billing_phone( '0900000001' );
+		$order->set_billing_email( 'same@example.invalid' );
+		$order->set_billing_first_name( 'Same' );
+		$order->set_billing_last_name( 'Buyer' );
+		$order->save();
+
+		return $this->fresh( $order );
+	}
+
+	public function test_adopt_ignores_case_and_whitespace_differences_in_the_buyer_name(): void {
+		$this->configure_matbao();
+		$this->fake_create_invoice_timeout();
+		$order = $this->individual_order();
+		$order->update_status( 'completed' );
+		$this->run_queued_draft_actions();
+
+		$this->fake_lookup_rows( array( array( 'nMua_Ten' => "  NGUYỄN \t VĂN   A " ) ) );
+		$this->run_queued_draft_actions();
+
+		$this->assertSame( InvoiceStatus::DRAFT_CREATED, $this->invoice_of( $order )?->status );
+	}
+
+	public function test_adopt_accepts_a_tax_code_in_the_response_when_the_snapshot_has_none(): void {
+		$this->configure_matbao();
+		$this->fake_create_invoice_timeout();
+		$order = $this->individual_order();
+		$order->update_status( 'completed' );
+		$this->run_queued_draft_actions();
+
+		$this->fake_lookup_rows( array( array( 'nMua_Ten' => 'Nguyễn Văn A', 'nMua_MST' => '0123456789' ) ) );
+		$this->run_queued_draft_actions();
+
+		$this->assertSame( InvoiceStatus::DRAFT_CREATED, $this->invoice_of( $order )?->status );
+	}
+
+	public function test_adopt_refuses_another_tax_code_than_the_snapshot_has(): void {
+		$this->configure_matbao();
+		$this->fake_create_invoice_timeout();
+		$order = $this->individual_order(
+			array(
+				'einv_request_invoice' => '1',
+				'einv_buyer_type'      => 'business',
+				'einv_business_name'   => 'Doanh nghiệp Thử',
+				'einv_tax_code'        => '0000000000-001',
+				'einv_address'         => 'Số 2 Đường Thử, Quận Thử',
+			)
+		);
+		$order->update_status( 'completed' );
+		$this->run_queued_draft_actions();
+
+		$this->fake_lookup_rows( array( array( 'nMua_Ten' => 'Doanh nghiệp Thử', 'nMua_MST' => '0999999999' ) ) );
+		$this->run_queued_draft_actions();
+
+		$this->assertSame( InvoiceStatus::NEEDS_ATTENTION, $this->invoice_of( $order )?->status );
+		$this->assertSame( 'matbao_lookup_mismatch', $this->invoice_of( $order )?->error_code );
 	}
 }
