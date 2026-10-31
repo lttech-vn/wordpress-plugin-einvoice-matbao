@@ -7,7 +7,9 @@
 
 namespace LTTech\EinvoiceMatbao\Tests\Integration;
 
+use LTTech\EinvoiceMatbao\Buyer\BuyerSnapshotter;
 use LTTech\EinvoiceMatbao\Invoice\DraftInvoiceWorkflow;
+use LTTech\EinvoiceMatbao\Invoice\InvoiceErrorCode;
 use LTTech\EinvoiceMatbao\Invoice\InvoiceRecord;
 use LTTech\EinvoiceMatbao\Invoice\InvoiceRepository;
 use LTTech\EinvoiceMatbao\Invoice\InvoiceStatus;
@@ -223,7 +225,11 @@ final class InvoiceAdminActionsRestTest extends InvoiceWorkflowTestCase {
 		$this->assertCount( 0, $this->http->requests_to( self::LOOKUP_ROUTE ) );
 	}
 
-	public function test_template_changed_blocks_a_plain_resend_but_an_admin_can_confirm_no_invoice_exists(): void {
+	/**
+	 * An order stopped with `template_changed`: the create under C26TAT timed out, the default
+	 * moved to C26TBB, and the lookup under C26TAT found nothing.
+	 */
+	private function order_stopped_for_changed_template(): WC_Order {
 		$order = $this->order_after_timeout();
 		$this->http->respond_json(
 			'GET /api/invoice/templates',
@@ -255,9 +261,39 @@ final class InvoiceAdminActionsRestTest extends InvoiceWorkflowTestCase {
 		$this->fake_create_invoice_ok( 'bmV3LXRlbXBsYXRl' );
 		as_enqueue_async_action( DraftInvoiceWorkflow::ACTION, array( $order->get_id() ), DraftInvoiceWorkflow::GROUP ); // The retry the helper dropped.
 		$this->run_queued_draft_actions();
+		$this->assertSame( 'template_changed', $this->record( $order )->error_code );
+
+		return $order;
+	}
+
+	/**
+	 * Escape-hatch parameters for an invoice.
+	 *
+	 * @param InvoiceRecord $record Invoice stopped with `template_changed`.
+	 * @return array<string, string>
+	 */
+	private function no_invoice_params( InvoiceRecord $record ): array {
+		return array(
+			'confirm'            => '1',
+			'confirm_no_invoice' => '1',
+			'confirm_reference'  => $record->reference,
+		);
+	}
+
+	/**
+	 * Outcomes of the attempts of an order's invoice.
+	 *
+	 * @param WC_Order $order Order.
+	 * @return list<string>
+	 */
+	private function outcomes( WC_Order $order ): array {
+		return array_values( array_map( static fn( array $attempt ): string => (string) $attempt['outcome'], $this->attempts_of( $this->record( $order ) ) ) );
+	}
+
+	public function test_template_changed_blocks_a_plain_resend_but_an_admin_can_confirm_no_invoice_exists(): void {
+		$order  = $this->order_stopped_for_changed_template();
 		$record = $this->record( $order );
-		$this->assertSame( 'template_changed', $record->error_code );
-		$route = '/invoices/' . $record->id . '/resend';
+		$route  = '/invoices/' . $record->id . '/resend';
 
 		// A plain resend still stops at the lookup gate.
 		$this->assertSame( 200, $this->htmx( 'POST', $route, array( 'confirm' => '1' ) )->get_status() );
@@ -288,6 +324,146 @@ final class InvoiceAdminActionsRestTest extends InvoiceWorkflowTestCase {
 
 		$detail = $this->html( $this->htmx( 'GET', '/invoices/' . $record->id ) );
 		$this->assertStringContainsString( 'data-einv-attempt="admin_absent"', $detail );
+	}
+
+	public function test_no_invoice_confirmation_is_refused_when_mat_bao_has_the_invoice_under_the_old_template(): void {
+		$order  = $this->order_stopped_for_changed_template();
+		$record = $this->record( $order );
+		$this->fake_lookup_found( 'b2xkLXRlbXBsYXRl' );
+		$lookups_before = count( $this->http->requests_to( self::LOOKUP_ROUTE ) );
+
+		$response = $this->htmx( 'POST', '/invoices/' . $record->id . '/resend', $this->no_invoice_params( $record ) );
+
+		$this->assertSame( 409, $response->get_status(), $this->html( $response ) );
+		$lookups = $this->http->requests_to( self::LOOKUP_ROUTE );
+		$this->assertCount( $lookups_before + 1, $lookups, 'The escape asks Mat Bao again.' );
+		$this->assertSame( 'C26TAT', end( $lookups )['body']['kiHieu'], 'Under the old template.' );
+		$after = $this->record( $order );
+		$this->assertSame( array( 'C26TAT', InvoiceStatus::NOT_CONFIGURED ), array( $after->template_series, $after->status ) );
+		$this->assertNotContains( 'admin_absent', $this->outcomes( $order ) );
+		$this->assertSame( array(), $this->queued_draft_action_ids() );
+	}
+
+	public function test_no_invoice_confirmation_is_refused_when_the_lookup_fails(): void {
+		$order  = $this->order_stopped_for_changed_template();
+		$record = $this->record( $order );
+		$this->http->respond_json( self::LOOKUP_ROUTE, 500, array( 'message' => 'Lỗi máy chủ' ) );
+
+		$response = $this->htmx( 'POST', '/invoices/' . $record->id . '/resend', $this->no_invoice_params( $record ) );
+
+		$this->assertGreaterThanOrEqual( 400, $response->get_status() );
+		$this->assertSame( 'C26TAT', $this->record( $order )->template_series );
+		$this->assertNotContains( 'admin_absent', $this->outcomes( $order ) );
+		$this->assertSame( array(), $this->queued_draft_action_ids() );
+	}
+
+	public function test_no_invoice_confirmation_that_loses_the_restart_race_changes_nothing(): void {
+		$order  = $this->order_stopped_for_changed_template();
+		$record = $this->record( $order );
+		$this->fake_lookup_not_found();
+		$this->lose_the_restart_race( $record );
+
+		$response = $this->htmx( 'POST', '/invoices/' . $record->id . '/resend', $this->no_invoice_params( $record ) );
+
+		$this->assertSame( 409, $response->get_status() );
+		$this->assertSame( 'C26TAT', $this->record( $order )->template_series, 'The old template stays for the next lookup.' );
+		$this->assertNotContains( 'admin_absent', $this->outcomes( $order ) );
+	}
+
+	public function test_resend_after_invalid_buyer_is_refused_with_field_names_while_billing_is_still_invalid(): void {
+		$order = $this->order_with_invalid_buyer();
+
+		$response = $this->htmx( 'POST', '/invoices/' . $this->record( $order )->id . '/resend', array( 'confirm' => '1' ) );
+
+		$this->assertSame( 422, $response->get_status() );
+		$html = $this->html( $response );
+		$this->assertStringContainsString( 'số điện thoại', $html );
+		$this->assertStringNotContainsString( '12345', $html );
+		$this->assertSame( InvoiceStatus::FAILED, $this->record( $order )->status );
+		$this->assertSame( array(), $this->queued_draft_action_ids() );
+	}
+
+	public function test_resend_after_invalid_buyer_captures_the_fixed_billing_and_creates_once(): void {
+		$order = $this->order_with_invalid_buyer();
+		$order->set_billing_phone( '0900000003' );
+		$order->save();
+
+		$response = $this->htmx( 'POST', '/invoices/' . $this->record( $order )->id . '/resend', array( 'confirm' => '1' ) );
+		$this->assertSame( 200, $response->get_status(), $this->html( $response ) );
+		$this->run_queued_draft_actions();
+
+		$this->assertCount( 1, $this->http->requests_to( self::CREATE_ROUTE ) );
+		$this->assertSame( '0900000003', $this->sent_invoices()[0]['NMua_SDThoai'] );
+		$this->assertSame( InvoiceStatus::DRAFT_CREATED, $this->record( $order )->status );
+	}
+
+	public function test_resend_after_an_uncertain_create_never_captures_the_buyer_again(): void {
+		$order = $this->order_after_timeout();
+		$settings = new Settings();
+		$settings->save_invoicing( $settings->reference_prefix(), 'Khách đã đổi tên' ); // A capture now would change the snapshot.
+		$before = (string) $order->get_meta( BuyerSnapshotter::META_KEY );
+		$this->assertNotSame( '', $before );
+		$invoice = $this->record( $order );
+		( new InvoiceRepository() )->record_error( $invoice->id, InvoiceErrorCode::BUYER_SNAPSHOT_INVALID, 'Snapshot unusable.' );
+		$this->fake_lookup_found( 'ZXhpc3Rpbmc=' );
+
+		$response = $this->htmx( 'POST', '/invoices/' . $invoice->id . '/resend', array( 'confirm' => '1' ) );
+		$this->assertSame( 200, $response->get_status(), $this->html( $response ) );
+
+		$this->assertSame( $before, (string) wc_get_order( $order->get_id() )?->get_meta( BuyerSnapshotter::META_KEY ) );
+		$this->run_queued_draft_actions();
+		$this->assertCount( 1, $this->http->requests_to( self::CREATE_ROUTE ) );
+		$this->assertSame( InvoiceStatus::DRAFT_CREATED, $this->record( $order )->status );
+	}
+
+	/**
+	 * A completed order whose billing phone was edited to an invalid value after an individual
+	 * buyer asked for an invoice, so the draft failed with `buyer_invalid` and no snapshot.
+	 */
+	private function order_with_invalid_buyer(): WC_Order {
+		$this->configure_matbao();
+		$this->fake_create_invoice_ok();
+		$_POST = array(
+			'einv_request_invoice' => '1',
+			'einv_buyer_type'      => 'individual',
+			'einv_address'         => 'Số 1 Đường Thử, Quận Thử',
+			'einv_id_number'       => '000000001234',
+		);
+		$order = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
+		$order->set_billing_phone( '0900000001' );
+		$billing = array(
+			'billing_first_name' => $order->get_billing_first_name(),
+			'billing_last_name'  => $order->get_billing_last_name(),
+			'billing_phone'      => '0900000001',
+			'billing_email'      => $order->get_billing_email(),
+		);
+		do_action( 'woocommerce_checkout_create_order', $order, $billing ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- fires a WooCommerce hook.
+		$_POST = array();
+		$order->set_billing_phone( '12345' );
+		$order->save();
+		$this->complete_and_run( $order );
+		$this->assertSame( 'buyer_invalid', $this->record( $order )->error_code );
+		$this->assertSame( '', (string) $order->get_meta( BuyerSnapshotter::META_KEY ) );
+
+		return $order;
+	}
+
+	/**
+	 * Makes the next restart of an invoice lose as if a concurrent request claimed it first.
+	 *
+	 * @param InvoiceRecord $record Invoice.
+	 */
+	private function lose_the_restart_race( InvoiceRecord $record ): void {
+		$filter = static function ( string $query ) use ( $record, &$filter ): string {
+			if ( ! str_starts_with( $query, 'UPDATE' ) || ! str_contains( $query, 'retry_cycle_start = (SELECT' ) ) {
+				return $query;
+			}
+			remove_filter( 'query', $filter );
+			( new InvoiceRepository() )->update_status( $record->id, InvoiceStatus::PENDING );
+
+			return $query;
+		};
+		add_filter( 'query', $filter );
 	}
 
 	public function test_no_invoice_confirmation_is_only_accepted_for_template_changed(): void {

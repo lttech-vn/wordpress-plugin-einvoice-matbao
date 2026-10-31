@@ -7,6 +7,7 @@
 
 namespace LTTech\EinvoiceMatbao\Tests\Integration;
 
+use LTTech\EinvoiceMatbao\Admin\InvoicePage;
 use LTTech\EinvoiceMatbao\Invoice\InvoiceErrorCode;
 use LTTech\EinvoiceMatbao\Invoice\InvoiceRepository;
 use LTTech\EinvoiceMatbao\Invoice\InvoiceStatus;
@@ -138,6 +139,36 @@ final class InvoiceAdminListRestTest extends SettingsRestTestCase {
 
 		$injection = $this->html( $this->htmx( 'GET', '/invoices', array( 'q' => "' OR 1=1 -- " ) ) );
 		$this->assertSame( array(), $this->row_orders( $injection ) );
+	}
+
+	public function test_reference_search_matches_from_the_start_so_the_index_can_be_used(): void {
+		$this->login_as( 'administrator' );
+		$this->reserve( 202, 'SHOPWC202', InvoiceStatus::FAILED );
+		$queries = array();
+		$collect = static function ( string $query ) use ( &$queries ): string {
+			$queries[] = $query;
+
+			return $query;
+		};
+		add_filter( 'query', $collect );
+
+		$middle = $this->html( $this->htmx( 'GET', '/invoices', array( 'q' => 'WC202' ) ) );
+		remove_filter( 'query', $collect );
+
+		$this->assertSame( array(), $this->row_orders( $middle ), 'Only a prefix of MTChieu matches.' );
+		$this->assertNotEmpty( preg_grep( "/reference LIKE 'WC202%'/", $queries ) );
+		$this->assertEmpty( preg_grep( "/LIKE '%/", $queries ) );
+		$this->assertSame( array( 202 ), $this->row_orders( $this->html( $this->htmx( 'GET', '/invoices', array( 'q' => '202' ) ) ) ), 'The order ID still matches.' );
+	}
+
+	public function test_search_box_has_an_accessible_name(): void {
+		$this->login_as( 'administrator' );
+
+		ob_start();
+		InvoicePage::render();
+		$html = (string) ob_get_clean();
+
+		$this->assertMatchesRegularExpression( '/<input type="search" name="q"[^>]*aria-label="Mã đơn hoặc MTChieu"/', $html );
 	}
 
 	public function test_list_is_paginated(): void {
