@@ -5,7 +5,7 @@ the `workvps/manage` setup. **Not part of CI or any release gate.** The Mat Bao 
 [`demo-api/`](demo-api) (Python, guarded) and their results in `docs/research/e2e-demo-results.md`.
 
 Stack verified: WordPress 7.1.4, WooCommerce 11.2.1, PHP 8.5.12 (the `compose.yaml` stack), Chromium from the
-`@e2e-dev/web` install, Node 24.8 + bun in the runner image.
+`@e2e-dev/web` install, Node 26 on Debian trixie in the runner image (bun for installs).
 
 ## What is tested (`army/checkout-invoice.army.ts`)
 
@@ -15,9 +15,24 @@ the draft in the order meta box ("Đã tạo nháp") and in WooCommerce → invo
 leaves). Agent steps: invoice request fields on Classic. Exact `screen` actions: billing fields, place order, login.
 Order completion goes through an E2E-only REST route of the same mu-plugin.
 
-**Blocks** tests exist but are skipped unless `E2E_BLOCKS=1`: the decision model could not target the Blocks fields
-and the exact-action version did not complete the order reliably within the time-box. Lightpanda was not tried;
-Chromium is used. Blocks checkout is covered by PHP/JS unit tests only until this is finished.
+**Blocks** tests exist (agent `text`: standard tool-calling agent on the text endpoint) but are skipped unless
+`E2E_BLOCKS=1`; no combination was stable inside the time-box. Real results (one run each, live mode):
+
+| Combination | Result |
+|---|---|
+| Blocks walk-in, Chromium, agent `text` | Passes (no agent step: exact fills + place order) |
+| Blocks business, Chromium, agent `text` | Fails: the model reports no invoice-request checkbox on the checkout (2 model calls, ~5 s). The block is in the page content and registered, but the agent does not find it; not diagnosed further |
+| Blocks, Chromium, decision model (`default`) | Fails: `scroll_to` without a target, then 25 calls without concluding |
+| Blocks walk-in, Lightpanda, agent `text` | Fails at order placement (`expect.toHaveURL`) |
+| Blocks business, Lightpanda, agent `text` | Fails: no invoice checkbox found (1 call) |
+| Classic x3, Lightpanda, decision model | Pass (walk-in 8 s, individual 18 s / 12 calls, business 14 s / 15 calls) |
+| Classic x3, Chromium, decision model | Pass (same step counts) |
+
+Lightpanda first failed with `GLIBC_2.38 not found` on the bookworm image; the runner now uses `node:26-trixie-slim`
+(glibc 2.41) and the pinned aarch64/x86_64 Lightpanda 1.0.2 binary. Select it with `E2E_BROWSER=lightpanda`. Chromium
+stays the default and the recorded cache is for Chromium. "No payment methods" seen earlier on Blocks was the
+`Address` label matching `Email address`; COD is available (Store API lists `cod`), so no extra gateway was added.
+Until Blocks is stable it is covered by unit tests only.
 
 ## Modes
 
@@ -45,5 +60,5 @@ Real demo: `EINV_DEMO_E2E=1 EINV_DEMO_MST=… EINV_DEMO_USER=… EINV_DEMO_PASS=
 ## Cost and limits
 
 Recording the three Classic tests: about 190k tokens (29 decision-model calls). Replay: no model call.
-Limits: Blocks not covered; walk-in has no agent step (nothing to act on); one browser (Chromium); the cache depends on
+Limits: Blocks not covered (table above); walk-in has no agent step (nothing to act on); one browser (Chromium); the cache depends on
 the exact page markup, so WooCommerce updates may require a re-record.

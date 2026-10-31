@@ -24,8 +24,8 @@ describe("checkout invoice request", { serial: false }, () => {
 		for (const buyer of ["walk_in", "individual", "business"] as Buyer[]) {
 			if (checkout === "blocks" && buyer === "individual") continue; // Classic covers individual; keep model cost down.
 			// Blocks is opt-in: the checkout page renders in the browser but the invoice block and place-order steps are not stable yet (tests/e2e/README.md).
-			const run = checkout === "classic" || process.env.E2E_BLOCKS === "1" ? test : test.skip;
-			run(`${checkout} checkout, ${buyer} buyer: completed order gets a draft`, { agent: checkout === "blocks" ? "text" : "default" }, async ({ app, agent, screen, browser }) => {
+			const skip = checkout === "blocks" && process.env.E2E_BLOCKS !== "1" ? "Blocks is opt-in (E2E_BLOCKS=1)" : false;
+			test(`${checkout} checkout, ${buyer} buyer: completed order gets a draft`, { agent: checkout === "blocks" ? "text" : "default", skip }, async ({ app, agent, screen, browser }) => {
 				await app.open(`/?add-to-cart=${process.env.E2E_PRODUCT_ID}`);
 				await app.open(checkout === "classic" ? "/?pagename=classic-checkout" : "/?pagename=checkout");
 
