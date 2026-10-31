@@ -20,6 +20,11 @@ final class MatbaoCredentials {
 		'production' => 'https://api-hddt.matbao.in:11443',
 	);
 
+	/**
+	 * `wp-config.php` constant that replaces the base URL of every environment (a sandbox, a proxy or a test double).
+	 */
+	public const BASE_URL_CONSTANT = 'EINVOICE_MATBAO_BASE_URL';
+
 	/** Field limits from the login API definition. */
 	public const MAX_MST_LENGTH      = 20;
 	public const MAX_USERNAME_LENGTH = 50;
@@ -42,10 +47,29 @@ final class MatbaoCredentials {
 	}
 
 	/**
-	 * API base URL of the selected environment.
+	 * API base URL: the `EINVOICE_MATBAO_BASE_URL` constant when it holds an http(s) URL, otherwise the
+	 * URL of the selected environment. The constant applies to every environment, so whoever sets it
+	 * in `wp-config.php` owns where requests go.
 	 */
 	public function base_url(): string {
-		return self::BASE_URLS[ $this->environment ] ?? self::BASE_URLS['demo'];
+		return self::resolve_base_url( $this->environment, defined( self::BASE_URL_CONSTANT ) ? constant( self::BASE_URL_CONSTANT ) : null );
+	}
+
+	/**
+	 * Picks the base URL for an environment and an optional override.
+	 *
+	 * @param string $environment Key of BASE_URLS.
+	 * @param mixed  $override    Value of the override constant, or null when it is not defined.
+	 */
+	public static function resolve_base_url( string $environment, mixed $override ): string {
+		if ( is_string( $override ) ) {
+			$override = rtrim( trim( $override ), '/' );
+			if ( 1 === preg_match( '#^https?://[^\s/]+(/\S*)?$#i', $override ) ) {
+				return $override;
+			}
+		}
+
+		return self::BASE_URLS[ $environment ] ?? self::BASE_URLS['demo'];
 	}
 
 	/**
