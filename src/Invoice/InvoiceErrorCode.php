@@ -33,11 +33,29 @@ enum InvoiceErrorCode: string {
 	case TEMPLATE_REJECTED     = 'template_rejected';
 	case ORDER_NOT_COMPLETED   = 'order_not_completed';
 	case ORDER_REFUNDED        = 'order_refunded';
-	case MATBAO_TRANSPORT      = 'matbao_transport';
-	case MATBAO_HTTP           = 'matbao_http';
-	case MATBAO_API            = 'matbao_api';
-	case QUEUE_FAILED          = 'queue_failed';
-	case UNEXPECTED            = 'unexpected';
+	/** The request did not complete (DNS, TLS, timeout); create-invoice may or may not have run. */
+	case MATBAO_TRANSPORT = 'matbao_transport';
+
+	/** HTTP 5xx, 408 or 429. */
+	case MATBAO_HTTP_TEMPORARY = 'matbao_http_temporary';
+
+	/** HTTP 2xx whose body could not be understood (no Mat Bao rejection code). */
+	case MATBAO_RESPONSE_UNREADABLE = 'matbao_response_unreadable';
+
+	/** Any other HTTP error status (4xx). */
+	case MATBAO_HTTP = 'matbao_http';
+
+	/** Mat Bao answered `success` false with an `errorCode` (rejected invoice, duplicate `MTChieu` 305, login). */
+	case MATBAO_API = 'matbao_api';
+
+	/** Action Scheduler did not queue the action; nothing was sent, so an admin may resend safely. Not auto-retried. */
+	case QUEUE_FAILED = 'queue_failed';
+
+	/**
+	 * An exception the workflow did not expect (database, bug). Whether create-invoice ran is
+	 * unknown, so it is never auto-retried: an admin checks Mat Bao first.
+	 */
+	case UNEXPECTED = 'unexpected';
 
 	/** Mat Bao `errorCode` values meaning the template (`KHMSHDon`/`KHHDon`) cannot be used. */
 	private const MATBAO_TEMPLATE_CODES = array(
@@ -55,10 +73,27 @@ enum InvoiceErrorCode: string {
 			return self::TEMPLATE_REJECTED;
 		}
 
-		return match ( $error->kind ) {
-			MatbaoError::KIND_TRANSPORT => self::MATBAO_TRANSPORT,
-			MatbaoError::KIND_HTTP      => self::MATBAO_HTTP,
-			default                     => self::MATBAO_API,
+		if ( MatbaoError::KIND_TRANSPORT === $error->kind ) {
+			return self::MATBAO_TRANSPORT;
+		}
+		if ( MatbaoError::KIND_HTTP === $error->kind ) {
+			return $error->is_temporary_http_status() ? self::MATBAO_HTTP_TEMPORARY : self::MATBAO_HTTP;
+		}
+
+		return $error->is_unreadable_response() ? self::MATBAO_RESPONSE_UNREADABLE : self::MATBAO_API;
+	}
+
+	/**
+	 * Whether a background retry (#6) may resend the draft: only Mat Bao failures that look
+	 * temporary (MatbaoError::is_retryable()). Rejections by Mat Bao, template codes and every
+	 * data, config, order and system error need an admin first.
+	 */
+	public function is_auto_retryable(): bool {
+		return match ( $this ) {
+			self::MATBAO_TRANSPORT,
+			self::MATBAO_HTTP_TEMPORARY,
+			self::MATBAO_RESPONSE_UNREADABLE => true,
+			default                          => false,
 		};
 	}
 
@@ -85,6 +120,8 @@ enum InvoiceErrorCode: string {
 			self::ORDER_NOT_COMPLETED,
 			self::ORDER_REFUNDED        => InvoiceErrorKind::ORDER,
 			self::MATBAO_TRANSPORT,
+			self::MATBAO_HTTP_TEMPORARY,
+			self::MATBAO_RESPONSE_UNREADABLE,
 			self::MATBAO_HTTP,
 			self::MATBAO_API            => InvoiceErrorKind::MATBAO,
 			self::QUEUE_FAILED,
@@ -94,7 +131,9 @@ enum InvoiceErrorCode: string {
 
 	/**
 	 * Whether an admin has to act. An order the shop cancelled or moved back on purpose needs no
-	 * invoice and no alert; a refund before sending still needs a decision.
+	 * invoice and no alert. A partial refund keeps the order `completed`, so it is ORDER_REFUNDED
+	 * and alerts: someone decides what to invoice. A full refund moves the order to `refunded`, so
+	 * it is ORDER_NOT_COMPLETED and does not alert.
 	 */
 	public function needs_attention(): bool {
 		return self::ORDER_NOT_COMPLETED !== $this;
@@ -123,6 +162,8 @@ enum InvoiceErrorCode: string {
 			self::ORDER_NOT_COMPLETED   => __( 'Đơn hàng không còn hoàn thành', 'einvoice-matbao' ),
 			self::ORDER_REFUNDED        => __( 'Đơn hàng đã hoàn tiền', 'einvoice-matbao' ),
 			self::MATBAO_TRANSPORT      => __( 'Không kết nối được Mắt Bão', 'einvoice-matbao' ),
+			self::MATBAO_HTTP_TEMPORARY => __( 'Mắt Bão tạm thời lỗi', 'einvoice-matbao' ),
+			self::MATBAO_RESPONSE_UNREADABLE => __( 'Không đọc được phản hồi Mắt Bão', 'einvoice-matbao' ),
 			self::MATBAO_HTTP           => __( 'Mắt Bão trả lỗi HTTP', 'einvoice-matbao' ),
 			self::MATBAO_API            => __( 'Mắt Bão từ chối hóa đơn', 'einvoice-matbao' ),
 			self::QUEUE_FAILED          => __( 'Không xếp được hàng đợi', 'einvoice-matbao' ),

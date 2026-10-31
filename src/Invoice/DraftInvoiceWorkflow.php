@@ -21,8 +21,8 @@ use WC_Order;
  * Only orders completing while the plugin is active are handled; older orders are never scanned.
  * Every reason a draft is not created is recorded as an InvoiceErrorCode (code, kind, status and
  * Vietnamese reason) and announced through NEEDS_ATTENTION_ACTION. Failures are not retried here
- * (background retry of InvoiceErrorKind::MATBAO errors and recovery of rows left in `sending` are
- * ticket #6).
+ * (background retry of codes where InvoiceErrorCode::is_auto_retryable() is true and recovery of
+ * rows left in `sending` are ticket #6).
  */
 final class DraftInvoiceWorkflow {
 

@@ -300,7 +300,7 @@ final class BlockedDraftInvoiceTest extends InvoiceWorkflowTestCase {
 	public function test_unsupported_line_type_blocks_the_draft(): void {
 		$this->configure_matbao();
 		$this->fake_create_invoice_ok();
-		$order = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
+		$order           = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
 		$add_coupon_line = static function ( array $items, WC_Order $filtered, array $types ) use ( $order ): array {
 			if ( $filtered->get_id() === $order->get_id() && in_array( 'fee', $types, true ) ) {
 				$items[] = new \WC_Order_Item_Coupon();
@@ -319,7 +319,7 @@ final class BlockedDraftInvoiceTest extends InvoiceWorkflowTestCase {
 		$this->configure_matbao();
 		$this->fake_create_invoice_ok();
 		$order = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
-		$fee = new WC_Order_Item_Fee();
+		$fee   = new WC_Order_Item_Fee();
 		$fee->set_name( 'Giảm tay' );
 		$fee->set_total( '-10000' );
 		$fee->set_tax_status( 'none' );

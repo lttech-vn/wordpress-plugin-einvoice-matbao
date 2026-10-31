@@ -58,21 +58,21 @@ final class InvoiceErrorCodeTest extends WP_UnitTestCase {
 	 */
 	public static function matbao_errors(): array {
 		return array(
-			'request did not complete'          => array( new MatbaoError( MatbaoError::KIND_TRANSPORT, 'Request did not complete (http_request_failed).' ), 'matbao_transport' ),
-			'HTTP 500'                          => array( new MatbaoError( MatbaoError::KIND_HTTP, 'HTTP 500', null, 500 ), 'matbao_http_temporary' ),
-			'HTTP 503'                          => array( new MatbaoError( MatbaoError::KIND_HTTP, 'HTTP 503', null, 503 ), 'matbao_http_temporary' ),
-			'HTTP 408'                          => array( new MatbaoError( MatbaoError::KIND_HTTP, 'HTTP 408', null, 408 ), 'matbao_http_temporary' ),
-			'HTTP 429'                          => array( new MatbaoError( MatbaoError::KIND_HTTP, 'HTTP 429', null, 429 ), 'matbao_http_temporary' ),
-			'HTTP 400'                          => array( new MatbaoError( MatbaoError::KIND_HTTP, 'HTTP 400', 400, 400 ), 'matbao_http' ),
-			'HTTP 401'                          => array( new MatbaoError( MatbaoError::KIND_HTTP, 'Unauthorized', null, 401 ), 'matbao_http' ),
-			'HTTP 404'                          => array( new MatbaoError( MatbaoError::KIND_HTTP, 'HTTP 404', null, 404 ), 'matbao_http' ),
-			'unreadable body'                   => array( new MatbaoError( MatbaoError::KIND_API, 'Unexpected response.', null, 200 ), 'matbao_response_unreadable' ),
-			'create response without an ID'     => array( new MatbaoError( MatbaoError::KIND_API, 'Create-invoice response has no invoice ID.', 200 ), 'matbao_response_unreadable' ),
-			'invoice rejected by Mat Bao'       => array( new MatbaoError( MatbaoError::KIND_API, 'Sai thông tin', 400 ), 'matbao_api' ),
+			'request did not complete'           => array( new MatbaoError( MatbaoError::KIND_TRANSPORT, 'Request did not complete (http_request_failed).' ), 'matbao_transport' ),
+			'HTTP 500'                           => array( new MatbaoError( MatbaoError::KIND_HTTP, 'HTTP 500', null, 500 ), 'matbao_http_temporary' ),
+			'HTTP 503'                           => array( new MatbaoError( MatbaoError::KIND_HTTP, 'HTTP 503', null, 503 ), 'matbao_http_temporary' ),
+			'HTTP 408'                           => array( new MatbaoError( MatbaoError::KIND_HTTP, 'HTTP 408', null, 408 ), 'matbao_http_temporary' ),
+			'HTTP 429'                           => array( new MatbaoError( MatbaoError::KIND_HTTP, 'HTTP 429', null, 429 ), 'matbao_http_temporary' ),
+			'HTTP 400'                           => array( new MatbaoError( MatbaoError::KIND_HTTP, 'HTTP 400', 400, 400 ), 'matbao_http' ),
+			'HTTP 401'                           => array( new MatbaoError( MatbaoError::KIND_HTTP, 'Unauthorized', null, 401 ), 'matbao_http' ),
+			'HTTP 404'                           => array( new MatbaoError( MatbaoError::KIND_HTTP, 'HTTP 404', null, 404 ), 'matbao_http' ),
+			'unreadable body'                    => array( new MatbaoError( MatbaoError::KIND_API, 'Unexpected response.', null, 200 ), 'matbao_response_unreadable' ),
+			'create response without an ID'      => array( new MatbaoError( MatbaoError::KIND_API, 'Create-invoice response has no invoice ID.', 200 ), 'matbao_response_unreadable' ),
+			'invoice rejected by Mat Bao'        => array( new MatbaoError( MatbaoError::KIND_API, 'Sai thông tin', 400 ), 'matbao_api' ),
 			'login rejected inside the envelope' => array( new MatbaoError( MatbaoError::KIND_API, 'Sai mật khẩu', 401, 200 ), 'matbao_api' ),
-			'template not found (308)'          => array( new MatbaoError( MatbaoError::KIND_API, 'Không tìm thấy mẫu số kí hiệu', 308 ), 'template_rejected' ),
-			'template out of numbers (327)'     => array( new MatbaoError( MatbaoError::KIND_API, 'Mẫu hóa đơn đã hết số', 327 ), 'template_rejected' ),
-			'template code on an HTTP error'    => array( new MatbaoError( MatbaoError::KIND_HTTP, 'Không tìm thấy mẫu số kí hiệu', 308, 400 ), 'template_rejected' ),
+			'template not found (308)'           => array( new MatbaoError( MatbaoError::KIND_API, 'Không tìm thấy mẫu số kí hiệu', 308 ), 'template_rejected' ),
+			'template out of numbers (327)'      => array( new MatbaoError( MatbaoError::KIND_API, 'Mẫu hóa đơn đã hết số', 327 ), 'template_rejected' ),
+			'template code on an HTTP error'     => array( new MatbaoError( MatbaoError::KIND_HTTP, 'Không tìm thấy mẫu số kí hiệu', 308, 400 ), 'template_rejected' ),
 		);
 	}
 
@@ -114,7 +114,12 @@ final class InvoiceErrorCodeTest extends WP_UnitTestCase {
 	 * @param string      $expected Stored code.
 	 */
 	public function test_matbao_error_maps_to_its_code( MatbaoError $error, string $expected ): void {
-		$this->assertSame( $expected, InvoiceErrorCode::from_matbao( $error )->value );
+		$code = InvoiceErrorCode::from_matbao( $error );
+
+		$this->assertSame( $expected, $code->value );
+		if ( 'template_rejected' !== $expected ) {
+			$this->assertSame( $error->is_retryable(), $code->is_auto_retryable(), 'MatbaoError and InvoiceErrorCode disagree on retry' );
+		}
 	}
 
 	/**

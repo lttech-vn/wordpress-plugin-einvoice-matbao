@@ -9,8 +9,8 @@ namespace LTTech\EinvoiceMatbao\Invoice;
 
 /**
  * Groups InvoiceErrorCode values by what has to change before the draft can be sent, which also
- * decides the invoice status and whether a background retry may resend it. Stored in the
- * `error_kind` column; values are stable.
+ * decides the invoice status. Whether a background retry may resend is decided per code
+ * (InvoiceErrorCode::is_auto_retryable()). Stored in the `error_kind` column; values are stable.
  */
 enum InvoiceErrorKind: string {
 
@@ -38,14 +38,6 @@ enum InvoiceErrorKind: string {
 			self::ORDER  => InvoiceStatus::STOPPED,
 			default      => InvoiceStatus::FAILED,
 		};
-	}
-
-	/**
-	 * Whether a background retry may resend the draft. Only Mat Bao call failures can heal by
-	 * themselves; every other kind needs an admin to change data or settings first.
-	 */
-	public function is_auto_retryable(): bool {
-		return self::MATBAO === $this;
 	}
 
 	/**
