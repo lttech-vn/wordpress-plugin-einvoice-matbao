@@ -51,7 +51,8 @@ abstract class InvoiceWorkflowTestCase extends SettingsRestTestCase {
 	}
 
 	/**
-	 * Saves credentials and the default template, and fakes a successful login.
+	 * Saves credentials and the default template, and fakes a successful login and a templates
+	 * list that still offers the default template.
 	 */
 	protected function configure_matbao(): void {
 		$this->login_as( 'administrator' );
@@ -59,6 +60,7 @@ abstract class InvoiceWorkflowTestCase extends SettingsRestTestCase {
 		$this->save_matbao_credentials();
 		( new Settings() )->save_default_template( self::TEMPLATE_FORM, self::TEMPLATE_SERIES );
 		$this->fake_matbao_login_ok();
+		$this->fake_matbao_templates();
 	}
 
 	/**
