@@ -34,6 +34,11 @@ final class WooCommerceDependency {
 	 * Deactivates this plugin without running its deactivation hooks.
 	 */
 	public static function deactivate_plugin(): void {
+		// admin_init also fires for unauthenticated admin-ajax.php / admin-post.php requests.
+		if ( ! current_user_can( 'activate_plugins' ) ) {
+			return;
+		}
+
 		if ( ! function_exists( 'deactivate_plugins' ) ) {
 			require_once ABSPATH . 'wp-admin/includes/plugin.php';
 		}
