@@ -267,7 +267,7 @@ final class DraftInvoiceRetryTest extends InvoiceWorkflowTestCase {
 		$this->assertSame( InvoiceStatus::DRAFT_CREATED, $this->invoice_of( $order )?->status );
 	}
 
-	public function test_pending_row_without_an_action_is_recovered_through_the_lookup(): void {
+	public function test_pending_row_without_an_action_is_recovered_and_sent_without_a_lookup_when_nothing_was_sent(): void {
 		$this->fake_create_invoice_ok();
 		$this->fake_lookup_not_found();
 		add_filter( 'pre_as_enqueue_async_action', static fn(): int => 0 );
@@ -288,7 +288,7 @@ final class DraftInvoiceRetryTest extends InvoiceWorkflowTestCase {
 
 		$this->run_queued_draft_actions();
 
-		$this->assertCount( 1, $this->http->requests_to( self::LOOKUP_ROUTE ) );
+		$this->assertCount( 0, $this->http->requests_to( self::LOOKUP_ROUTE ), 'No attempt was ever made.' );
 		$this->assertCount( 1, $this->http->requests_to( self::CREATE_ROUTE ) );
 		$this->assertSame( InvoiceStatus::DRAFT_CREATED, $this->invoice_of( $order )?->status );
 	}

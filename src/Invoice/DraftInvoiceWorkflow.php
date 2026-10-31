@@ -225,8 +225,10 @@ final class DraftInvoiceWorkflow {
 	}
 
 	/**
-	 * Records that the last send may have reached Mat Bao, so the next run looks it up first.
-	 * An attempt left open by a dead runner is closed; otherwise a closed one is added.
+	 * Records why a stuck row is queued again. An attempt left open by a dead runner may have sent
+	 * create-invoice, so it is closed as `abandoned` and the next run looks the invoice up first. No
+	 * attempt is added: the sweep sends nothing, and the earlier attempts already decide whether a
+	 * lookup is needed.
 	 *
 	 * @param InvoiceRecord $invoice Invoice.
 	 * @param string        $reason  Admin-facing reason.
@@ -234,13 +236,27 @@ final class DraftInvoiceWorkflow {
 	private function mark_uncertain( InvoiceRecord $invoice, string $reason ): void {
 		foreach ( $this->repository->attempts( $invoice->id ) as $attempt ) {
 			if ( null === $attempt['outcome'] ) {
-				$this->repository->finish_attempt( (int) $attempt['id'], 'failed', 'abandoned', null, null, $reason );
-				return;
+				$this->repository->finish_attempt( (int) $attempt['id'], 'abandoned', null, null, null, $reason );
+			}
+		}
+		$this->repository->update_status( $invoice->id, InvoiceStatus::PENDING, $reason );
+	}
+
+	/**
+	 * Tries used so far: attempts that called Mat Bao and failed (`failed`, `lookup_failed`,
+	 * `not_sent`). Attempts closed by the sweep (`abandoned`) are not counted.
+	 *
+	 * @param InvoiceRecord $invoice Invoice.
+	 */
+	private function tries( InvoiceRecord $invoice ): int {
+		$tries = 0;
+		foreach ( $this->repository->attempts( $invoice->id ) as $attempt ) {
+			if ( in_array( $attempt['outcome'], array( 'failed', 'lookup_failed', 'not_sent' ), true ) ) {
+				++$tries;
 			}
 		}
 
-		$attempt = $this->repository->start_attempt( $invoice->id );
-		$this->repository->finish_attempt( $attempt, 'failed', 'abandoned', null, null, $reason );
+		return $tries;
 	}
 
 	/**
@@ -545,7 +561,7 @@ final class DraftInvoiceWorkflow {
 			return;
 		}
 
-		$tries = count( $this->repository->attempts( $invoice->id ) );
+		$tries = $this->tries( $invoice );
 		if ( $tries > count( self::BACKOFF_SECONDS ) ) {
 			self::record_error(
 				$this->repository,
