@@ -134,9 +134,12 @@ final class MatbaoClient {
 			throw $error;
 		}
 
-		$invoices = is_array( $data ) && is_array( $data['invoices'] ?? null ) ? $data['invoices'] : array();
+		// Only an explicit list proves anything; a 200 without one is an unreadable answer, not "not found".
+		if ( ! is_array( $data ) || ! is_array( $data['invoices'] ?? null ) ) {
+			throw new MatbaoError( MatbaoError::KIND_API, 'Unreadable invoice lookup response.' ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- plain text, escaped where rendered (Admin\Fragment).
+		}
 
-		return array_values( array_map( array( MatbaoInvoice::class, 'from_api' ), array_filter( $invoices, 'is_array' ) ) );
+		return array_values( array_map( array( MatbaoInvoice::class, 'from_api' ), array_filter( $data['invoices'], 'is_array' ) ) );
 	}
 
 	/**
