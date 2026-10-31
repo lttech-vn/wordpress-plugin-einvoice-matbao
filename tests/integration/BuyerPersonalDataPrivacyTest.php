@@ -138,8 +138,8 @@ final class BuyerPersonalDataPrivacyTest extends InvoiceWorkflowTestCase {
 	}
 
 	public function test_eraser_clears_the_order_state_digest_of_that_email_only(): void {
-		$order = $this->completed_individual_order( self::EMAIL );
-		$other = $this->completed_individual_order( self::OTHER_EMAIL );
+		$order      = $this->completed_individual_order( self::EMAIL );
+		$other      = $this->completed_individual_order( self::OTHER_EMAIL );
 		$repository = new InvoiceRepository();
 		$repository->remember_order_state( (int) $this->invoice_of( $order )?->id, 'a:1;b:2;c:3' );
 		$repository->remember_order_state( (int) $this->invoice_of( $other )?->id, 'a:1;b:2;c:3' );
