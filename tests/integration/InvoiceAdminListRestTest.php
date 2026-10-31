@@ -48,6 +48,8 @@ final class InvoiceAdminListRestTest extends SettingsRestTestCase {
 	}
 
 	/**
+	 * Rejected for the route.
+	 *
 	 * @dataProvider invoice_routes
 	 *
 	 * @param string $method HTTP method.
@@ -60,6 +62,8 @@ final class InvoiceAdminListRestTest extends SettingsRestTestCase {
 	}
 
 	/**
+	 * Rejected for the route.
+	 *
 	 * @dataProvider invoice_routes
 	 *
 	 * @param string $method HTTP method.
@@ -72,6 +76,8 @@ final class InvoiceAdminListRestTest extends SettingsRestTestCase {
 	}
 
 	/**
+	 * Rejected for the route.
+	 *
 	 * @dataProvider invoice_routes
 	 *
 	 * @param string $method HTTP method.

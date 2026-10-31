@@ -24,7 +24,7 @@ final class Redactor {
 
 		return (string) preg_replace_callback(
 			'/(?<!\d)\d{9}(?:\d{3})?(?!\d)/',
-			static fn( array $match ): string => str_repeat( '*', strlen( $match[0] ) - 4 ) . substr( $match[0], -4 ),
+			static fn( array $found ): string => str_repeat( '*', strlen( $found[0] ) - 4 ) . substr( $found[0], -4 ),
 			$text
 		);
 	}

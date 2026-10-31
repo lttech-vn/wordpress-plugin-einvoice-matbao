@@ -51,10 +51,10 @@ final class InvoiceController {
 	 */
 	public static function register_routes(): void {
 		$routes = array(
-			'/invoices'                           => array( WP_REST_Server::READABLE, 'list_invoices' ),
-			'/invoices/(?P<id>\d+)'               => array( WP_REST_Server::READABLE, 'show_invoice' ),
-			'/invoices/(?P<id>\d+)/check'         => array( WP_REST_Server::CREATABLE, 'check_status' ),
-			'/invoices/(?P<id>\d+)/resend'        => array( WP_REST_Server::CREATABLE, 'resend' ),
+			'/invoices'                    => array( WP_REST_Server::READABLE, 'list_invoices' ),
+			'/invoices/(?P<id>\d+)'        => array( WP_REST_Server::READABLE, 'show_invoice' ),
+			'/invoices/(?P<id>\d+)/check'  => array( WP_REST_Server::CREATABLE, 'check_status' ),
+			'/invoices/(?P<id>\d+)/resend' => array( WP_REST_Server::CREATABLE, 'resend' ),
 		);
 
 		foreach ( $routes as $route => list( $methods, $handler ) ) {
@@ -89,7 +89,20 @@ final class InvoiceController {
 			$result = $repository->search( $statuses, $search, self::PER_PAGE, ( $page - 1 ) * self::PER_PAGE );
 		}
 
-		return Fragment::response( InvoicePage::render_list( $result['items'], $result['total'], $page, $pages, array_filter( array( 'status' => array() === $statuses ? '' : $filter, 'q' => $search ) ) ) );
+		return Fragment::response(
+			InvoicePage::render_list(
+				$result['items'],
+				$result['total'],
+				$page,
+				$pages,
+				array_filter(
+					array(
+						'status' => array() === $statuses ? '' : $filter,
+						'q'      => $search,
+					)
+				)
+			)
+		);
 	}
 
 	/**

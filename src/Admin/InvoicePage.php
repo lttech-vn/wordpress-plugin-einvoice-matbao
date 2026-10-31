@@ -80,7 +80,7 @@ final class InvoicePage {
 	/**
 	 * The list table with its pager.
 	 *
-	 * @param list<InvoiceRecord>   $items  Rows of the page.
+	 * @param InvoiceRecord[]       $items  Rows of the page.
 	 * @param int                   $total  Rows over all pages.
 	 * @param int                   $page   Current page.
 	 * @param int                   $pages  Number of pages.
@@ -147,12 +147,12 @@ final class InvoicePage {
 		$error = $invoice->error();
 
 		$rows = array(
-			__( 'Đơn hàng', 'einvoice-matbao' )              => '#' . $invoice->order_id,
-			'MTChieu'                                         => $invoice->reference,
-			__( 'Trạng thái', 'einvoice-matbao' )            => InvoiceStatus::label( $invoice->status ),
-			__( 'Mã hóa đơn Mắt Bão', 'einvoice-matbao' )    => $invoice->matbao_invoice_id ?? '—',
+			__( 'Đơn hàng', 'einvoice-matbao' )           => '#' . $invoice->order_id,
+			'MTChieu'                                     => $invoice->reference,
+			__( 'Trạng thái', 'einvoice-matbao' )         => InvoiceStatus::label( $invoice->status ),
+			__( 'Mã hóa đơn Mắt Bão', 'einvoice-matbao' ) => $invoice->matbao_invoice_id ?? '—',
 			__( 'Mẫu số / ký hiệu đã lưu', 'einvoice-matbao' ) => '' === $invoice->template_form ? '—' : $invoice->template_form . ' / ' . $invoice->template_series,
-			__( 'Người mua', 'einvoice-matbao' )             => Redactor::redact( $invoice->buyer_name ),
+			__( 'Người mua', 'einvoice-matbao' )          => Redactor::redact( $invoice->buyer_name ),
 		);
 		if ( null !== $error ) {
 			$rows[ __( 'Mã lỗi', 'einvoice-matbao' ) ] = $error->value . ' – ' . $error->label();
@@ -161,7 +161,7 @@ final class InvoicePage {
 			$rows[ __( 'Lý do', 'einvoice-matbao' ) ] = Redactor::redact( $invoice->status_reason );
 		}
 
-		$html = sprintf( '<section class="%1$s" data-einv-invoice-detail="%2$d"', esc_attr( self::CARD ), $invoice->id );
+		$html  = sprintf( '<section class="%1$s" data-einv-invoice-detail="%2$d"', esc_attr( self::CARD ), $invoice->id );
 		$html .= null === $error ? '' : sprintf( ' data-einv-error-code="%s"', esc_attr( $error->value ) );
 		$html .= sprintf( '><button type="button" class="%1$s mb-3" hx-get="%2$s" hx-target="#einv-invoices">%3$s</button><dl class="m-0 grid grid-cols-[200px_1fr] gap-y-2 text-[14px]">', esc_attr( self::SECONDARY ), esc_url( rest_url( SettingsController::NAMESPACE . '/invoices' ) ), esc_html__( '‹ Danh sách', 'einvoice-matbao' ) );
 		foreach ( $rows as $label => $value ) {
@@ -201,7 +201,7 @@ final class InvoicePage {
 	/**
 	 * Result of a status check, with a resend form when the draft is gone.
 	 *
-	 * @param InvoiceRecord $invoice Invoice.
+	 * @param InvoiceRecord   $invoice Invoice.
 	 * @param MatbaoInvoice[] $found  What Mat Bao has under the reference.
 	 */
 	public static function render_check( InvoiceRecord $invoice, array $found ): string {

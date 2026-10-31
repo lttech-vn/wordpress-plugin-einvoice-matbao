@@ -129,7 +129,14 @@ final class InvoiceAdminActionsRestTest extends InvoiceWorkflowTestCase {
 		$order = $this->order_with_draft();
 		$this->fake_lookup_found( 'ZHJhZnQtMQ==' );
 
-		$response = $this->htmx( 'POST', '/invoices/' . $this->record( $order )->id . '/resend', array( 'confirm' => '1', 'confirm_lost' => '1' ) );
+		$response = $this->htmx(
+			'POST',
+			'/invoices/' . $this->record( $order )->id . '/resend',
+			array(
+				'confirm'      => '1',
+				'confirm_lost' => '1',
+			)
+		);
 
 		$this->assertSame( 409, $response->get_status() );
 		$this->assertSame( array(), $this->queued_draft_action_ids() );
@@ -141,7 +148,14 @@ final class InvoiceAdminActionsRestTest extends InvoiceWorkflowTestCase {
 		$this->fake_lookup_not_found();
 		$this->fake_create_invoice_ok( 'bmV3LWRyYWZ0' );
 
-		$response = $this->htmx( 'POST', '/invoices/' . $this->record( $order )->id . '/resend', array( 'confirm' => '1', 'confirm_lost' => '1' ) );
+		$response = $this->htmx(
+			'POST',
+			'/invoices/' . $this->record( $order )->id . '/resend',
+			array(
+				'confirm'      => '1',
+				'confirm_lost' => '1',
+			)
+		);
 		$this->assertSame( 200, $response->get_status(), $this->html( $response ) );
 		$this->run_queued_draft_actions();
 
@@ -151,7 +165,7 @@ final class InvoiceAdminActionsRestTest extends InvoiceWorkflowTestCase {
 	}
 
 	public function test_check_status_reports_a_draft_that_still_exists_and_changes_nothing(): void {
-		$order = $this->order_with_draft();
+		$order  = $this->order_with_draft();
 		$before = $this->record( $order );
 		$this->fake_lookup_found( 'ZHJhZnQtMQ==' );
 
@@ -253,7 +267,7 @@ final class InvoiceAdminActionsRestTest extends InvoiceWorkflowTestCase {
 
 		// The escape needs the reference typed back.
 		$params = array(
-			'confirm'           => '1',
+			'confirm'            => '1',
 			'confirm_no_invoice' => '1',
 		);
 		$this->assertSame( 422, $this->htmx( 'POST', $route, $params )->get_status() );
