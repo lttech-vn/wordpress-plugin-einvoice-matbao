@@ -80,6 +80,44 @@ final class DraftInvoiceRetryTest extends InvoiceWorkflowTestCase {
 		$this->assertSame( array( 'failed', 'success' ), array_column( $this->attempts_of( $record ), 'outcome' ) );
 	}
 
+	/**
+	 * HTTP statuses that may have created the draft and are retried through the lookup.
+	 *
+	 * @return array<string, array{0: int}>
+	 */
+	public static function temporary_statuses(): array {
+		return array(
+			'408 request timeout' => array( 408 ),
+			'429 rate limited'    => array( 429 ),
+		);
+	}
+
+	/**
+	 * A 408 or 429 on create is retried after the first delay, then looked up before resending.
+	 *
+	 * @dataProvider temporary_statuses
+	 *
+	 * @param int $status HTTP status of the create call.
+	 */
+	public function test_temporary_status_is_retried_and_looked_up_before_resending( int $status ): void {
+		$this->http->respond_json( self::CREATE_ROUTE, $status, array( 'message' => 'Thử lại sau' ) );
+		$order = $this->completed_order();
+		$this->run_queued_draft_actions();
+
+		$record = $this->invoice_of( $order );
+		$this->assertSame( InvoiceStatus::PENDING, $record?->status );
+		$this->assertSame( 'matbao_http_temporary', $record->error_code );
+		$this->assertEqualsWithDelta( 60, $this->seconds_until_next_draft_action(), 5 );
+
+		$this->fake_lookup_not_found();
+		$this->fake_create_invoice_ok();
+		$this->run_queued_draft_actions();
+
+		$this->assertCount( 1, $this->http->requests_to( self::LOOKUP_ROUTE ) );
+		$this->assertCount( 2, $this->http->requests_to( self::CREATE_ROUTE ) );
+		$this->assertSame( InvoiceStatus::DRAFT_CREATED, $this->invoice_of( $order )?->status );
+	}
+
 	public function test_error_305_looks_up_again_and_adopts_the_draft_with_the_same_reference(): void {
 		$this->http->respond_json( self::CREATE_ROUTE, 200, $this->rejected_item( 305, 'Trùng mã tham chiếu' ) );
 		$this->fake_lookup_found( 'ZHVw', '2026-10-15T00:00:00' );
