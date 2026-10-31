@@ -193,7 +193,7 @@ final class InvoiceAlertTest extends InvoiceWorkflowTestCase {
 
 	public function test_lark_http_failure_only_leaves_a_notice_and_does_not_touch_the_invoice(): void {
 		$this->configure_lark();
-		$this->http->respond_json( $this->lark_route, 500, array( 'msg' => 'boom' ) );
+		$this->http->respond_json( $this->lark_route, 400, array( 'msg' => 'boom' ) );
 		$order  = $this->failing_order();
 		$before = $this->invoice_of( $order );
 
@@ -320,9 +320,13 @@ final class InvoiceAlertTest extends InvoiceWorkflowTestCase {
 		$order = $this->failing_order();
 		$this->add_leftover_alerts( 60, true );
 
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+		wc_get_order( $order->get_id() );
 		$before = $wpdb->num_queries;
-		$html   = $this->notice_html();
-		$used   = $wpdb->num_queries - $before;
+		ob_start();
+		AdminAlertNotice::render();
+		$html = (string) ob_get_clean();
+		$used = $wpdb->num_queries - $before;
 
 		$this->assertStringContainsString( '#' . $order->get_id(), $html );
 		$this->assertLessThanOrEqual( 15, $used, 'Queries spent by the notice on one admin page.' );

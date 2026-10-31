@@ -14,6 +14,7 @@ use LTTech\EinvoiceMatbao\Invoice\InvoiceRecord;
 use LTTech\EinvoiceMatbao\Invoice\InvoiceRepository;
 use LTTech\EinvoiceMatbao\Invoice\InvoiceStatus;
 use LTTech\EinvoiceMatbao\Lark\LarkClient;
+use LTTech\EinvoiceMatbao\Lark\LarkError;
 
 /**
  * Only listens to the workflow's hooks; it never changes an invoice or queues a draft action.
@@ -24,12 +25,16 @@ final class InvoiceAlerts {
 
 	public const SEND_ACTION = 'einvoice_matbao_send_alert';
 
+	/** Seconds to wait before Lark retry 1..3 after a temporary failure. */
+	public const LARK_BACKOFF_SECONDS = array( 60, 300, 900 );
+
 	/**
 	 * Hooks the workflow's alert hooks and the queued Lark action.
 	 */
 	public static function register(): void {
 		add_action( DraftInvoiceWorkflow::NEEDS_ATTENTION_ACTION, array( self::class, 'on_needs_attention' ), 10, 2 );
 		add_action( DraftInvoiceWorkflow::EXHAUSTED_HOOK, array( self::class, 'on_retries_exhausted' ), 10, 1 );
+		add_action( DraftInvoiceWorkflow::RECOVERY_ACTION, array( AlertStore::class, 'cleanup' ) );
 		add_action( self::SEND_ACTION, array( self::class, 'send' ), 10, 1 );
 		add_action( 'admin_notices', array( AdminAlertNotice::class, 'render' ) );
 		add_action( 'admin_post_' . AdminAlertNotice::DISMISS_ACTION, array( AdminAlertNotice::class, 'handle_dismiss' ) );
@@ -51,7 +56,12 @@ final class InvoiceAlerts {
 			return;
 		}
 
-		if ( 0 === as_enqueue_async_action( self::SEND_ACTION, array( $key ), DraftInvoiceWorkflow::GROUP ) ) {
+		try {
+			$queued = 0 !== as_enqueue_async_action( self::SEND_ACTION, array( $key ), DraftInvoiceWorkflow::GROUP );
+		} catch ( \Throwable $failure ) {
+			$queued = false;
+		}
+		if ( ! $queued ) {
 			AlertStore::set( $key, 'lark', 'queue_failed' );
 		}
 	}
@@ -90,9 +100,37 @@ final class InvoiceAlerts {
 			( new LarkClient( $webhook ) )->send_text( self::message( $alert['order_id'], $alert['code'] ) );
 			AlertStore::set( $key, 'lark', 'sent' );
 		} catch ( \Throwable $failure ) {
+			if ( $failure instanceof LarkError && $failure->retryable && self::schedule_retry( $key, $alert['lark_retries'] ) ) {
+				return;
+			}
 			AlertStore::set( $key, 'lark', 'failed' );
 			error_log( 'einvoice-matbao: Lark alert failed (' . get_class( $failure ) . ').' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 		}
+	}
+
+	/**
+	 * Queues another try after a temporary Lark failure.
+	 *
+	 * @param string $key     Alert key.
+	 * @param int    $retries Retries already used.
+	 * @return bool Whether a retry is queued; false when the retries are used up or queueing failed.
+	 */
+	private static function schedule_retry( string $key, int $retries ): bool {
+		if ( $retries >= count( self::LARK_BACKOFF_SECONDS ) ) {
+			return false;
+		}
+
+		// Not unique: this runs inside the very action being retried, which Action Scheduler
+		// still counts as in progress, so a unique action would be refused (returns 0).
+		$id = as_schedule_single_action( time() + self::LARK_BACKOFF_SECONDS[ $retries ], self::SEND_ACTION, array( $key ), DraftInvoiceWorkflow::GROUP );
+		if ( 0 === $id ) {
+			return false;
+		}
+
+		AlertStore::set( $key, 'lark_retries', $retries + 1 );
+		AlertStore::set( $key, 'lark', 'retrying' );
+
+		return true;
 	}
 
 	/**

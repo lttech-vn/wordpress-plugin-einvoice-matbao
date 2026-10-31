@@ -52,7 +52,7 @@ final class LarkClient {
 		);
 
 		if ( is_wp_error( $response ) ) {
-			throw new LarkError( 'Request did not complete (' . $response->get_error_code() . ').' ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- plain text, escaped where rendered (Admin\Fragment).
+			throw new LarkError( 'Request did not complete (' . $response->get_error_code() . ').', null, true ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- plain text, escaped where rendered (Admin\Fragment).
 		}
 
 		$status  = (int) wp_remote_retrieve_response_code( $response );
@@ -62,7 +62,7 @@ final class LarkClient {
 		$message = $decoded['msg'] ?? $decoded['StatusMessage'] ?? '';
 
 		if ( $status < 200 || $status >= 300 || 0 !== $code ) {
-			throw new LarkError( is_string( $message ) && '' !== $message ? $message : 'HTTP ' . $status, $code ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- plain text, escaped where rendered (Admin\Fragment).
+			throw new LarkError( is_string( $message ) && '' !== $message ? $message : 'HTTP ' . $status, $code, $status >= 500 || 408 === $status || 429 === $status ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- plain text, escaped where rendered (Admin\Fragment).
 		}
 	}
 

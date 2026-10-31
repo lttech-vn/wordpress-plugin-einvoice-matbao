@@ -19,8 +19,6 @@ final class AdminAlertNotice {
 
 	public const DISMISS_ACTION = 'einvoice_matbao_dismiss_alert';
 
-	private const NOTICE_LIMIT = 10;
-
 	/**
 	 * Prints the notice.
 	 */
@@ -31,10 +29,7 @@ final class AdminAlertNotice {
 
 		$repository = new InvoiceRepository();
 		$items      = array();
-		foreach ( AlertStore::recent() as $alert ) {
-			if ( $alert['dismissed'] ) {
-				continue;
-			}
+		foreach ( AlertStore::open() as $alert ) {
 			$invoice = $repository->find_by_order( $alert['order_id'] );
 			$order   = wc_get_order( $alert['order_id'] );
 			$code    = InvoiceErrorCode::tryFrom( $alert['code'] );
@@ -57,9 +52,6 @@ final class AdminAlertNotice {
 				esc_url( self::dismiss_url( $alert['order_id'] ) ),
 				esc_html__( 'Ẩn', 'einvoice-matbao' )
 			);
-			if ( count( $items ) >= self::NOTICE_LIMIT ) {
-				break;
-			}
 		}
 
 		if ( array() === $items ) {
@@ -79,10 +71,8 @@ final class AdminAlertNotice {
 	 * @param int $order_id Order ID.
 	 */
 	public static function dismiss( int $order_id ): void {
-		foreach ( AlertStore::recent() as $key => $alert ) {
-			if ( $alert['order_id'] === $order_id ) {
-				AlertStore::set( $key, 'dismissed', true );
-			}
+		foreach ( AlertStore::keys_of_order( $order_id ) as $key ) {
+			AlertStore::set( $key, 'dismissed', time() );
 		}
 	}
 
