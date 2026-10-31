@@ -3,7 +3,7 @@ import { web } from "@e2e-dev/web";
 import { isReplay, modeOf } from "./army/config.ts";
 import { lightpanda } from "@e2e-dev/lightpanda";
 import { decisionExecutor } from "@e2e-dev/decision";
-import { createModels } from "./army/models.ts";
+import { createModels, createTextAgentModel } from "./army/models.ts";
 
 // Modes (E2E_MODE): record = read-write cache, live = no cache, replay (and CI) = read-only strict cache,
 // no model call possible. Run through `bun run e2e:record|live|replay`, which builds the whole stack in Docker.
@@ -29,6 +29,13 @@ export default {
 			executor: decisionExecutor({ model: models.decision, textModel: models.text, vision: false }),
 			context:
 				"Checkout labels are Vietnamese. 'Yêu cầu xuất hóa đơn' is the invoice request checkbox; 'Cá nhân' is an individual buyer and 'Doanh nghiệp' a business buyer.",
+			maxModelCalls: 25,
+		},
+		text: {
+			model: createTextAgentModel(process.env, replay),
+			system: "You are a careful QA agent for a WooCommerce shop. Do only the stated goal, then stop.",
+			context:
+				"Checkout labels are English or Vietnamese. 'Yêu cầu xuất hóa đơn' is the invoice request checkbox; 'Cá nhân' is an individual buyer and 'Doanh nghiệp' a business buyer.",
 			maxModelCalls: 25,
 		},
 	},

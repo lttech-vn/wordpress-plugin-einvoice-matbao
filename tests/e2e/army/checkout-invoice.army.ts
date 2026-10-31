@@ -25,7 +25,7 @@ describe("checkout invoice request", { serial: false }, () => {
 			if (checkout === "blocks" && buyer === "individual") continue; // Classic covers individual; keep model cost down.
 			// Blocks is opt-in: the checkout page renders in the browser but the invoice block and place-order steps are not stable yet (tests/e2e/README.md).
 			const run = checkout === "classic" || process.env.E2E_BLOCKS === "1" ? test : test.skip;
-			run(`${checkout} checkout, ${buyer} buyer: completed order gets a draft`, async ({ app, agent, screen, browser }) => {
+			run(`${checkout} checkout, ${buyer} buyer: completed order gets a draft`, { agent: checkout === "blocks" ? "text" : "default" }, async ({ app, agent, screen, browser }) => {
 				await app.open(`/?add-to-cart=${process.env.E2E_PRODUCT_ID}`);
 				await app.open(checkout === "classic" ? "/?pagename=classic-checkout" : "/?pagename=checkout");
 
@@ -38,19 +38,8 @@ describe("checkout invoice request", { serial: false }, () => {
 						await screen.getByLabel(field, { exact: false }).first().fill(value);
 					}
 				}
-				if (checkout === "classic" && buyer !== "walk_in") {
+				if (buyer !== "walk_in") {
 					await agent.act(BUYER_GOALS[buyer], { params: BUYER_PARAMS[buyer] });
-				} else if (buyer !== "walk_in") {
-					// The decision model could not target the Blocks fields (scroll_to without a target), so exact actions.
-					await screen.getByLabel("Yêu cầu xuất hóa đơn", { exact: false }).first().check();
-					await screen.getByLabel(buyer === "business" ? "Doanh nghiệp" : "Cá nhân", { exact: true }).check();
-					if (buyer === "business") {
-						await screen.getByLabel("Tên doanh nghiệp").fill(BUSINESS.name);
-						await screen.getByLabel("Mã số thuế").fill(BUSINESS.tax_code);
-					} else {
-						await screen.getByLabel("Số CCCD").fill(INDIVIDUAL.id_number);
-					}
-					await screen.getByLabel("Địa chỉ xuất hóa đơn").fill(buyer === "business" ? BUSINESS.address : INDIVIDUAL.address);
 				}
 				await screen.getByRole("button", "Place order", { exact: false }).first().tap();
 				await expect(browser).toHaveURL(/order-received/);

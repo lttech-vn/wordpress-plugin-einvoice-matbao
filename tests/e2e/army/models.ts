@@ -46,3 +46,13 @@ export function createModels(env: NodeJS.ProcessEnv, replay: boolean) {
     : rawText;
   return { decision, text };
 }
+
+// Plain AI SDK model on the text endpoint, for the `text` agent (Checkout Blocks).
+export function createTextAgentModel(env: NodeJS.ProcessEnv, replay: boolean) {
+	const { text } = modelSettings(replay ? {} : env);
+	const forbidden = async (): Promise<Response> => {
+		console.error("CI_MODEL_CALL_FORBIDDEN");
+		throw new Error("CI_MODEL_CALL_FORBIDDEN");
+	};
+	return createOpenAICompatible({ name: "e2e-text-agent", ...text, fetch: replay ? (forbidden as typeof fetch) : undefined }).chatModel(text.model);
+}
