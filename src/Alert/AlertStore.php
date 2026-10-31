@@ -52,11 +52,11 @@ final class AlertStore {
 		return add_option(
 			$key,
 			array(
-				'order_id'  => $order_id,
-				'code'      => $error_code,
-				'cycle'     => $cycle,
-				'dismissed' => false,
-				'lark'      => 'queued',
+				'order_id'     => $order_id,
+				'code'         => $error_code,
+				'cycle'        => $cycle,
+				'dismissed'    => false,
+				'lark'         => 'queued',
 				'lark_retries' => 0,
 			),
 			'',

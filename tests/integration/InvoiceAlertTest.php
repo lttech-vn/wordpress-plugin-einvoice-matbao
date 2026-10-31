@@ -336,7 +336,7 @@ final class InvoiceAlertTest extends InvoiceWorkflowTestCase {
 		$order = $this->failing_order();
 		$this->add_leftover_alerts( 60, false );
 
-		do_action( DraftInvoiceWorkflow::RECOVERY_ACTION );
+		do_action( 'einvoice_matbao_recover_stuck_invoices' );
 
 		$this->assertStringContainsString( '#' . $order->get_id(), $this->notice_html() );
 	}
@@ -349,21 +349,22 @@ final class InvoiceAlertTest extends InvoiceWorkflowTestCase {
 		$current = AlertStore::key( $order->get_id(), $invoice->error_code, $invoice->alert_cycle );
 		$this->add_leftover_alerts( 3, false );
 
-		do_action( DraftInvoiceWorkflow::RECOVERY_ACTION );
+		do_action( 'einvoice_matbao_recover_stuck_invoices' );
 
 		$this->assertNotNull( AlertStore::get( $current ), 'A current alert stays.' );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery -- test reads the plugin's own options by prefix.
 		$names = $wpdb->get_col( $wpdb->prepare( 'SELECT option_name FROM %i WHERE option_name LIKE %s', $wpdb->options, $wpdb->esc_like( 'einvoice_matbao_alert_' ) . '%' ) );
 		$this->assertSame( array( $current ), $names, 'Expired leftovers are gone.' );
 
 		AlertStore::set( $current, 'dismissed', time() - 31 * DAY_IN_SECONDS );
-		do_action( DraftInvoiceWorkflow::RECOVERY_ACTION );
+		do_action( 'einvoice_matbao_recover_stuck_invoices' );
 		$this->assertNull( AlertStore::get( $current ), 'Dismissed more than 30 days ago: gone.' );
 	}
 
 	public function test_recently_dismissed_alert_is_kept_for_its_cycle_and_the_alert_of_a_paid_invoice_is_removed(): void {
 		$order = $this->failing_order();
 		AdminAlertNotice::dismiss( $order->get_id() );
-		do_action( DraftInvoiceWorkflow::RECOVERY_ACTION );
+		do_action( 'einvoice_matbao_recover_stuck_invoices' );
 		$this->assertCount( 1, AlertStore::keys_of_order( $order->get_id() ), 'Dismissed a moment ago: kept so the same cycle does not alert again.' );
 
 		$this->fake_create_invoice_ok();
@@ -372,7 +373,7 @@ final class InvoiceAlertTest extends InvoiceWorkflowTestCase {
 		$this->run_queued_draft_actions();
 		$this->assertSame( InvoiceStatus::DRAFT_CREATED, $this->invoice_of( $order )?->status );
 
-		do_action( DraftInvoiceWorkflow::RECOVERY_ACTION );
+		do_action( 'einvoice_matbao_recover_stuck_invoices' );
 		$this->assertSame( array(), AlertStore::keys_of_order( $order->get_id() ) );
 	}
 
