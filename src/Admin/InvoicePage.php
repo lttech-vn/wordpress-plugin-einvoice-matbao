@@ -61,6 +61,7 @@ final class InvoicePage {
 		<div class="wrap">
 			<h1 class="wp-heading-inline"><?php esc_html_e( 'Danh sách hóa đơn Mắt Bão', 'einvoice-matbao' ); ?></h1>
 			<div id="einv-app" class="mt-4 font-einv text-einv-ink" hx-swap="innerHTML">
+				<div id="einv-dashboard" hx-get="<?php echo esc_url( rest_url( SettingsController::NAMESPACE . '/dashboard' ) ); ?>" hx-trigger="load"></div>
 				<form class="mb-4 flex flex-wrap items-end gap-2" hx-get="<?php echo esc_url( $list ); ?>" hx-target="#einv-invoices" hx-trigger="submit, change from:select, keyup changed delay:400ms from:input[name=q]">
 					<select name="status" class="<?php echo esc_attr( self::INPUT ); ?>" aria-label="<?php esc_attr_e( 'Trạng thái', 'einvoice-matbao' ); ?>">
 						<option value=""><?php esc_html_e( 'Tất cả trạng thái', 'einvoice-matbao' ); ?></option>
@@ -75,6 +76,41 @@ final class InvoicePage {
 			</div>
 		</div>
 		<?php
+	}
+
+	/**
+	 * The three dashboard counts. Each is a button that loads the matching filtered list.
+	 *
+	 * @param array{error: int, waiting: int, created: int, created_today: int} $counts Counts.
+	 */
+	public static function render_dashboard( array $counts ): string {
+		$list  = rest_url( SettingsController::NAMESPACE . '/invoices' );
+		$cards = array(
+			'error'   => array( __( 'Lỗi / cần xử lý', 'einvoice-matbao' ), InvoiceStatus::FILTER_ERROR, $counts['error'], null ),
+			'waiting' => array( __( 'Đang chờ gửi', 'einvoice-matbao' ), InvoiceStatus::FILTER_WAITING, $counts['waiting'], null ),
+			'created' => array(
+				__( 'Đã tạo nháp (tổng)', 'einvoice-matbao' ),
+				InvoiceStatus::DRAFT_CREATED,
+				$counts['created'],
+				$counts['created_today'],
+			),
+		);
+
+		$html = '<div class="mb-4 grid grid-cols-3 gap-4" data-einv-dashboard>';
+		foreach ( $cards as $key => list( $label, $filter, $count, $note ) ) {
+			$html .= sprintf(
+				'<button type="button" class="%1$s cursor-pointer text-left" data-einv-metric="%2$s" hx-get="%3$s" hx-target="#einv-invoices"><span class="%4$s">%5$s</span><span class="block text-[32px] font-medium" data-einv-count="%2$s">%6$d</span>%7$s</button>',
+				esc_attr( self::CARD . ' mb-0' ),
+				esc_attr( $key ),
+				esc_url( add_query_arg( 'status', $filter, $list ) ),
+				esc_attr( self::MUTED ),
+				esc_html( $label ),
+				$count,
+				null === $note ? '' : sprintf( '<span class="%1$s">%2$s <span data-einv-count="%3$s">%4$d</span></span>', esc_attr( self::MUTED ), esc_html__( 'Hôm nay (giờ cửa hàng):', 'einvoice-matbao' ), esc_attr( $key . '-today' ), $note )
+			);
+		}
+
+		return $html . '</div>';
 	}
 
 	/**
