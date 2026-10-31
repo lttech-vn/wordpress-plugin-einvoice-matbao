@@ -216,6 +216,12 @@ final class DraftInvoiceWorkflow {
 		if ( null === $invoice || ! $this->repository->claim( $invoice->id, InvoiceStatus::PENDING, InvoiceStatus::SENDING ) ) {
 			return;
 		}
+		// Read again now that the claim is won: another action may have stored the template or
+		// started a new retry cycle between the first read and the claim.
+		$invoice = $this->repository->find_by_order( $order_id );
+		if ( null === $invoice ) {
+			return;
+		}
 
 		try {
 			$this->send_claimed( $invoice, $order_id );
@@ -239,7 +245,7 @@ final class DraftInvoiceWorkflow {
 		}
 
 		foreach ( $this->repository->unchanged_for( InvoiceStatus::PENDING, self::STUCK_AFTER_SECONDS ) as $invoice ) {
-			if ( ! as_has_scheduled_action( self::ACTION, array( $invoice->order_id ), self::GROUP ) ) {
+			if ( ! as_has_scheduled_action( self::ACTION, array( $invoice->order_id ), self::GROUP ) && $this->repository->claim_unchanged( $invoice, InvoiceStatus::PENDING ) ) {
 				$this->mark_uncertain( $invoice, __( 'Hóa đơn chờ gửi nhưng không có tác vụ; sẽ tra cứu theo mã tham chiếu trước khi gửi.', 'einvoice-matbao' ) );
 				self::enqueue( $this->repository, $invoice->order_id, true );
 			}
@@ -597,7 +603,9 @@ final class DraftInvoiceWorkflow {
 			);
 			try {
 				do_action( 'einvoice_matbao_retries_exhausted', $invoice->order_id, $invoice->reference );
-			} catch ( \Throwable ) { // phpcs:ignore Generic.CodeAnalysis.EmptyStatement.DetectedCatch -- a failing alert listener must not overwrite the recorded status.
+			} catch ( \Throwable $listener_error ) {
+				// A failing alert listener must not overwrite the recorded status; only the class is logged.
+				error_log( 'einvoice-matbao: retries_exhausted listener failed (' . get_class( $listener_error ) . ').' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			}
 			return;
 		}
@@ -639,7 +647,9 @@ final class DraftInvoiceWorkflow {
 		if ( null !== $invoice && InvoiceStatus::PENDING !== $invoice->status && $code->needs_attention() ) {
 			try {
 				do_action( 'einvoice_matbao_invoice_needs_attention', $invoice, $code );
-			} catch ( \Throwable ) { // phpcs:ignore Generic.CodeAnalysis.EmptyStatement.DetectedCatch -- a failing alert listener must not overwrite the recorded error.
+			} catch ( \Throwable $listener_error ) {
+				// A failing alert listener must not overwrite the recorded error; only the class is logged.
+				error_log( 'einvoice-matbao: needs_attention listener failed (' . get_class( $listener_error ) . ').' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			}
 		}
 	}

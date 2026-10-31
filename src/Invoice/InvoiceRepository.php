@@ -257,10 +257,11 @@ final class InvoiceRepository {
 	}
 
 	/**
-	 * Records the outcome of a create call.
+	 * Closes an attempt with its outcome.
 	 *
 	 * @param int         $attempt_id  Attempt ID.
-	 * @param string      $outcome     `success` or `failed`.
+	 * @param string      $outcome     `success`, `failed`, `not_sent` (never reached create-invoice), `lookup_failed`,
+	 *                                 `lookup_mismatch` or `abandoned` (closed by the recovery sweep).
 	 * @param string|null $error_kind  MatbaoError kind on failure.
 	 * @param int|null    $http_status HTTP status, when a response was received.
 	 * @param int|null    $api_code    Mat Bao `errorCode`, when present.
