@@ -66,14 +66,24 @@ skipped with a reason.
   `einvoice_matbao_retries_exhausted( $order_id, $reference )` fire once (alerting is #7).
 - Other failures are final (see the table below) and alert at once.
 - Before any send that may follow an earlier create call, the plugin looks the invoice up by `MTChieu`
-  (`invoice-detail-batch`). A found draft is adopted (no second create); otherwise the same `MTChieu` is
-  sent again with `KTraMTChieuTrung=1`. Error 305 triggers a lookup, never a new `MTChieu`. A first send
-  with no earlier attempt, or after failures before the create call (login, the templates check),
-  skips the lookup.
-- A recurring sweep (every 15 min) recovers rows stuck in `sending` (runner died after the claim) and
-  `pending` rows with no queued action (enqueue failed) after 15 min, through the same lookup. If the
-  sweep cannot queue the action either, the row becomes `failed` with `queue_failed` and alerts.
-- An order cancelled and then completed again after a `stopped` invoice is sent again.
+  (`invoice-detail-batch`) under the template stored on the row at that earlier call, not the
+  current default. The template is stored before every create call. Exactly one row with the same
+  `mtChieu`, status Nháp (`maTThaiHDon` 1) and, when Mat Bao reports `tgTTTBSo`, the order total is
+  adopted (no second create). Anything else found (several rows, another `mtChieu`, issued or
+  deleted, another total) stops with `matbao_lookup_mismatch` (`needs_attention`, alert). When
+  nothing is found the same `MTChieu` is sent again with `KTraMTChieuTrung=1`; if the default
+  template changed meanwhile, the send stops with `template_changed` instead of creating under
+  another template. Error 305 triggers a lookup, never a new `MTChieu`. A first send with no
+  earlier attempt, or after failures before the create call (login, the templates check), skips
+  the lookup.
+- A recurring sweep (every 15 min) recovers rows stuck in `sending` (runner died after the claim;
+  claimed back only if `updated_at` is unchanged) and `pending` rows with no queued action after
+  15 min. The sweep adds no attempt and uses up no retry; only attempts that called Mat Bao and
+  failed count. If the sweep cannot queue the action either, the row becomes `failed` with
+  `queue_failed` and alerts.
+- `DraftInvoiceWorkflow::restart( $order_id, $from_status )` sends a row again in a new retry cycle
+  (`retry_cycle_start`, schema v3); earlier attempts still decide the lookup. An order cancelled
+  and then completed again after a `stopped` invoice uses it; the admin resend (#9) can too.
 
 Before the create call the action re-reads the order and settings and asks Mat Bao for the
 templates of the invoice year (`/api/invoice/templates`): the default template must still be
@@ -92,10 +102,11 @@ label and the reason (`data-einv-error-code` / `data-einv-error-kind` attributes
 | Kind     | Status           | Codes                                                                                   | Auto retry |
 |----------|------------------|-----------------------------------------------------------------------------------------|------------|
 | `data`   | `failed`         | non-VND currency, fractional VND, unsupported or missing tax rate, several rates on a line, totals mismatch, `MTChieu` > 20 characters, ... | no |
-| `config` | `not_configured` | credentials missing, template missing, template not offered or out of numbers, template rejected by Mat Bao (`errorCode` 308/327) | no |
+| `config` | `not_configured` | credentials missing, template missing, template not offered or out of numbers, template rejected by Mat Bao (`errorCode` 308/327), default template changed after an uncertain create (`template_changed`) | no |
 | `order`  | `stopped`        | order left `completed`, refunded before sending                                         | no |
 | `matbao` | `pending` → `needs_attention` | request did not complete, HTTP 5xx/408/429, unreadable 2xx body (create-invoice or templates), duplicate `MTChieu` 305 | yes; a create-invoice retry looks `MTChieu` up first |
-| `matbao` | `failed`         | other HTTP status (4xx), Mat Bao `success` false with another `errorCode` (rejected invoice, login) | no |
+| `matbao` | `failed`         | other HTTP status (4xx), Mat Bao `success` false with another `errorCode` or none (rejected invoice, login) | no |
+| `matbao` | `needs_attention` | the lookup by `MTChieu` found something that may not be this order's draft (`matbao_lookup_mismatch`) | no |
 | `system` | `pending` → `failed` | queueing failed (the sweep tries once more, then final)                          | sweep only |
 | `system` | `failed`         | unexpected exception                                                                    | no |
 
@@ -185,6 +196,11 @@ suites through the same Docker Compose stack used locally.
 - Mat Bao's atomic duplicate check is unverified under concurrency (ADR 0001); the lookup narrows the
   window but a lookup/create race at Mat Bao is not excluded. Real-API checks of the lookup response
   shape beyond `docs/research` samples belong to #15.
+- The lookup searches one template (`mauSo`/`kiHieu` are required); a draft under another template
+  is not found, which is why a changed default template stops instead of creating.
+- The demo lookup response has no total; the total check runs only when Mat Bao returns `tgTTTBSo`.
+- The sweep runs on Action Scheduler too: if Action Scheduler is down entirely, nothing is recovered
+  and nothing alerts.
 - A draft adopted by the lookup keeps the `NLap` Mat Bao reports, which may predate the day it was adopted.
 - The manual re-send button and the alert for `needs_attention` are #9 and #7.
 - `DGia` = net / quantity can be a non-terminating fraction (net 100000, quantity 3); behavior on

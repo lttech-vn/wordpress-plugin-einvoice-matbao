@@ -93,7 +93,7 @@ final class MatbaoClient {
 		$message  = is_string( $item['message'] ?? null ) && '' !== $item['message'] ? $item['message'] : 'Invoice rejected.';
 		if ( true !== ( $item['success'] ?? null ) ) {
 			// An explicit `success` false is a rejection even without an errorCode; a missing flag is unreadable.
-			throw new MatbaoError( MatbaoError::KIND_API, $message, $api_code, null, true, false === ( $item['success'] ?? null ) ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Mat Bao message, escaped where rendered.
+			throw new MatbaoError( MatbaoError::KIND_API, $message, $api_code, null, true, array_key_exists( 'success', $item ) && false === $item['success'] ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Mat Bao message, escaped where rendered.
 		}
 
 		$created    = is_array( $item['data'] ?? null ) ? $item['data'] : array();
