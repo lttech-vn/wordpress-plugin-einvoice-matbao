@@ -12,10 +12,12 @@ namespace LTTech\EinvoiceMatbao\Uninstall;
  *
  * Always removed: the encrypted Mat Bao and Lark credentials, every plugin transient (the cached
  * Mat Bao tokens, found through `einvoice_matbao_token_keys`, and the templates list; deleted by
- * name so a persistent object cache is covered, then the options table is scanned as a safety net) and the plugin's queued Action Scheduler actions.
+ * name so a persistent object cache is covered, then the options table is scanned as a safety net), the
+ * token name list, the alert records (`einvoice_matbao_alert_*`: only ids, error codes and Lark flags,
+ * useless once the plugin is gone) and the plugin's queued Action Scheduler actions.
  *
  * Kept by default: the invoice and attempt tables, the buyer order meta, the per-product unit, the
- * settings and the alert records (`einvoice_matbao_alert_*`), so a reinstall resumes with the same `MTChieu` and history.
+ * settings, so a reinstall resumes with the same `MTChieu` and history.
  *
  * With the "delete all data on uninstall" setting on, also removed: both tables, every
  * `einvoice_matbao_*` option, the buyer order meta (legacy and HPOS tables) and the product unit
@@ -42,6 +44,9 @@ final class Uninstaller {
 
 	/** Option listing the Mat Bao token transient names (their names hash the account). */
 	public const TOKEN_KEYS_OPTION = 'einvoice_matbao_token_keys';
+
+	/** Alert record option names start with this. */
+	public const ALERT_PREFIX = 'einvoice_matbao_alert_';
 
 	/** Checkout request and buyer snapshot. */
 	public const ORDER_META_KEYS = array( '_einvoice_buyer_request', '_einvoice_buyer_snapshot' );
@@ -113,6 +118,10 @@ final class Uninstaller {
 		self::cancel_scheduled_actions();
 		delete_option( self::CREDENTIALS_OPTION );
 		self::delete_transients();
+		delete_option( self::TOKEN_KEYS_OPTION );
+		foreach ( self::option_names( self::ALERT_PREFIX ) as $option ) {
+			delete_option( $option );
+		}
 
 		if ( ! $delete_all ) {
 			return;

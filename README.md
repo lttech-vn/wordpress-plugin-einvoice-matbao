@@ -267,12 +267,13 @@ in the Action Scheduler tables directly). On multisite it runs on every site.
 |------|-------------------|-------------------------------|
 | Mat Bao and Lark credentials (`einvoice_matbao_credentials`) | deleted | deleted |
 | Transients (Mat Bao token, templates cache), deleted by name so a persistent object cache is covered; token names are listed in the option `einvoice_matbao_token_keys` | deleted | deleted |
+| Alert records `einvoice_matbao_alert_*` (only order id, error code and Lark flags) and the token name list | deleted | deleted |
 | Queued actions in group `einvoice-matbao` | cancelled | cancelled |
 | Tables `{prefix}einvoice_matbao_invoice` and `_attempt` | kept | dropped |
 | Order meta `_einvoice_buyer_request` (including the encrypted ID number `id_encrypted`), `_einvoice_buyer_snapshot` (legacy and HPOS) | kept | deleted |
 | Order note with the masked ID number | kept | kept |
 | Product meta `_einvoice_matbao_unit` | kept | deleted |
-| Every other `einvoice_matbao_*` option (settings, schema version, alert records `einvoice_matbao_alert_*`) | kept | deleted |
+| Every other `einvoice_matbao_*` option (settings, schema version) | kept | deleted |
 | WooCommerce orders and products | kept | kept |
 
 The switch is in the **Gỡ plugin** section of the settings page (`POST settings/uninstall`): off by

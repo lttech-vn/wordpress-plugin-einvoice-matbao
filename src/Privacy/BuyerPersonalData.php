@@ -136,7 +136,8 @@ final class BuyerPersonalData {
 		);
 
 		foreach ( $orders as $order ) {
-			if ( self::erase_order( $order ) ) {
+			$anonymized = false;
+			if ( self::erase_order( $order, $anonymized ) ) {
 				$response['items_removed'] = true;
 				/* translators: %s: order number. */
 				$response['messages'][] = sprintf( __( 'Đã xóa thông tin xuất hóa đơn (CCCD, địa chỉ, mã số thuế, tên người mua) của đơn %s.', 'einvoice-matbao' ), $order->get_order_number() );
@@ -145,7 +146,7 @@ final class BuyerPersonalData {
 			$invoice = ( new InvoiceRepository() )->find_by_order( $order->get_id() );
 			if ( null !== $invoice ) {
 				$response['items_retained'] = true;
-				$response['messages'][]     = self::retained_message( $order, $invoice );
+				$response['messages'][]     = self::retained_message( $order, $invoice, $anonymized );
 			}
 		}
 
@@ -170,9 +171,10 @@ final class BuyerPersonalData {
 	 * its invoice and attempt rows. The order itself is left to WooCommerce.
 	 *
 	 * @param WC_Order $order Order.
+	 * @param bool     $anonymized Set to whether the invoice or attempt rows changed.
 	 * @return bool Whether anything was removed or anonymized.
 	 */
-	public static function erase_order( WC_Order $order ): bool {
+	public static function erase_order( WC_Order $order, bool &$anonymized = false ): bool {
 		$request  = ( new BuyerRequestStore() )->load( $order );
 		$snapshot = ( new BuyerSnapshotter() )->load( $order );
 		$values   = self::personal_values( $order, $request, $snapshot );
@@ -189,8 +191,9 @@ final class BuyerPersonalData {
 			$order->save_meta_data();
 		}
 
-		$invoice = ( new InvoiceRepository() )->find_by_order( $order->get_id() );
-		if ( null !== $invoice && self::anonymize_invoice( $invoice, $values, $is_buyer ) ) {
+		$invoice    = ( new InvoiceRepository() )->find_by_order( $order->get_id() );
+		$anonymized = null !== $invoice && self::anonymize_invoice( $invoice, $values, $is_buyer );
+		if ( $anonymized ) {
 			$removed = true;
 		}
 
@@ -310,7 +313,7 @@ final class BuyerPersonalData {
 		$changed = false;
 		if ( array() !== $changes ) {
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery -- plugin table, no cache layer.
-			$changed = false !== $wpdb->update( Schema::invoice_table(), $changes, array( 'id' => $invoice->id ) );
+			$changed = false !== $wpdb->update( Schema::invoice_table(), $changes, array( 'id' => $invoice->id ), array_fill( 0, count( $changes ), '%s' ), array( '%d' ) );
 		}
 
 		foreach ( ( new InvoiceRepository() )->attempts( $invoice->id ) as $attempt ) {
@@ -318,7 +321,7 @@ final class BuyerPersonalData {
 			$scrubbed = self::scrub( $message, $values );
 			if ( $scrubbed !== $message ) {
 				// phpcs:ignore WordPress.DB.DirectDatabaseQuery -- plugin table, no cache layer.
-				$wpdb->update( Schema::attempt_table(), array( 'message' => $scrubbed ), array( 'id' => (int) $attempt['id'] ) );
+				$wpdb->update( Schema::attempt_table(), array( 'message' => $scrubbed ), array( 'id' => (int) $attempt['id'] ), array( '%s' ), array( '%d' ) );
 				$changed = true;
 			}
 		}
@@ -351,14 +354,20 @@ final class BuyerPersonalData {
 	 * Why the invoice row stays, and that Mat Bao's copy is outside the plugin.
 	 *
 	 * @param WC_Order      $order   Order.
-	 * @param InvoiceRecord $invoice Invoice row.
+	 * @param InvoiceRecord $invoice    Invoice row.
+	 * @param bool          $anonymized Whether this erase changed the rows.
 	 */
-	private static function retained_message( WC_Order $order, InvoiceRecord $invoice ): string {
+	private static function retained_message( WC_Order $order, InvoiceRecord $invoice, bool $anonymized ): string {
+		$personal = $anonymized
+			? __( 'thông tin người mua trong bản ghi đã được ẩn danh', 'einvoice-matbao' )
+			: __( 'bản ghi không có dữ liệu cá nhân cần ẩn danh', 'einvoice-matbao' );
+
 		return sprintf(
-			/* translators: 1: order number, 2: reference (MTChieu). */
-			__( 'Giữ lại bản ghi hóa đơn của đơn %1$s (mã tham chiếu %2$s, trạng thái, lịch sử gửi) vì nghĩa vụ kế toán; tên người mua trong bản ghi đã được ẩn danh. Hóa đơn hoặc bản nháp đã tạo trên Mắt Bão nằm ngoài phạm vi plugin: cần xử lý trực tiếp trên hệ thống hóa đơn Mắt Bão. Nếu hóa đơn đang chờ gửi hoặc gửi lại, yêu cầu xóa được ưu tiên: hóa đơn có thể chuyển sang trạng thái lỗi để quản trị viên xử lý.', 'einvoice-matbao' ),
+			/* translators: 1: order number, 2: reference (MTChieu), 3: what happened to the buyer's data in the record. */
+			__( 'Giữ lại bản ghi hóa đơn của đơn %1$s (mã tham chiếu %2$s, trạng thái, lịch sử gửi) vì nghĩa vụ kế toán; %3$s. Hóa đơn hoặc bản nháp đã tạo trên Mắt Bão nằm ngoài phạm vi plugin: cần xử lý trực tiếp trên hệ thống hóa đơn Mắt Bão. Nếu hóa đơn đang chờ gửi hoặc gửi lại, yêu cầu xóa được ưu tiên: hóa đơn có thể chuyển sang trạng thái lỗi để quản trị viên xử lý.', 'einvoice-matbao' ),
 			$order->get_order_number(),
-			$invoice->reference
+			$invoice->reference,
+			$personal
 		);
 	}
 

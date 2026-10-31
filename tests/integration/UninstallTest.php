@@ -71,6 +71,7 @@ final class UninstallTest extends WP_UnitTestCase {
 		$this->assertSame( DraftInvoiceWorkflow::GROUP, Uninstaller::ACTION_GROUP );
 		$this->assertSame( ( new \ReflectionClassConstant( TemplateCache::class, 'TRANSIENT' ) )->getValue(), Uninstaller::TEMPLATES_TRANSIENT );
 		$this->assertSame( MatbaoClient::TOKEN_KEYS_OPTION, Uninstaller::TOKEN_KEYS_OPTION );
+		$this->assertStringStartsWith( Uninstaller::ALERT_PREFIX, AlertStore::key( 1, 'x', 0 ) );
 		$this->assertSame( array( 'einvoice_matbao_invoice', 'einvoice_matbao_attempt' ), Uninstaller::TABLES );
 	}
 
@@ -98,7 +99,6 @@ final class UninstallTest extends WP_UnitTestCase {
 		$this->assertSame( 'INV', ( new Settings() )->reference_prefix() );
 		$this->assertSame( $version, get_option( Schema::VERSION_OPTION ) );
 		$this->assertNull( AlertStore::get( AlertStore::key( $fixture['order']->get_id(), 'matbao_http', 0 ) ), 'Alert records (#7) are removed.' );
-		$this->assertFalse( get_option( Uninstaller::TOKEN_KEYS_OPTION ), 'The token name list is removed.' );
 	}
 
 	public function test_delete_all_uninstall_removes_every_plugin_record(): void {
@@ -164,6 +164,7 @@ final class UninstallTest extends WP_UnitTestCase {
 
 		$this->assertFalse( get_transient( $names[0] ) );
 		$this->assertFalse( get_transient( 'einvoice_matbao_templates' ) );
+		$this->assertFalse( get_option( Uninstaller::TOKEN_KEYS_OPTION ), 'The token name list is removed.' );
 	}
 
 	public function test_uninstall_file_runs_the_uninstaller_when_wordpress_deletes_the_plugin(): void {
@@ -227,7 +228,6 @@ final class UninstallTest extends WP_UnitTestCase {
 		$store->save_matbao( new MatbaoCredentials( 'demo', '0000000000', 'fake-user', 'fake-password' ) );
 		$store->save_lark( new LarkWebhook( 'https://open.larksuite.com/open-apis/bot/v2/hook/00000000-fake', 'fake-secret' ) );
 		set_transient( 'einvoice_matbao_token_abc', 'v1.fake-encrypted-token', HOUR_IN_SECONDS );
-		update_option( Uninstaller::TOKEN_KEYS_OPTION, array( 'einvoice_matbao_token_abc' ) );
 		set_transient( 'einvoice_matbao_templates', array( 'account' => 'x' ), HOUR_IN_SECONDS );
 		( new Settings() )->save_invoicing( 'INV', '' );
 
