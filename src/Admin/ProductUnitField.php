@@ -72,12 +72,11 @@ final class ProductUnitField {
 	/**
 	 * Renders the field inside a variation panel.
 	 *
-	 * @param int                  $loop           Variation position in the list.
-	 * @param array<string, mixed> $variation_data Variation data (unused).
-	 * @param \WP_Post             $variation      Variation post.
+	 * @param int                  $loop            Variation position in the list.
+	 * @param array<string, mixed> $_variation_data Variation data (unused).
+	 * @param \WP_Post             $variation       Variation post.
 	 */
-	public static function render_variation( $loop, $variation_data, $variation ): void {
-		unset( $variation_data );
+	public static function render_variation( $loop, $_variation_data, $variation ): void {
 		$loop = (int) $loop;
 
 		wp_nonce_field( self::NONCE_ACTION, self::NONCE_FIELD . '[' . $loop . ']', false );
@@ -146,7 +145,13 @@ final class ProductUnitField {
 		$unit = trim( sanitize_text_field( $value ) );
 		if ( mb_strlen( $unit ) > Settings::MAX_UNIT_LENGTH ) {
 			if ( class_exists( \WC_Admin_Meta_Boxes::class ) ) {
-				\WC_Admin_Meta_Boxes::add_error( __( 'Đơn vị tính hóa đơn tối đa 50 ký tự; giá trị cũ được giữ nguyên.', 'einvoice-matbao' ) );
+				\WC_Admin_Meta_Boxes::add_error(
+					sprintf(
+						/* translators: %d: maximum unit length in characters. */
+						__( 'Đơn vị tính hóa đơn tối đa %d ký tự; giá trị cũ được giữ nguyên.', 'einvoice-matbao' ),
+						Settings::MAX_UNIT_LENGTH
+					)
+				);
 			}
 			return;
 		}

@@ -126,9 +126,9 @@ final class DraftPayloadBuilder {
 	/**
 	 * One `DSHHDVu` line from an order item.
 	 *
-	 * @param WC_Order_Item      $item  Product, fee or shipping item.
-	 * @param int                $index `STT`.
-	 * @param array<int, string> $rates Stored rate percent by tax rate ID.
+	 * @param WC_Order_Item      $item         Product, fee or shipping item.
+	 * @param int                $index        `STT`.
+	 * @param array<int, string> $rates        Stored rate percent by tax rate ID.
 	 * @param string             $default_unit Store default `DVTinh`.
 	 * @return array<string, int|float|string>|null Null for a fee or shipping line of 0 đồng, which is left off.
 	 * @throws InvoiceDataError When the line has an unusable tax rate, a negative or fractional amount.

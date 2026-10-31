@@ -281,7 +281,13 @@ final class SettingsController {
 		$unit = self::text_param( $request, 'default_unit' );
 
 		if ( mb_strlen( $unit ) > Settings::MAX_UNIT_LENGTH ) {
-			return Fragment::error( __( 'Đơn vị tính tối đa 50 ký tự.', 'einvoice-matbao' ) );
+			return Fragment::error(
+				sprintf(
+					/* translators: %d: maximum unit length in characters. */
+					__( 'Đơn vị tính tối đa %d ký tự.', 'einvoice-matbao' ),
+					Settings::MAX_UNIT_LENGTH
+				)
+			);
 		}
 
 		$settings = new Settings();
