@@ -128,6 +128,37 @@ final class SchemaUpgradeTest extends WP_UnitTestCase {
 		$this->assertSame( 0, $invoice->retry_cycle_start );
 	}
 
+	public function test_v3_table_gets_the_alert_cycle_column_and_keeps_its_rows(): void {
+		global $wpdb;
+		$this->create_v1_table();
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- test fixture DDL: the v2 and v3 columns.
+		$wpdb->query( $wpdb->prepare( "ALTER TABLE %i ADD error_code varchar(40) NOT NULL DEFAULT '', ADD error_kind varchar(20) NOT NULL DEFAULT '', ADD retry_cycle_start bigint(20) unsigned NOT NULL DEFAULT 0", Schema::invoice_table() ) );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery -- test fixture row.
+		$wpdb->insert(
+			Schema::invoice_table(),
+			array(
+				'order_id'          => 7003,
+				'reference'         => 'WC7003',
+				'status'            => InvoiceStatus::FAILED,
+				'error_code'        => 'matbao_http',
+				'retry_cycle_start' => 5,
+				'created_at'        => '2026-01-02 03:04:05',
+				'updated_at'        => '2026-01-02 03:04:05',
+			)
+		);
+		update_option( Schema::VERSION_OPTION, '3' );
+		$this->assertNotContains( 'alert_cycle', $this->columns() );
+
+		Schema::maybe_install();
+
+		$this->assertSame( Schema::VERSION, get_option( Schema::VERSION_OPTION ) );
+		$this->assertContains( 'alert_cycle', $this->columns() );
+		$invoice = ( new InvoiceRepository() )->find_by_order( 7003 );
+		$this->assertNotNull( $invoice );
+		$this->assertSame( 5, $invoice->retry_cycle_start );
+		$this->assertSame( 0, $invoice->alert_cycle );
+	}
+
 	/**
 	 * Creates the v1 invoice table (without `error_code` / `error_kind`).
 	 */

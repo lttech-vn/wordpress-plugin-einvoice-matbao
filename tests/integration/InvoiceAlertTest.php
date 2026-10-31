@@ -269,4 +269,30 @@ final class InvoiceAlertTest extends InvoiceWorkflowTestCase {
 
 		$this->assertStringNotContainsString( 'data-einv-alert=', $this->notice_html() );
 	}
+
+	public function test_every_resend_that_stops_before_an_attempt_alerts_again_and_shows_again_after_dismissal(): void {
+		$this->configure_lark();
+		$this->configure_matbao();
+		$this->fake_create_invoice_ok();
+		$order = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
+		$order->set_currency( 'USD' );
+		$order->save();
+		$this->complete_and_run( $order );
+		$this->assertSame( 1, $this->run_alert_actions() );
+		AdminAlertNotice::dismiss( $order->get_id() );
+		$this->assertStringNotContainsString( 'data-einv-alert=', $this->notice_html() );
+
+		// The data error stops before any attempt, so the attempt table cannot tell the resends apart.
+		$this->assertTrue( DraftInvoiceWorkflow::restart( $order->get_id(), InvoiceStatus::FAILED ) );
+		$this->run_queued_draft_actions();
+		$this->assertSame( 1, $this->run_alert_actions(), 'Second resend alerts Lark again.' );
+		$this->assertStringContainsString( 'data-einv-alert=', $this->notice_html(), 'Second resend shows again after Ẩn.' );
+
+		AdminAlertNotice::dismiss( $order->get_id() );
+		$this->assertTrue( DraftInvoiceWorkflow::restart( $order->get_id(), InvoiceStatus::FAILED ) );
+		$this->run_queued_draft_actions();
+		$this->assertSame( 1, $this->run_alert_actions(), 'Third resend alerts Lark again.' );
+		$this->assertCount( 3, $this->http->requests_to( $this->lark_route ) );
+		$this->assertStringContainsString( 'data-einv-alert=', $this->notice_html() );
+	}
 }
