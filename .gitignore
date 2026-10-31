@@ -12,3 +12,4 @@ OneDrive_1_10-13-2026/
 /build/
 .phpunit.result.cache
 .phpunit.cache/
+/dist/
