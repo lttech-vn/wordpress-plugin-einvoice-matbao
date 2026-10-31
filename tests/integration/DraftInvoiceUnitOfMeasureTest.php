@@ -136,8 +136,8 @@ final class DraftInvoiceUnitOfMeasureTest extends InvoiceWorkflowTestCase {
 	/**
 	 * Creates a variable product with one variation per price.
 	 *
-	 * @param string       $name   Product name.
-	 * @param list<string> $prices Variation regular prices.
+	 * @param string             $name   Product name.
+	 * @param array<int, string> $prices Variation regular prices.
 	 */
 	private function create_variable_product( string $name, array $prices ): WC_Product_Variable {
 		$attribute = new WC_Product_Attribute();
