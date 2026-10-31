@@ -1,0 +1,7 @@
+# Overlay for the contained E2E run (scripts/run-e2e.ts): same stack as ../../../compose.yaml, no published port,
+# the site URL is plain http://localhost because the browser container joins the WordPress container's network.
+services:
+  wordpress:
+    ports: !reset []
+    environment:
+      EINV_SITE_URL: "http://localhost"

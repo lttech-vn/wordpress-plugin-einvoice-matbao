@@ -133,6 +133,35 @@ final class DraftInvoiceRetryTest extends InvoiceWorkflowTestCase {
 		$this->assertSame( 'ZHVw', $record->matbao_invoice_id );
 	}
 
+	public function test_error_305_inside_a_failed_envelope_as_the_demo_answers_looks_up_and_adopts(): void {
+		// Shape observed on the Mat Bao demo API (docs/research/e2e-demo-results.md): the envelope
+		// fails with 201 and the item carries 305 plus the data of the existing draft.
+		$this->http->respond_json( self::CREATE_ROUTE, 200, $this->rejected_in_failed_envelope( 305, 'Trùng mã tham chiếu' ) );
+		$this->fake_lookup_found( 'ZHVw', '2026-10-31T00:00:00' );
+		$order = $this->completed_order();
+
+		$this->run_queued_draft_actions();
+
+		$this->assertCount( 1, $this->http->requests_to( self::CREATE_ROUTE ) );
+		$this->assertCount( 1, $this->http->requests_to( self::LOOKUP_ROUTE ) );
+		$record = $this->invoice_of( $order );
+		$this->assertSame( InvoiceStatus::DRAFT_CREATED, $record?->status );
+		$this->assertSame( 'ZHVw', $record->matbao_invoice_id );
+	}
+
+	public function test_item_rejection_inside_a_failed_envelope_keeps_the_item_code_and_message(): void {
+		$this->http->respond_json( self::CREATE_ROUTE, 200, $this->rejected_in_failed_envelope( 201, "Trường 'KHMSHDon','KHHDon' bị thiếu hoặc không hợp lệ." ) );
+		$order = $this->completed_order();
+
+		$this->run_queued_draft_actions();
+
+		$record = $this->invoice_of( $order );
+		$this->assertSame( InvoiceStatus::FAILED, $record?->status );
+		$this->assertSame( 'matbao_api', $record->error_code );
+		$this->assertStringContainsString( 'KHMSHDon', $record->status_reason );
+		$this->assertSame( array(), $this->queued_draft_action_ids() );
+	}
+
 	public function test_error_305_with_nothing_found_is_retried_later_with_the_same_reference(): void {
 		$this->http->respond_json( self::CREATE_ROUTE, 200, $this->rejected_item( 305, 'Trùng mã tham chiếu' ) );
 		$this->fake_lookup_not_found();
@@ -822,6 +851,35 @@ final class DraftInvoiceRetryTest extends InvoiceWorkflowTestCase {
 		);
 
 		return $attention;
+	}
+
+	/**
+	 * Create-invoice response as the Mat Bao demo sends a rejection: envelope `success` false with
+	 * `errorCode` 201, the item holding the real code (305 carries the existing draft's data).
+	 *
+	 * @param int    $code    Item `errorCode`.
+	 * @param string $message Item message.
+	 * @return array<string, mixed>
+	 */
+	private function rejected_in_failed_envelope( int $code, string $message ): array {
+		return array(
+			'errorCode' => 201,
+			'message'   => 'Tạo hóa đơn không thành công',
+			'data'      => array(
+				array(
+					'errorCode' => $code,
+					'message'   => $message,
+					'data'      => 305 === $code ? array(
+						'khmshDon' => self::TEMPLATE_FORM,
+						'khhDon'   => self::TEMPLATE_SERIES,
+						'shDon'    => 0,
+						'maSoHDon' => 'ZHVw',
+					) : null,
+					'success'   => false,
+				),
+			),
+			'success'   => false,
+		);
 	}
 
 	/**

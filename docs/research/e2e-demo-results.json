@@ -1,0 +1,570 @@
+{
+  "run_at_vn": "2026-10-31T21:35:51+07:00",
+  "base_url": "https://demo-api-hddt.matbao.in:11443",
+  "template": "1/C26TAT",
+  "expired_date": {
+    "login_keys": [
+      "accessToken",
+      "expiredDate"
+    ],
+    "expiredDate": "2026-11-01T21:35:51",
+    "utc_now": "2026-10-31T14:35:51+00:00",
+    "hours_ahead_if_vn": 24.0,
+    "hours_ahead_if_utc": 31.0
+  },
+  "a_concurrent_same_template": {
+    "reference": "E2E1031213551C",
+    "parallel_creates": [
+      {
+        "started_utc": "2026-10-31T14:35:51.211+00:00",
+        "http": 200,
+        "success": false,
+        "errorCode": 201,
+        "message": "Tạo hóa đơn không thành công",
+        "item": {
+          "success": false,
+          "errorCode": 305,
+          "message": "Trùng mã tham chiếu",
+          "created": {
+            "khmshDon": "1",
+            "khhDon": "C26TAT",
+            "mtChieu": "E2E1031213551C",
+            "maTraCuu": "FM80520C49",
+            "shDon": 0,
+            "nLap": "2026-10-31T00:00:00"
+          },
+          "has_maSoHDon": true
+        }
+      },
+      {
+        "started_utc": "2026-10-31T14:35:51.211+00:00",
+        "http": 200,
+        "success": false,
+        "errorCode": 201,
+        "message": "Tạo hóa đơn không thành công",
+        "item": {
+          "success": false,
+          "errorCode": 305,
+          "message": "Trùng mã tham chiếu",
+          "created": {
+            "khmshDon": "1",
+            "khhDon": "C26TAT",
+            "mtChieu": "E2E1031213551C",
+            "maTraCuu": "FM80520C49",
+            "shDon": 0,
+            "nLap": "2026-10-31T00:00:00"
+          },
+          "has_maSoHDon": true
+        }
+      },
+      {
+        "started_utc": "2026-10-31T14:35:51.211+00:00",
+        "http": 200,
+        "success": true,
+        "errorCode": 200,
+        "message": "Thành công",
+        "item": {
+          "success": true,
+          "errorCode": 200,
+          "message": "Thành công",
+          "created": {
+            "khmshDon": "1",
+            "khhDon": "C26TAT",
+            "mtChieu": "E2E1031213551C",
+            "maTraCuu": "FM80520C49",
+            "shDon": 0,
+            "nLap": "2026-10-31T00:00:00"
+          },
+          "has_maSoHDon": true
+        }
+      },
+      {
+        "started_utc": "2026-10-31T14:35:51.212+00:00",
+        "http": 200,
+        "success": false,
+        "errorCode": 201,
+        "message": "Tạo hóa đơn không thành công",
+        "item": {
+          "success": false,
+          "errorCode": 305,
+          "message": "Trùng mã tham chiếu",
+          "created": {
+            "khmshDon": "1",
+            "khhDon": "C26TAT",
+            "mtChieu": "E2E1031213551C",
+            "maTraCuu": "FM80520C49",
+            "shDon": 0,
+            "nLap": "2026-10-31T00:00:00"
+          },
+          "has_maSoHDon": true
+        }
+      },
+      {
+        "started_utc": "2026-10-31T14:35:51.211+00:00",
+        "http": 200,
+        "success": true,
+        "errorCode": 200,
+        "message": "Thành công",
+        "item": {
+          "success": true,
+          "errorCode": 200,
+          "message": "Thành công",
+          "created": {
+            "khmshDon": "1",
+            "khhDon": "C26TAT",
+            "mtChieu": "E2E1031213551C",
+            "maTraCuu": "JWA65060D1",
+            "shDon": 0,
+            "nLap": "2026-10-31T00:00:00"
+          },
+          "has_maSoHDon": true
+        }
+      }
+    ],
+    "lookup": {
+      "http": 200,
+      "errorCode": 200,
+      "count": 2,
+      "notFound": [],
+      "invoices": [
+        {
+          "khhDon": "C26TAT",
+          "mtChieu": "E2E1031213551C",
+          "maTraCuu": "FM80520C49",
+          "maTThaiHDon": 1,
+          "tenTThaiHDon": "Nháp",
+          "nLap": "2026-10-31T00:00:00",
+          "shDon": 0,
+          "keys_include_buyer": false,
+          "keys_include_total": false
+        },
+        {
+          "khhDon": "C26TAT",
+          "mtChieu": "E2E1031213551C",
+          "maTraCuu": "JWA65060D1",
+          "maTThaiHDon": 1,
+          "tenTThaiHDon": "Nháp",
+          "nLap": "2026-10-31T00:00:00",
+          "shDon": 0,
+          "keys_include_buyer": false,
+          "keys_include_total": false
+        }
+      ]
+    }
+  },
+  "a_sequential_duplicate": {
+    "http": 200,
+    "success": false,
+    "errorCode": 201,
+    "message": "Tạo hóa đơn không thành công",
+    "item": {
+      "success": false,
+      "errorCode": 305,
+      "message": "Trùng mã tham chiếu",
+      "created": {
+        "khmshDon": "1",
+        "khhDon": "C26TAT",
+        "mtChieu": "E2E1031213551C",
+        "maTraCuu": "FM80520C49",
+        "shDon": 0,
+        "nLap": "2026-10-31T00:00:00"
+      },
+      "has_maSoHDon": true
+    }
+  },
+  "a_cross_template": {
+    "create": {
+      "http": 200,
+      "success": true,
+      "errorCode": 200,
+      "message": "Thành công",
+      "item": {
+        "success": true,
+        "errorCode": 200,
+        "message": "Thành công",
+        "created": {
+          "khmshDon": "1",
+          "khhDon": "C26TKK",
+          "mtChieu": "E2E1031213551C",
+          "maTraCuu": "05E22C76E3",
+          "shDon": 0,
+          "nLap": "2026-10-31T00:00:00"
+        },
+        "has_maSoHDon": true
+      }
+    },
+    "lookup_other_template": {
+      "http": 200,
+      "errorCode": 200,
+      "count": 1,
+      "notFound": [],
+      "invoices": [
+        {
+          "khhDon": "C26TKK",
+          "mtChieu": "E2E1031213551C",
+          "maTraCuu": "05E22C76E3",
+          "maTThaiHDon": 1,
+          "tenTThaiHDon": "Nháp",
+          "nLap": "2026-10-31T00:00:00",
+          "shDon": 0,
+          "keys_include_buyer": false,
+          "keys_include_total": false
+        }
+      ]
+    },
+    "lookup_first_template": {
+      "http": 200,
+      "errorCode": 200,
+      "count": 2,
+      "notFound": [],
+      "invoices": [
+        {
+          "khhDon": "C26TAT",
+          "mtChieu": "E2E1031213551C",
+          "maTraCuu": "FM80520C49",
+          "maTThaiHDon": 1,
+          "tenTThaiHDon": "Nháp",
+          "nLap": "2026-10-31T00:00:00",
+          "shDon": 0,
+          "keys_include_buyer": false,
+          "keys_include_total": false
+        },
+        {
+          "khhDon": "C26TAT",
+          "mtChieu": "E2E1031213551C",
+          "maTraCuu": "JWA65060D1",
+          "maTThaiHDon": 1,
+          "tenTThaiHDon": "Nháp",
+          "nLap": "2026-10-31T00:00:00",
+          "shDon": 0,
+          "keys_include_buyer": false,
+          "keys_include_total": false
+        }
+      ]
+    }
+  },
+  "b_walk_in": {
+    "reference": "E2E1031213551W",
+    "create": {
+      "http": 200,
+      "success": true,
+      "errorCode": 200,
+      "message": "Thành công",
+      "item": {
+        "success": true,
+        "errorCode": 200,
+        "message": "Thành công",
+        "created": {
+          "khmshDon": "1",
+          "khhDon": "C26TAT",
+          "mtChieu": "E2E1031213551W",
+          "maTraCuu": "9T96DE3523",
+          "shDon": 0,
+          "nLap": "2026-10-31T00:00:00"
+        },
+        "has_maSoHDon": true
+      }
+    },
+    "lookup": {
+      "http": 200,
+      "errorCode": 200,
+      "count": 1,
+      "notFound": [],
+      "invoices": [
+        {
+          "khhDon": "C26TAT",
+          "mtChieu": "E2E1031213551W",
+          "maTraCuu": "9T96DE3523",
+          "maTThaiHDon": 1,
+          "tenTThaiHDon": "Nháp",
+          "nLap": "2026-10-31T00:00:00",
+          "shDon": 0,
+          "keys_include_buyer": false,
+          "keys_include_total": false
+        }
+      ]
+    },
+    "detail": {
+      "http": 200,
+      "found": true,
+      "mtChieu": "E2E1031213551W",
+      "maTraCuu": "9T96DE3523",
+      "nLap": "2026-10-31T00:00:00",
+      "httToan": "CK",
+      "tgThTien": 100000.0,
+      "tgTThue": 10000.0,
+      "tgTTTBSo": 110000.0,
+      "tgTTTBChu": "Một trăm mười nghìn đồng",
+      "tenTThaiHDon": "Nháp",
+      "buyer": {
+        "nMua_Ten": "Khách hàng không lấy hóa đơn"
+      },
+      "lines": [
+        {
+          "sLuong": 1,
+          "dGia": 100000,
+          "thTienChuaCK": 100000.0,
+          "tlcKhau": 0.0,
+          "stcKhau": 0.0,
+          "thTien": 100000.0,
+          "tSuat": 10,
+          "tThue": 10000.0,
+          "tgTien": 110000.0
+        }
+      ]
+    }
+  },
+  "c_discount_plugin_shape": {
+    "reference": "E2E1031213551P",
+    "create": {
+      "http": 200,
+      "success": true,
+      "errorCode": 200,
+      "message": "Thành công",
+      "item": {
+        "success": true,
+        "errorCode": 200,
+        "message": "Thành công",
+        "created": {
+          "khmshDon": "1",
+          "khhDon": "C26TAT",
+          "mtChieu": "E2E1031213551P",
+          "maTraCuu": "NPACCCBBAC",
+          "shDon": 0,
+          "nLap": "2026-10-31T00:00:00"
+        },
+        "has_maSoHDon": true
+      }
+    },
+    "detail": {
+      "http": 200,
+      "found": true,
+      "mtChieu": "E2E1031213551P",
+      "maTraCuu": "NPACCCBBAC",
+      "nLap": "2026-10-31T00:00:00",
+      "httToan": "CK",
+      "tgThTien": 540000.0,
+      "tgTThue": 54000.0,
+      "tgTTTBSo": 594000.0,
+      "tgTTTBChu": "Năm trăm chín mươi tư nghìn đồng",
+      "tenTThaiHDon": "Nháp",
+      "buyer": {
+        "nMua_Ten": "Khách hàng không lấy hóa đơn"
+      },
+      "lines": [
+        {
+          "sLuong": 3,
+          "dGia": 180000,
+          "thTienChuaCK": 540000.0,
+          "tlcKhau": 0.0,
+          "stcKhau": 0.0,
+          "thTien": 540000.0,
+          "tSuat": 10,
+          "tThue": 54000.0,
+          "tgTien": 594000.0
+        }
+      ]
+    }
+  },
+  "c_discount_list_price_shape": {
+    "reference": "E2E1031213551L",
+    "create": {
+      "http": 200,
+      "success": true,
+      "errorCode": 200,
+      "message": "Thành công",
+      "item": {
+        "success": true,
+        "errorCode": 200,
+        "message": "Thành công",
+        "created": {
+          "khmshDon": "1",
+          "khhDon": "C26TAT",
+          "mtChieu": "E2E1031213551L",
+          "maTraCuu": "1LE893D38F",
+          "shDon": 0,
+          "nLap": "2026-10-31T00:00:00"
+        },
+        "has_maSoHDon": true
+      }
+    },
+    "detail": {
+      "http": 200,
+      "found": true,
+      "mtChieu": "E2E1031213551L",
+      "maTraCuu": "1LE893D38F",
+      "nLap": "2026-10-31T00:00:00",
+      "httToan": "CK",
+      "tgThTien": 540000.0,
+      "tgTThue": 54000.0,
+      "tgTTTBSo": 594000.0,
+      "tgTTTBChu": "Năm trăm chín mươi tư nghìn đồng",
+      "tenTThaiHDon": "Nháp",
+      "buyer": {
+        "nMua_Ten": "Khách hàng không lấy hóa đơn"
+      },
+      "lines": [
+        {
+          "sLuong": 3,
+          "dGia": 200000,
+          "thTienChuaCK": 600000.0,
+          "tlcKhau": 10.0,
+          "stcKhau": 60000.0,
+          "thTien": 540000.0,
+          "tSuat": 10,
+          "tThue": 54000.0,
+          "tgTien": 594000.0
+        }
+      ]
+    }
+  },
+  "c_discount_inconsistent": {
+    "reference": "E2E1031213551X",
+    "create": {
+      "http": 200,
+      "success": true,
+      "errorCode": 200,
+      "message": "Thành công",
+      "item": {
+        "success": true,
+        "errorCode": 200,
+        "message": "Thành công",
+        "created": {
+          "khmshDon": "1",
+          "khhDon": "C26TAT",
+          "mtChieu": "E2E1031213551X",
+          "maTraCuu": "G5EE5A5C2C",
+          "shDon": 0,
+          "nLap": "2026-10-31T00:00:00"
+        },
+        "has_maSoHDon": true
+      }
+    },
+    "detail": {
+      "http": 200,
+      "found": true,
+      "mtChieu": "E2E1031213551X",
+      "maTraCuu": "G5EE5A5C2C",
+      "nLap": "2026-10-31T00:00:00",
+      "httToan": "CK",
+      "tgThTien": 540000.0,
+      "tgTThue": 54000.0,
+      "tgTTTBSo": 594000.0,
+      "tgTTTBChu": "Năm trăm chín mươi tư nghìn đồng",
+      "tenTThaiHDon": "Nháp",
+      "buyer": {
+        "nMua_Ten": "Khách hàng không lấy hóa đơn"
+      },
+      "lines": [
+        {
+          "sLuong": 3,
+          "dGia": 200000,
+          "thTienChuaCK": 600000.0,
+          "tlcKhau": 0.0,
+          "stcKhau": 0.0,
+          "thTien": 540000.0,
+          "tSuat": 10,
+          "tThue": 54000.0,
+          "tgTien": 594000.0
+        }
+      ]
+    }
+  },
+  "d_fractional_unit_price": {
+    "reference": "E2E1031213551F",
+    "create": {
+      "http": 200,
+      "success": true,
+      "errorCode": 200,
+      "message": "Thành công",
+      "item": {
+        "success": true,
+        "errorCode": 200,
+        "message": "Thành công",
+        "created": {
+          "khmshDon": "1",
+          "khhDon": "C26TAT",
+          "mtChieu": "E2E1031213551F",
+          "maTraCuu": "K8A7D83E7C",
+          "shDon": 0,
+          "nLap": "2026-10-31T00:00:00"
+        },
+        "has_maSoHDon": true
+      }
+    },
+    "lookup": {
+      "http": 200,
+      "errorCode": 200,
+      "count": 1,
+      "notFound": [],
+      "invoices": [
+        {
+          "khhDon": "C26TAT",
+          "mtChieu": "E2E1031213551F",
+          "maTraCuu": "K8A7D83E7C",
+          "maTThaiHDon": 1,
+          "tenTThaiHDon": "Nháp",
+          "nLap": "2026-10-31T00:00:00",
+          "shDon": 0,
+          "keys_include_buyer": false,
+          "keys_include_total": false
+        }
+      ]
+    },
+    "detail": {
+      "http": 200,
+      "found": true,
+      "mtChieu": "E2E1031213551F",
+      "maTraCuu": "K8A7D83E7C",
+      "nLap": "2026-10-31T00:00:00",
+      "httToan": "CK",
+      "tgThTien": 100000.0,
+      "tgTThue": 10000.0,
+      "tgTTTBSo": 110000.0,
+      "tgTTTBChu": "Một trăm mười nghìn đồng",
+      "tenTThaiHDon": "Nháp",
+      "buyer": {
+        "nMua_Ten": "Khách hàng không lấy hóa đơn"
+      },
+      "lines": [
+        {
+          "sLuong": 3,
+          "dGia": 33333.33333,
+          "thTienChuaCK": 100000.0,
+          "tlcKhau": 0.0,
+          "stcKhau": 0.0,
+          "thTien": 100000.0,
+          "tSuat": 10,
+          "tThue": 10000.0,
+          "tgTien": 110000.0
+        }
+      ]
+    }
+  },
+  "d_unknown_template": {
+    "http": 200,
+    "success": false,
+    "errorCode": 201,
+    "message": "Tạo hóa đơn không thành công",
+    "item": {
+      "success": false,
+      "errorCode": 201,
+      "message": "Trường 'KHMSHDon','KHHDon' bị thiếu hoặc không hợp lệ.",
+      "created": {},
+      "has_maSoHDon": false
+    }
+  },
+  "d_exhausted_template": {
+    "http": 200,
+    "success": false,
+    "errorCode": 201,
+    "message": "Tạo hóa đơn không thành công",
+    "item": {
+      "success": false,
+      "errorCode": 201,
+      "message": "Trường 'KHMSHDon','KHHDon' bị thiếu hoặc không hợp lệ.",
+      "created": {},
+      "has_maSoHDon": false
+    }
+  }
+}
