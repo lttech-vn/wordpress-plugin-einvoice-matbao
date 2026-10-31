@@ -137,6 +137,25 @@ final class BuyerPersonalDataPrivacyTest extends InvoiceWorkflowTestCase {
 		$this->assertStringContainsString( 'Nguyễn Văn A', $this->stored_attempt_messages( $untouched ) );
 	}
 
+	public function test_eraser_does_not_claim_anonymization_for_a_walk_in_order(): void {
+		$this->configure_matbao();
+		$this->fake_create_invoice_ok();
+		$order = $this->order_with_request( array(), self::EMAIL );
+		$this->complete_and_run( $order );
+		$invoice = $this->invoice_of( $order );
+		$this->assertNotNull( $invoice );
+		$walk_in_name = $invoice->buyer_name;
+
+		$result = BuyerPersonalData::erase( self::EMAIL, 1 );
+
+		$this->assertTrue( $result['items_retained'] );
+		$messages = implode( "\n", $result['messages'] );
+		$this->assertStringContainsString( 'nghĩa vụ kế toán', $messages );
+		$this->assertStringNotContainsString( 'đã được ẩn danh', $messages );
+		$this->assertStringContainsString( 'không có dữ liệu cá nhân', $messages );
+		$this->assertSame( $walk_in_name, $this->invoice_of( $order )?->buyer_name, 'The walk-in text is not a personal value.' );
+	}
+
 	public function test_eraser_keeps_the_created_draft_and_says_mat_bao_is_out_of_scope(): void {
 		$order = $this->completed_individual_order( self::EMAIL );
 		$this->assertSame( InvoiceStatus::DRAFT_CREATED, $this->invoice_of( $order )?->status );
