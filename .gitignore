@@ -1,3 +1,14 @@
 .DS_Store
 .codegraph/
 OneDrive_1_10-13-2026/
+
+# Local environment
+.env
+
+# Dependencies and build output
+/vendor/
+/node_modules/
+/assets/dist/
+/build/
+.phpunit.result.cache
+.phpunit.cache/
