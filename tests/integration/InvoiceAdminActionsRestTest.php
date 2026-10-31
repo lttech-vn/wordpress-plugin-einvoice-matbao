@@ -398,7 +398,7 @@ final class InvoiceAdminActionsRestTest extends InvoiceWorkflowTestCase {
 	}
 
 	public function test_resend_after_an_uncertain_create_never_captures_the_buyer_again(): void {
-		$order = $this->order_after_timeout();
+		$order    = $this->order_after_timeout();
 		$settings = new Settings();
 		$settings->save_invoicing( $settings->reference_prefix(), 'Khách đã đổi tên' ); // A capture now would change the snapshot.
 		$before = (string) $order->get_meta( BuyerSnapshotter::META_KEY );

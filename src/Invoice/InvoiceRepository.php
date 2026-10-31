@@ -231,7 +231,7 @@ final class InvoiceRepository {
 	 * A page of invoices, newest first.
 	 *
 	 * @param string[] $statuses InvoiceStatus values to keep; empty keeps all.
-	 * @param string   $search   Order ID or part of `MTChieu`; empty keeps all.
+	 * @param string   $search   Order ID, or the start of `MTChieu` (a prefix match can use its index); empty keeps all.
 	 * @param int      $limit    Page size.
 	 * @param int      $offset   Rows to skip.
 	 * @return array{items: list<InvoiceRecord>, total: int}
@@ -248,7 +248,7 @@ final class InvoiceRepository {
 		if ( '' !== $search ) {
 			$where[]  = '(order_id = %d OR reference LIKE %s)';
 			$params[] = ctype_digit( $search ) ? (int) $search : 0;
-			$params[] = '%' . $wpdb->esc_like( $search ) . '%';
+			$params[] = $wpdb->esc_like( $search ) . '%';
 		}
 		$clause = array() === $where ? '' : ' WHERE ' . implode( ' AND ', $where );
 
@@ -261,25 +261,6 @@ final class InvoiceRepository {
 			'items' => is_array( $rows ) ? array_values( array_map( array( InvoiceRecord::class, 'from_row' ), $rows ) ) : array(),
 			'total' => $total,
 		);
-	}
-
-	/**
-	 * Order IDs whose invoice is in one of the statuses (for the order list filter).
-	 *
-	 * @param string[] $statuses InvoiceStatus values.
-	 * @return list<int>
-	 */
-	public function order_ids_with_status( array $statuses ): array {
-		global $wpdb;
-
-		if ( array() === $statuses ) {
-			return array();
-		}
-
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- the IN list is generated placeholders only.
-		$ids = $wpdb->get_col( $wpdb->prepare( 'SELECT order_id FROM %i WHERE status IN (' . implode( ',', array_fill( 0, count( $statuses ), '%s' ) ) . ') ORDER BY id DESC LIMIT 5000', array_merge( array( Schema::invoice_table() ), $statuses ) ) );
-
-		return array_values( array_map( 'intval', $ids ) );
 	}
 
 	/**

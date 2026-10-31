@@ -68,7 +68,7 @@ final class InvoicePage {
 							<option value="<?php echo esc_attr( $value ); ?>"><?php echo esc_html( $label ); ?></option>
 						<?php endforeach; ?>
 					</select>
-					<input type="search" name="q" maxlength="40" placeholder="<?php esc_attr_e( 'Mã đơn hoặc MTChieu', 'einvoice-matbao' ); ?>" class="<?php echo esc_attr( self::INPUT ); ?>" />
+					<input type="search" name="q" maxlength="40" placeholder="<?php esc_attr_e( 'Mã đơn hoặc MTChieu', 'einvoice-matbao' ); ?>" aria-label="<?php esc_attr_e( 'Mã đơn hoặc MTChieu', 'einvoice-matbao' ); ?>" class="<?php echo esc_attr( self::INPUT ); ?>" />
 					<button type="submit" class="<?php echo esc_attr( self::BUTTON ); ?>"><?php esc_html_e( 'Lọc', 'einvoice-matbao' ); ?></button>
 				</form>
 				<div id="einv-invoices" hx-get="<?php echo esc_url( $list ); ?>" hx-trigger="load"><p class="<?php echo esc_attr( self::MUTED ); ?>"><?php esc_html_e( 'Đang tải…', 'einvoice-matbao' ); ?></p></div>

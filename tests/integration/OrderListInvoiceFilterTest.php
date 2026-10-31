@@ -69,7 +69,7 @@ final class OrderListInvoiceFilterTest extends WP_UnitTestCase {
 		$synchronizer->create_database_tables();
 		global $wpdb;
 		foreach ( array( 9011, 9012, 9013, 9014 ) as $id ) {
-			$wpdb->insert(
+			$wpdb->insert( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- minimal HPOS rows for the query under test.
 				OrdersTableDataStore::get_orders_table_name(),
 				array(
 					'id'               => $id,
@@ -82,11 +82,11 @@ final class OrderListInvoiceFilterTest extends WP_UnitTestCase {
 
 		$query = new OrdersTableQuery(
 			array(
-				'type'                             => 'shop_order',
-				'status'                           => array( 'wc-completed' ),
-				'post__in'                         => array( 9012, 9013, 9014 ),
-				'limit'                            => 2,
-				'paginate'                         => true,
+				'type'                            => 'shop_order',
+				'status'                          => array( 'wc-completed' ),
+				'post__in'                        => array( 9012, 9013, 9014 ),
+				'limit'                           => 2,
+				'paginate'                        => true,
 				OrderListInvoiceFilter::QUERY_VAR => InvoiceStatus::error_statuses(),
 			)
 		);
@@ -156,10 +156,10 @@ final class OrderListInvoiceFilterTest extends WP_UnitTestCase {
 
 		$query = new WP_Query(
 			array(
-				'post_type'                        => 'shop_order',
-				'post_status'                      => array_keys( wc_get_order_statuses() ),
-				'post__in'                         => array( $ids[1], $ids[2], $ids[3] ),
-				'fields'                           => 'ids',
+				'post_type'                       => 'shop_order',
+				'post_status'                     => array_keys( wc_get_order_statuses() ),
+				'post__in'                        => array( $ids[1], $ids[2], $ids[3] ),
+				'fields'                          => 'ids',
 				OrderListInvoiceFilter::QUERY_VAR => InvoiceStatus::error_statuses(),
 			)
 		);

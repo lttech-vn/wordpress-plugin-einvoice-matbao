@@ -7,6 +7,7 @@
 
 namespace LTTech\EinvoiceMatbao\Admin;
 
+use LTTech\EinvoiceMatbao\Buyer\BuyerSnapshotter;
 use LTTech\EinvoiceMatbao\CredentialStore;
 use LTTech\EinvoiceMatbao\Invoice\DraftInvoiceWorkflow;
 use LTTech\EinvoiceMatbao\Invoice\InvoiceErrorCode;
@@ -16,6 +17,8 @@ use LTTech\EinvoiceMatbao\Invoice\InvoiceStatus;
 use LTTech\EinvoiceMatbao\Invoice\Redactor;
 use LTTech\EinvoiceMatbao\Matbao\MatbaoClient;
 use LTTech\EinvoiceMatbao\Matbao\MatbaoError;
+use LTTech\EinvoiceMatbao\Settings;
+use WC_Order;
 use WP_REST_Request;
 use WP_REST_Response;
 use WP_REST_Server;
@@ -166,23 +169,76 @@ final class InvoiceController {
 			return Fragment::error( __( 'Cần xác nhận trước khi gửi lại.', 'einvoice-matbao' ) );
 		}
 
+		$confirm_no_invoice = '1' === self::text( $request, 'confirm_no_invoice' );
 		if ( InvoiceStatus::DRAFT_CREATED === $invoice->status ) {
 			$refusal = $this->refuse_unless_draft_is_lost( $request, $invoice );
-			if ( null !== $refusal ) {
-				return $refusal;
-			}
-		} elseif ( '1' === self::text( $request, 'confirm_no_invoice' ) ) {
-			$refusal = $this->confirm_no_invoice( $request, $repository, $invoice );
-			if ( null !== $refusal ) {
-				return $refusal;
-			}
+		} elseif ( $confirm_no_invoice ) {
+			$refusal = $this->refuse_unless_no_invoice_under_old_template( $request, $invoice );
+		} else {
+			$refusal = $this->refuse_or_capture_buyer( $repository, $invoice );
+		}
+		if ( null !== $refusal ) {
+			return $refusal;
 		}
 
-		if ( ! DraftInvoiceWorkflow::restart( $invoice->order_id, $invoice->status ) ) {
+		if ( ! DraftInvoiceWorkflow::restart(
+			$invoice->order_id,
+			$invoice->status,
+			$confirm_no_invoice ? fn() => $this->record_no_invoice( $repository, $invoice ) : null
+		) ) {
 			return Fragment::error( __( 'Hóa đơn vừa được xử lý ở nơi khác; tải lại để xem trạng thái mới.', 'einvoice-matbao' ), 409 );
 		}
 
 		return Fragment::success( __( 'Đã xếp hóa đơn vào hàng đợi gửi lại. Hệ thống tra cứu theo mã tham chiếu trước khi tạo, nên không tạo trùng.', 'einvoice-matbao' ) );
+	}
+
+	/**
+	 * A row stopped on the buyer (`buyer_invalid`, `buyer_snapshot_invalid`) has no usable snapshot,
+	 * so a plain restart would fail the same way. The buyer is checked again against BuyerRules
+	 * (billing may have been fixed): still invalid refuses and names the fields, never their values.
+	 * Valid captures the snapshot, but only while no earlier attempt may have reached Mat Bao: once
+	 * one may have, the run can adopt that invoice, so the snapshot it was sent with is kept.
+	 *
+	 * @param InvoiceRepository $repository Storage.
+	 * @param InvoiceRecord     $invoice    Invoice to resend.
+	 */
+	private function refuse_or_capture_buyer( InvoiceRepository $repository, InvoiceRecord $invoice ): ?WP_REST_Response {
+		$order = wc_get_order( $invoice->order_id );
+		if ( ! $order instanceof WC_Order ) {
+			return null;
+		}
+		$snapshotter = new BuyerSnapshotter();
+		$buyer_error = in_array( $invoice->error(), array( InvoiceErrorCode::BUYER_INVALID, InvoiceErrorCode::BUYER_SNAPSHOT_INVALID ), true );
+		if ( ! $buyer_error && null !== $snapshotter->load( $order ) ) {
+			return null;
+		}
+
+		$errors = $snapshotter->validate( $order );
+		if ( array() !== $errors ) {
+			return Fragment::error( DraftInvoiceWorkflow::invalid_buyer_reason( array_keys( $errors ) ) );
+		}
+		if ( ! self::may_have_been_created( $repository, $invoice ) ) {
+			$snapshotter->capture( $order, ( new Settings() )->walk_in_buyer_name() );
+		}
+
+		return null;
+	}
+
+	/**
+	 * Whether an earlier attempt may have reached Mat Bao: any attempt other than `not_sent`, as
+	 * the workflow decides before looking the invoice up.
+	 *
+	 * @param InvoiceRepository $repository Storage.
+	 * @param InvoiceRecord     $invoice    Invoice.
+	 */
+	private static function may_have_been_created( InvoiceRepository $repository, InvoiceRecord $invoice ): bool {
+		foreach ( $repository->attempts( $invoice->id ) as $attempt ) {
+			if ( 'not_sent' !== $attempt['outcome'] ) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	/**
@@ -213,22 +269,44 @@ final class InvoiceController {
 
 	/**
 	 * Escape hatch for `template_changed`: the admin vouches that Mat Bao holds no invoice under
-	 * the old template. Needs the reference typed back. The statement is written to the attempt
-	 * history and the stored template is cleared, so the next run looks the invoice up under, and
-	 * creates with, the current default template.
+	 * the old template, with the reference typed back, and Mat Bao must agree: the lookup under
+	 * the stored (old) template has to come back empty. Anything found, or a failed lookup, refuses
+	 * and leaves the row as it is.
 	 *
-	 * @param WP_REST_Request   $request    Request.
-	 * @param InvoiceRepository $repository Storage.
-	 * @param InvoiceRecord     $invoice    Invoice stopped with `template_changed`.
+	 * @param WP_REST_Request $request Request.
+	 * @param InvoiceRecord   $invoice Invoice stopped with `template_changed`.
 	 */
-	private function confirm_no_invoice( WP_REST_Request $request, InvoiceRepository $repository, InvoiceRecord $invoice ): ?WP_REST_Response {
+	private function refuse_unless_no_invoice_under_old_template( WP_REST_Request $request, InvoiceRecord $invoice ): ?WP_REST_Response {
 		if ( InvoiceErrorCode::TEMPLATE_CHANGED !== $invoice->error() ) {
 			return Fragment::error( __( 'Xác nhận "chưa có hóa đơn" chỉ áp dụng khi hóa đơn dừng vì đổi mẫu.', 'einvoice-matbao' ) );
 		}
 		if ( self::text( $request, 'confirm_reference' ) !== $invoice->reference ) {
 			return Fragment::error( __( 'Nhập đúng mã tham chiếu (MTChieu) để xác nhận.', 'einvoice-matbao' ) );
 		}
+		$credentials = ( new CredentialStore() )->matbao();
+		if ( null === $credentials || '' === $invoice->template_form || '' === $invoice->template_series ) {
+			return Fragment::error( __( 'Không kiểm tra lại được hóa đơn theo mẫu cũ trên Mắt Bão nên không gửi lại.', 'einvoice-matbao' ) );
+		}
+		try {
+			$found = ( new MatbaoClient( $credentials ) )->find_invoices_by_reference( $invoice->reference, $invoice->template_form, $invoice->template_series );
+		} catch ( MatbaoError $error ) {
+			return Fragment::error( __( 'Không tra cứu được Mắt Bão nên không gửi lại.', 'einvoice-matbao' ), 422, Redactor::redact( $error->getMessage() ) );
+		}
 
+		return array() === $found
+			? null
+			: Fragment::error( __( 'Mắt Bão vẫn có hóa đơn với mã tham chiếu này theo mẫu cũ nên không gửi lại bằng mẫu mới. Kiểm tra trạng thái để xem chi tiết.', 'einvoice-matbao' ), 409 );
+	}
+
+	/**
+	 * Runs once this request has won the restart claim and before the draft is queued: writes the
+	 * admin's statement to the attempt history and clears the stored template, so the next run
+	 * looks the invoice up under, and creates with, the current default template.
+	 *
+	 * @param InvoiceRepository $repository Storage.
+	 * @param InvoiceRecord     $invoice    Invoice as read before the claim.
+	 */
+	private function record_no_invoice( InvoiceRepository $repository, InvoiceRecord $invoice ): void {
 		$attempt = $repository->start_attempt( $invoice->id );
 		$repository->finish_attempt(
 			$attempt,
@@ -245,8 +323,6 @@ final class InvoiceController {
 			)
 		);
 		$repository->remember_template( $invoice->id, '', '' );
-
-		return null;
 	}
 
 	/**
