@@ -39,10 +39,11 @@ final class ClassicCheckout {
 	}
 
 	/**
-	 * Loads the browser validation on the checkout page.
+	 * Loads the browser validation on the Classic checkout page. Checkout Blocks has its own bundle,
+	 * and both are plain scripts, so loading this one there would only add noise.
 	 */
 	public static function enqueue_script(): void {
-		if ( ! function_exists( 'is_checkout' ) || ! is_checkout() ) {
+		if ( ! function_exists( 'is_checkout' ) || ! is_checkout() || has_block( 'woocommerce/checkout' ) ) {
 			return;
 		}
 
