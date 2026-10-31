@@ -162,12 +162,16 @@ final class DraftInvoiceRetryTest extends InvoiceWorkflowTestCase {
 			10,
 			2
 		);
-		$order = $this->completed_order();
+		$attention = $this->record_attention();
+		$order     = $this->completed_order();
 
 		$delays = array();
 		for ( $run = 0; $run < 6; $run++ ) {
 			$this->assertSame( 1, $this->run_queued_draft_actions() );
 			$delays[] = $this->seconds_until_next_draft_action();
+			if ( $run < 5 ) {
+				$this->assertSame( array(), $attention->codes, 'No alert while a retry waits (run ' . ( $run + 1 ) . ').' );
+			}
 		}
 
 		$expected = array( 60, 300, 900, 3600, 21600, null );
@@ -184,6 +188,8 @@ final class DraftInvoiceRetryTest extends InvoiceWorkflowTestCase {
 		$this->assertCount( 6, $this->http->requests_to( self::CREATE_ROUTE ) );
 		$this->assertCount( 6, $this->attempts_of( $record ) );
 		$this->assertSame( array( array( $order->get_id(), 'WC' . $order->get_id() ) ), $exhausted );
+		$this->assertSame( array( 'matbao_transport' ), $attention->codes, 'Both hooks fire once when retries are used up.' );
+		$this->assertSame( 'matbao_transport', $record->error_code );
 		$this->assertSame( 0, $this->run_queued_draft_actions() );
 	}
 
