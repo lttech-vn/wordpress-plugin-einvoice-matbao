@@ -1,0 +1,17 @@
+{
+	"name": "einvoice-matbao",
+	"private": true,
+	"description": "Admin UI assets for the Mat Bao e-invoice plugin.",
+	"license": "GPL-2.0-or-later",
+	"scripts": {
+		"build": "bun run build:css && bun run build:htmx",
+		"build:css": "tailwindcss -i assets/src/admin.css -o assets/dist/admin.css --minify",
+		"build:htmx": "mkdir -p assets/dist && cp node_modules/htmx.org/dist/htmx.min.js assets/dist/htmx.min.js",
+		"watch:css": "tailwindcss -i assets/src/admin.css -o assets/dist/admin.css --watch"
+	},
+	"devDependencies": {
+		"@tailwindcss/cli": "4.3.3",
+		"htmx.org": "2.0.11",
+		"tailwindcss": "4.3.3"
+	}
+}
