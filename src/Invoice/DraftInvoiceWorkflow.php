@@ -283,16 +283,17 @@ final class DraftInvoiceWorkflow {
 	}
 
 	/**
-	 * Whether an earlier run may have created the invoice at Mat Bao. Attempts that never got as far
-	 * as sending (`not_sent`) say nothing; the latest other attempt decides, and anything but a
-	 * success (a failed or unanswered create, or a lookup that failed) means "maybe created".
+	 * Whether an earlier run may have created the invoice at Mat Bao. Only attempts that never got
+	 * as far as sending (`not_sent`) say nothing; any other attempt means "maybe created", including
+	 * `success`: a row that is still unfinished after a `success` attempt was interrupted between
+	 * closing the attempt and marking the row, and a lookup is cheap while a blind create is not.
 	 *
 	 * @param InvoiceRecord $invoice Invoice.
 	 */
 	private function may_have_been_created( InvoiceRecord $invoice ): bool {
-		foreach ( array_reverse( $this->repository->attempts( $invoice->id ) ) as $attempt ) {
+		foreach ( $this->repository->attempts( $invoice->id ) as $attempt ) {
 			if ( 'not_sent' !== $attempt['outcome'] ) {
-				return 'success' !== $attempt['outcome'];
+				return true;
 			}
 		}
 
