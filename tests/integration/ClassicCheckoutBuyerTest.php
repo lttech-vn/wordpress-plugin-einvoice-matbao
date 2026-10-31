@@ -77,6 +77,8 @@ final class ClassicCheckoutBuyerTest extends InvoiceWorkflowTestCase {
 	}
 
 	/**
+	 * Rejects malformed values.
+	 *
 	 * @dataProvider invalid_id_numbers
 	 *
 	 * @param string $id_number Submitted value.
@@ -90,6 +92,8 @@ final class ClassicCheckoutBuyerTest extends InvoiceWorkflowTestCase {
 	}
 
 	/**
+	 * Provider.
+	 *
 	 * @return array<string, array{string}>
 	 */
 	public static function invalid_id_numbers(): array {
@@ -129,7 +133,7 @@ final class ClassicCheckoutBuyerTest extends InvoiceWorkflowTestCase {
 	public function test_valid_business_request_passes_without_a_contact_name_and_needs_no_key(): void {
 		$post = $this->business_post();
 
-		$errors = $this->validate_checkout(
+		$errors  = $this->validate_checkout(
 			$post,
 			array(
 				'billing_first_name' => '',
@@ -166,6 +170,8 @@ final class ClassicCheckoutBuyerTest extends InvoiceWorkflowTestCase {
 	}
 
 	/**
+	 * Rejects malformed values.
+	 *
 	 * @dataProvider invalid_tax_codes
 	 *
 	 * @param string $tax_code Submitted value.
@@ -177,6 +183,8 @@ final class ClassicCheckoutBuyerTest extends InvoiceWorkflowTestCase {
 	}
 
 	/**
+	 * Provider.
+	 *
 	 * @return array<string, array{string}>
 	 */
 	public static function invalid_tax_codes(): array {
@@ -238,6 +246,8 @@ final class ClassicCheckoutBuyerTest extends InvoiceWorkflowTestCase {
 	}
 
 	/**
+	 * Posted fields.
+	 *
 	 * @return array<string, string>
 	 */
 	private function individual_post(): array {
@@ -250,6 +260,8 @@ final class ClassicCheckoutBuyerTest extends InvoiceWorkflowTestCase {
 	}
 
 	/**
+	 * Posted fields.
+	 *
 	 * @return array<string, string>
 	 */
 	private function business_post(): array {
@@ -286,7 +298,7 @@ final class ClassicCheckoutBuyerTest extends InvoiceWorkflowTestCase {
 	private function validate_checkout( array $post, array $billing = array() ): WP_Error {
 		$_POST  = $post;
 		$errors = new WP_Error();
-		do_action( 'woocommerce_after_checkout_validation', $this->billing( $billing ), $errors );
+		do_action( 'woocommerce_after_checkout_validation', $this->billing( $billing ), $errors ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- fires a WooCommerce hook.
 
 		return $errors;
 	}
@@ -299,7 +311,7 @@ final class ClassicCheckoutBuyerTest extends InvoiceWorkflowTestCase {
 	private function order_with_request( array $post ): WC_Order {
 		$_POST = $post;
 		$order = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
-		do_action( 'woocommerce_checkout_create_order', $order, $this->billing() );
+		do_action( 'woocommerce_checkout_create_order', $order, $this->billing() ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- fires a WooCommerce hook.
 		$order->save();
 
 		return $order;

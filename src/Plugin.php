@@ -37,6 +37,7 @@ final class Plugin {
 
 		Invoice\Schema::maybe_install();
 		Invoice\DraftInvoiceWorkflow::register();
+		Checkout\ClassicCheckout::register();
 
 		add_action( 'rest_api_init', array( Admin\SettingsController::class, 'register_routes' ) );
 		add_filter( 'rest_pre_serve_request', array( Admin\SettingsController::class, 'serve_html' ), 10, 4 );

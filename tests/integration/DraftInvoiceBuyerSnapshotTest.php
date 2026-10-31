@@ -96,7 +96,7 @@ final class DraftInvoiceBuyerSnapshotTest extends InvoiceWorkflowTestCase {
 
 	public function test_the_snapshot_can_be_captured_again_before_a_draft_exists(): void {
 		$this->with_encryption_key();
-		$order = $this->order_with_request( $this->individual_post() );
+		$order       = $this->order_with_request( $this->individual_post() );
 		$snapshotter = new BuyerSnapshotter();
 		$snapshotter->capture( $order, 'Khách hàng không lấy hóa đơn' );
 
@@ -149,6 +149,8 @@ final class DraftInvoiceBuyerSnapshotTest extends InvoiceWorkflowTestCase {
 	}
 
 	/**
+	 * Posted fields.
+	 *
 	 * @return array<string, string>
 	 */
 	private function individual_post(): array {
@@ -161,6 +163,8 @@ final class DraftInvoiceBuyerSnapshotTest extends InvoiceWorkflowTestCase {
 	}
 
 	/**
+	 * Posted fields.
+	 *
 	 * @return array<string, string>
 	 */
 	private function business_post(): array {
@@ -182,7 +186,13 @@ final class DraftInvoiceBuyerSnapshotTest extends InvoiceWorkflowTestCase {
 		$_POST = $post;
 		$order = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
 		$order->set_billing_phone( '0900000001' );
-		do_action( 'woocommerce_checkout_create_order', $order, array() );
+		$billing = array(
+			'billing_first_name' => $order->get_billing_first_name(),
+			'billing_last_name'  => $order->get_billing_last_name(),
+			'billing_phone'      => $order->get_billing_phone(),
+			'billing_email'      => $order->get_billing_email(),
+		);
+		do_action( 'woocommerce_checkout_create_order', $order, $billing ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- fires a WooCommerce hook.
 		$order->save();
 
 		return $order;

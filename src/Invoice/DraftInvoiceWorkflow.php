@@ -7,6 +7,7 @@
 
 namespace LTTech\EinvoiceMatbao\Invoice;
 
+use LTTech\EinvoiceMatbao\Buyer\BuyerSnapshotter;
 use LTTech\EinvoiceMatbao\CredentialStore;
 use LTTech\EinvoiceMatbao\Matbao\MatbaoClient;
 use LTTech\EinvoiceMatbao\Matbao\MatbaoCredentials;
@@ -113,7 +114,12 @@ final class DraftInvoiceWorkflow {
 
 		$settings   = new Settings();
 		$reference  = $settings->reference_prefix() . Settings::REFERENCE_MARKER . $order_id;
-		$buyer_name = $settings->walk_in_buyer_name();
+		$snapshot   = ( new BuyerSnapshotter() )->capture( $order, $settings->walk_in_buyer_name() );
+		$buyer_name = mb_substr( $snapshot->buyer_name, 0, Settings::MAX_BUYER_NAME_LENGTH );
+		if ( '' !== $snapshot->id_mask ) {
+			/* translators: %s: citizen ID with all but the last 4 digits hidden. */
+			$order->add_order_note( sprintf( __( 'Đã chụp thông tin người mua (cá nhân) để xuất hóa đơn, CCCD %s.', 'einvoice-matbao' ), $snapshot->id_mask ) );
+		}
 
 		if ( strlen( $reference ) > Settings::MAX_REFERENCE_LENGTH ) {
 			$code = InvoiceErrorCode::REFERENCE_TOO_LONG;
@@ -196,6 +202,7 @@ final class DraftInvoiceWorkflow {
 	 * @param CredentialStore     $store      Mat Bao credentials.
 	 * @param DraftPayloadBuilder $builder    Payload builder.
 	 * @param TemplateCache       $templates  Cached Mat Bao templates list.
+	 * @param BuyerSnapshotter    $snapshotter Buyer snapshot reader.
 	 */
 	public function __construct(
 		private readonly InvoiceRepository $repository = new InvoiceRepository(),
@@ -203,6 +210,7 @@ final class DraftInvoiceWorkflow {
 		private readonly CredentialStore $store = new CredentialStore(),
 		private readonly DraftPayloadBuilder $builder = new DraftPayloadBuilder(),
 		private readonly TemplateCache $templates = new TemplateCache(),
+		private readonly BuyerSnapshotter $snapshotter = new BuyerSnapshotter(),
 	) {
 	}
 
@@ -334,9 +342,15 @@ final class DraftInvoiceWorkflow {
 			return;
 		}
 
+		$snapshot = $this->snapshotter->load( $order );
+		if ( null === $snapshot ) {
+			$this->repository->update_status( $invoice->id, InvoiceStatus::FAILED, __( 'Đơn hàng chưa có thông tin người mua đã chụp khi hoàn thành.', 'einvoice-matbao' ) );
+			return;
+		}
+
 		$issued_on = new \DateTimeImmutable( 'now', new \DateTimeZone( 'Asia/Ho_Chi_Minh' ) );
 		try {
-			$payload = $this->builder->build( $order, $invoice->reference, $invoice->buyer_name, $template, $issued_on );
+			$payload = $this->builder->build( $order, $invoice->reference, $snapshot->payload_fields(), $template, $issued_on );
 		} catch ( InvoiceDataError $error ) {
 			self::record_error( $this->repository, $order_id, $error->error_code, $error->getMessage() );
 			return;

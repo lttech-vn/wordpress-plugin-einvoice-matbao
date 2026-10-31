@@ -46,7 +46,7 @@ When an order moves to `completed` (only while the plugin is active; older order
 scanned), the plugin reserves one row in `{prefix}einvoice_matbao_invoice` (`UNIQUE(order_id)`,
 fixed `MTChieu` = prefix + `WC` + order ID) and queues one Action Scheduler action
 (`einvoice_matbao_create_draft`, group `einvoice-matbao`). The action claims the row and calls
-`create-invoice` with `LoaiHDon=0` (draft) and `KTraMTChieuTrung=1` for a walk-in buyer; each call
+`create-invoice` with `LoaiHDon=0` (draft) and `KTraMTChieuTrung=1`; each call
 is logged in `{prefix}einvoice_matbao_attempt`. Status, `MTChieu`, Mat Bao invoice ID and errors
 show in the **Hóa đơn Mắt Bão** box on the order screen (HPOS and legacy).
 
@@ -129,6 +129,22 @@ variation can override it, and a variation without its own override inherits its
 Limits: the per-product unit can only be edited on the product edit screen (and in its variation
 panels). Quick edit, bulk edit and CSV import do not support it yet; they leave an existing
 override untouched.
+
+## Invoice request at Classic checkout
+
+A **Yêu cầu xuất hóa đơn** checkbox below the billing form opens an individual/business choice.
+Individuals must give address and CCCD (12 digits) besides billing name and phone; businesses give
+business name, MST (10 digits, or 13 with an optional `-`), address, plus billing phone and email.
+`BuyerRules` validates the structure only (never identity) on the server through WooCommerce's
+checkout hooks and again when the order is created; `assets/src/checkout.ts` (built by
+`bun run build`) mirrors it in the browser. Without the checkbox the buyer is always a walk-in
+buyer, even with billing data.
+
+The CCCD is stored only in order meta, encrypted with `EINVOICE_MATBAO_ENCRYPTION_KEY`; without the
+key the individual option is disabled and refused server-side. Logs, order notes and invoice rows
+show only the last 4 digits. When the order completes, a **buyer snapshot** is captured into order
+meta and every send builds the payload from it (not from the current order). Blocks checkout (#9)
+reuses `BuyerRules`, `BuyerRequestStore` and `BuyerSnapshotter`.
 
 ## Tests, lint and static analysis
 

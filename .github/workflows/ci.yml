@@ -29,6 +29,7 @@ jobs:
         run: |
           test -s assets/dist/admin.css
           test -s assets/dist/htmx.min.js
+          test -s assets/dist/checkout.js
           ! grep -rEl 'https?://(cdn|unpkg|cdnjs|jsdelivr)' assets/dist
       - uses: actions/upload-artifact@v4
         with:
