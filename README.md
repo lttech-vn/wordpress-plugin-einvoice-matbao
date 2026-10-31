@@ -101,14 +101,17 @@ label and the reason (`data-einv-error-code` / `data-einv-error-kind` attributes
 
 | Kind     | Status           | Codes                                                                                   | Auto retry |
 |----------|------------------|-----------------------------------------------------------------------------------------|------------|
-| `data`   | `failed`         | non-VND currency, fractional VND, unsupported or missing tax rate, several rates on a line, totals mismatch, `MTChieu` > 20 characters, ... | no |
-| `config` | `not_configured` | credentials missing, template missing, template not offered or out of numbers, template rejected by Mat Bao (`errorCode` 308/327), default template changed after an uncertain create (`template_changed`) | no |
+| `data`   | `failed`         | non-VND currency, fractional VND, unsupported or missing tax rate, several rates on a line, totals mismatch, `MTChieu` > 20 characters, buyer no longer valid at completion (`buyer_invalid`), buyer snapshot missing or unusable (`buyer_snapshot_invalid`), citizen ID cannot be decrypted (`buyer_id_unreadable`), ... | no |
+| `config` | `not_configured` | credentials missing, template missing, template not offered or out of numbers, template rejected by Mat Bao (`errorCode` 308/327), default template changed after an uncertain create (`template_changed`), encryption key missing when a snapshot with a citizen ID is sent (`buyer_id_key_missing`) | no |
 | `order`  | `stopped`        | order left `completed`, refunded before sending                                         | no |
 | `matbao` | `pending` → `needs_attention` | request did not complete, HTTP 5xx/408/429, unreadable 2xx body (create-invoice or templates), duplicate `MTChieu` 305 | yes; a create-invoice retry looks `MTChieu` up first |
 | `matbao` | `failed`         | other HTTP status (4xx), Mat Bao `success` false with another `errorCode` or none (rejected invoice, login) | no |
 | `matbao` | `needs_attention` | the lookup by `MTChieu` found something that may not be this order's draft (`matbao_lookup_mismatch`) | no |
 | `system` | `pending` → `failed` | queueing failed (the sweep tries once more, then final)                          | sweep only |
 | `system` | `failed`         | unexpected exception                                                                    | no |
+
+`InvoiceErrorCode` has 31 codes. Buyer errors name only the invalid field, never its value or the
+citizen ID, and the order stays `completed`.
 
 `InvoiceErrorCode::is_auto_retryable()` is the retry switch: `matbao_transport`,
 `matbao_http_temporary`, `matbao_response_unreadable` and `matbao_duplicate_reference`. These may
