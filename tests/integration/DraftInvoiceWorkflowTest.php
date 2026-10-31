@@ -115,6 +115,7 @@ final class DraftInvoiceWorkflowTest extends InvoiceWorkflowTestCase {
 
 	public function test_two_completion_hooks_for_one_order_reserve_once_and_queue_one_action(): void {
 		$this->configure_matbao();
+		$this->fake_create_invoice_ok();
 		$order = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
 		$order->set_status( 'completed' );
 		$order->save();
@@ -303,7 +304,7 @@ final class DraftInvoiceWorkflowTest extends InvoiceWorkflowTestCase {
 
 	public function test_http_error_records_a_failed_attempt_and_is_not_retried(): void {
 		$this->configure_matbao();
-		$this->http->respond_json( self::CREATE_ROUTE, 500, array( 'message' => 'Lỗi hệ thống' ) );
+		$this->http->respond_json( self::CREATE_ROUTE, 400, array( 'message' => 'Dữ liệu không hợp lệ' ) );
 		$order = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
 
 		$this->complete_and_run( $order );
@@ -316,7 +317,7 @@ final class DraftInvoiceWorkflowTest extends InvoiceWorkflowTestCase {
 		$this->assertCount( 1, $attempts );
 		$this->assertSame( 'failed', $attempts[0]['outcome'] );
 		$this->assertSame( 'http', $attempts[0]['error_kind'] );
-		$this->assertSame( '500', (string) $attempts[0]['http_status'] );
+		$this->assertSame( '400', (string) $attempts[0]['http_status'] );
 	}
 
 	public function test_timeout_records_a_failed_attempt_with_unknown_outcome_kind(): void {
@@ -327,7 +328,7 @@ final class DraftInvoiceWorkflowTest extends InvoiceWorkflowTestCase {
 		$this->complete_and_run( $order );
 
 		$record = $this->invoice_of( $order );
-		$this->assertSame( InvoiceStatus::FAILED, $record?->status );
+		$this->assertSame( InvoiceStatus::PENDING, $record?->status, 'An unanswered create is retried, not final.' );
 		$attempts = $this->attempts_of( $record );
 		$this->assertCount( 1, $attempts );
 		$this->assertSame( 'failed', $attempts[0]['outcome'] );
@@ -344,7 +345,7 @@ final class DraftInvoiceWorkflowTest extends InvoiceWorkflowTestCase {
 				'message'   => 'Thành công',
 				'data'      => array(
 					array(
-						'errorCode' => 305,
+						'errorCode' => 306,
 						'message'   => 'Trùng mã tham chiếu',
 						'data'      => null,
 						'success'   => false,
@@ -360,7 +361,7 @@ final class DraftInvoiceWorkflowTest extends InvoiceWorkflowTestCase {
 		$record = $this->invoice_of( $order );
 		$this->assertSame( InvoiceStatus::FAILED, $record?->status );
 		$this->assertStringContainsString( 'Trùng mã tham chiếu', (string) $record?->status_reason );
-		$this->assertSame( '305', (string) $this->attempts_of( $record )[0]['api_code'] );
+		$this->assertSame( '306', (string) $this->attempts_of( $record )[0]['api_code'] );
 	}
 
 	public function test_order_that_left_completed_before_sending_is_stopped(): void {
@@ -572,7 +573,7 @@ final class DraftInvoiceWorkflowTest extends InvoiceWorkflowTestCase {
 		$this->assertSame( InvoiceStatus::SENDING, $this->invoice_of( $order )?->status );
 	}
 
-	public function test_failing_to_queue_the_action_marks_the_invoice_failed(): void {
+	public function test_failing_to_queue_the_action_leaves_the_invoice_pending_with_a_reason(): void {
 		$this->configure_matbao();
 		add_filter( 'pre_as_enqueue_async_action', static fn(): int => 0 );
 		$order = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
@@ -580,7 +581,7 @@ final class DraftInvoiceWorkflowTest extends InvoiceWorkflowTestCase {
 		$order->update_status( 'completed' );
 
 		$record = $this->invoice_of( $order );
-		$this->assertSame( InvoiceStatus::FAILED, $record?->status );
+		$this->assertSame( InvoiceStatus::PENDING, $record?->status, 'Left for the recovery sweep.' );
 		$this->assertNotSame( '', $record?->status_reason );
 	}
 

@@ -53,7 +53,37 @@ show in the **Hóa đơn Mắt Bão** box on the order screen (HPOS and legacy).
 The payload uses the amounts and taxes stored on each order line (discounted prices, fees and
 shipping as their own lines, `TSuat` 0/5/8/10 or -1 for tax status `none`) and must reconcile with
 the order totals; otherwise nothing is sent and the invoice is marked failed. 0 VND orders are
-skipped with a reason. Failures are not retried yet.
+skipped with a reason.
+
+### Retry and recovery
+
+- Temporary failures (no response, HTTP 5xx/408/429, an unreadable 2xx body, duplicate `MTChieu`
+  305; codes where `InvoiceErrorCode::is_auto_retryable()` is true) keep the row `pending` with
+  the error code and queue the same action again after 1 min, 5 min, 15 min, 1 h and 6 h. No alert
+  fires while a retry waits. After the fifth retry the status becomes `needs_attention`
+  ("Lỗi cần xử lý") with the last error code, and both
+  `einvoice_matbao_invoice_needs_attention( $invoice, $code )` and
+  `einvoice_matbao_retries_exhausted( $order_id, $reference )` fire once (alerting is #7).
+- Other failures are final (see the table below) and alert at once.
+- Before any send that may follow an earlier create call, the plugin looks the invoice up by `MTChieu`
+  (`invoice-detail-batch`) under the template stored on the row at that earlier call, not the
+  current default. The template is stored before every create call. Exactly one row with the same
+  `mtChieu`, status Nháp (`maTThaiHDon` 1) and, when Mat Bao reports `tgTTTBSo`, the order total is
+  adopted (no second create). Anything else found (several rows, another `mtChieu`, issued or
+  deleted, another total) stops with `matbao_lookup_mismatch` (`needs_attention`, alert). When
+  nothing is found the same `MTChieu` is sent again with `KTraMTChieuTrung=1`; if the default
+  template changed meanwhile, the send stops with `template_changed` instead of creating under
+  another template. Error 305 triggers a lookup, never a new `MTChieu`. A first send with no
+  earlier attempt, or after failures before the create call (login, the templates check), skips
+  the lookup.
+- A recurring sweep (every 15 min) recovers rows stuck in `sending` (runner died after the claim;
+  claimed back only if `updated_at` is unchanged) and `pending` rows with no queued action after
+  15 min. The sweep adds no attempt and uses up no retry; only attempts that called Mat Bao and
+  failed count. If the sweep cannot queue the action either, the row becomes `failed` with
+  `queue_failed` and alerts.
+- `DraftInvoiceWorkflow::restart( $order_id, $from_status )` sends a row again in a new retry cycle
+  (`retry_cycle_start`, schema v3); earlier attempts still decide the lookup. An order cancelled
+  and then completed again after a `stopped` invoice uses it; the admin resend (#9) can too.
 
 Before the create call the action re-reads the order and settings and asks Mat Bao for the
 templates of the invoice year (`/api/invoice/templates`): the default template must still be
@@ -72,18 +102,23 @@ label and the reason (`data-einv-error-code` / `data-einv-error-kind` attributes
 | Kind     | Status           | Codes                                                                                   | Auto retry |
 |----------|------------------|-----------------------------------------------------------------------------------------|------------|
 | `data`   | `failed`         | non-VND currency, fractional VND, unsupported or missing tax rate, several rates on a line, totals mismatch, `MTChieu` > 20 characters, ... | no |
-| `config` | `not_configured` | credentials missing, template missing, template not offered or out of numbers, template rejected by Mat Bao (`errorCode` 308/327) | no |
+| `config` | `not_configured` | credentials missing, template missing, template not offered or out of numbers, template rejected by Mat Bao (`errorCode` 308/327), default template changed after an uncertain create (`template_changed`) | no |
 | `order`  | `stopped`        | order left `completed`, refunded before sending                                         | no |
-| `matbao` | `failed`         | request did not complete, HTTP 5xx/408/429, unreadable 2xx body (create-invoice or templates) | allowed (#6) |
-| `matbao` | `failed`         | other HTTP status (4xx), Mat Bao `success` false with an `errorCode` (rejected invoice, duplicate `MTChieu` 305, login) | no |
-| `system` | `failed`         | queueing failed, unexpected exception                                                  | no |
+| `matbao` | `pending` → `needs_attention` | request did not complete, HTTP 5xx/408/429, unreadable 2xx body (create-invoice or templates), duplicate `MTChieu` 305 | yes; a create-invoice retry looks `MTChieu` up first |
+| `matbao` | `failed`         | other HTTP status (4xx), Mat Bao `success` false with another `errorCode` or none (rejected invoice, login) | no |
+| `matbao` | `needs_attention` | the lookup by `MTChieu` found something that may not be this order's draft (`matbao_lookup_mismatch`) | no |
+| `system` | `pending` → `failed` | queueing failed (the sweep tries once more, then final)                          | sweep only |
+| `system` | `failed`         | unexpected exception                                                                    | no |
 
-`InvoiceErrorCode::is_auto_retryable()` is the switch for #6: only `matbao_transport`,
-`matbao_http_temporary` and `matbao_response_unreadable`. A full refund moves the order to
+`InvoiceErrorCode::is_auto_retryable()` is the retry switch: `matbao_transport`,
+`matbao_http_temporary`, `matbao_response_unreadable` and `matbao_duplicate_reference`. These may
+be retried, but a create-invoice call that failed this way may still have created the draft, so the
+retry MUST look the invoice up by `MTChieu` first. A full refund moves the order to
 `refunded` (`order_not_completed`, no alert); a partial refund keeps it `completed`
 (`order_refunded`, alert). Each recorded error an admin must act
 on fires `do_action( 'einvoice_matbao_invoice_needs_attention', InvoiceRecord $invoice,
-InvoiceErrorCode $code )` once; an order the shop moved out of `completed` on purpose does not.
+InvoiceErrorCode $code )` once; an order the shop moved out of `completed` on purpose, and an
+error still waiting for a retry, do not.
 Admin and Lark alerts (#7) hook there.
 
 ## Unit of measure (`DVTinh`)
@@ -157,9 +192,17 @@ suites through the same Docker Compose stack used locally.
 - Money is whole VND: a line whose net, tax or total is fractional is refused (`failed`), whatever
   `price_num_decimals` is. Fee and shipping lines of 0 đồng are left off the invoice; a free product
   line is sent with `TSuat` from its tax status (`none` → -1, otherwise 0).
-- Every `failed` after the create call was sent may still have created a draft at Mat Bao (timeout,
-  5xx, odd response). Ticket #6 must look the invoice up by `MTChieu` before any resend.
-- `stopped` is final: an order cancelled and then completed again gets no invoice (#6).
+- Retries use Action Scheduler, so the delays are lower bounds: WP-Cron must run for them to fire.
+- Mat Bao's atomic duplicate check is unverified under concurrency (ADR 0001); the lookup narrows the
+  window but a lookup/create race at Mat Bao is not excluded. Real-API checks of the lookup response
+  shape beyond `docs/research` samples belong to #15.
+- The lookup searches one template (`mauSo`/`kiHieu` are required); a draft under another template
+  is not found, which is why a changed default template stops instead of creating.
+- The demo lookup response has no total; the total check runs only when Mat Bao returns `tgTTTBSo`.
+- The sweep runs on Action Scheduler too: if Action Scheduler is down entirely, nothing is recovered
+  and nothing alerts.
+- A draft adopted by the lookup keeps the `NLap` Mat Bao reports, which may predate the day it was adopted.
+- The manual re-send button and the alert for `needs_attention` are #9 and #7.
 - `DGia` = net / quantity can be a non-terminating fraction (net 100000, quantity 3); behavior on
   the demo API is unverified (#15).
 - `TgTTTBChu` carries Vietnamese diacritics; the proven demo payloads were sent without. Confirm in #15.

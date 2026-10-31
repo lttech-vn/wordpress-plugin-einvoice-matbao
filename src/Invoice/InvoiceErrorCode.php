@@ -31,8 +31,16 @@ enum InvoiceErrorCode: string {
 	case TEMPLATE_MISSING      = 'template_missing';
 	case TEMPLATE_UNAVAILABLE  = 'template_unavailable';
 	case TEMPLATE_REJECTED     = 'template_rejected';
-	case ORDER_NOT_COMPLETED   = 'order_not_completed';
-	case ORDER_REFUNDED        = 'order_refunded';
+
+	/**
+	 * The default template changed after a create call that may have reached Mat Bao under the
+	 * template stored on the row, and the lookup there found nothing. Never resent under the new one.
+	 */
+	case TEMPLATE_CHANGED = 'template_changed';
+
+	case ORDER_NOT_COMPLETED = 'order_not_completed';
+	case ORDER_REFUNDED      = 'order_refunded';
+
 	/** The request did not complete (DNS, TLS, timeout); create-invoice may or may not have run. */
 	case MATBAO_TRANSPORT = 'matbao_transport';
 
@@ -45,10 +53,25 @@ enum InvoiceErrorCode: string {
 	/** Any other HTTP error status (4xx). */
 	case MATBAO_HTTP = 'matbao_http';
 
-	/** Mat Bao answered `success` false with an `errorCode` (rejected invoice, duplicate `MTChieu` 305, login). */
+	/** Mat Bao answered `success` false with an `errorCode` (rejected invoice, login). */
 	case MATBAO_API = 'matbao_api';
 
-	/** Action Scheduler did not queue the action; nothing was sent, so an admin may resend safely. Not auto-retried. */
+	/**
+	 * Mat Bao already has an invoice with this `MTChieu` (error 305). Retried only through a lookup
+	 * by `MTChieu`, which adopts the existing draft; the reference is never changed.
+	 */
+	case MATBAO_DUPLICATE_REFERENCE = 'matbao_duplicate_reference';
+
+	/**
+	 * The lookup by `MTChieu` returned something that may not be this order's draft (several
+	 * invoices, another reference, not a draft, another total). Not adopted and not retried.
+	 */
+	case MATBAO_LOOKUP_MISMATCH = 'matbao_lookup_mismatch';
+
+	/**
+	 * Action Scheduler did not queue the action; nothing was sent. The row stays `pending` and the
+	 * recovery sweep queues it again; when the sweep fails too, it is final and an admin may resend safely.
+	 */
 	case QUEUE_FAILED = 'queue_failed';
 
 	/**
@@ -80,19 +103,26 @@ enum InvoiceErrorCode: string {
 			return $error->is_temporary_http_status() ? self::MATBAO_HTTP_TEMPORARY : self::MATBAO_HTTP;
 		}
 
+		if ( $error->is_duplicate_reference() ) {
+			return self::MATBAO_DUPLICATE_REFERENCE;
+		}
+
 		return $error->is_unreadable_response() ? self::MATBAO_RESPONSE_UNREADABLE : self::MATBAO_API;
 	}
 
 	/**
-	 * Whether a background retry (#6) may resend the draft: only Mat Bao failures that look
-	 * temporary (MatbaoError::is_retryable()). Rejections by Mat Bao, template codes and every
-	 * data, config, order and system error need an admin first.
+	 * Whether the background retry may run again: only Mat Bao failures that look temporary
+	 * (MatbaoError::is_retryable()). A create-invoice call that failed this way may still have
+	 * created the draft, so the retry MUST look the invoice up by `MTChieu` before creating again.
+	 * Rejections by Mat Bao, template codes and every data, config, order and system error need
+	 * an admin first.
 	 */
 	public function is_auto_retryable(): bool {
 		return match ( $this ) {
 			self::MATBAO_TRANSPORT,
 			self::MATBAO_HTTP_TEMPORARY,
-			self::MATBAO_RESPONSE_UNREADABLE => true,
+			self::MATBAO_RESPONSE_UNREADABLE,
+			self::MATBAO_DUPLICATE_REFERENCE => true,
 			default                          => false,
 		};
 	}
@@ -116,14 +146,17 @@ enum InvoiceErrorCode: string {
 			self::CREDENTIALS_MISSING,
 			self::TEMPLATE_MISSING,
 			self::TEMPLATE_UNAVAILABLE,
-			self::TEMPLATE_REJECTED     => InvoiceErrorKind::CONFIG,
+			self::TEMPLATE_REJECTED,
+			self::TEMPLATE_CHANGED      => InvoiceErrorKind::CONFIG,
 			self::ORDER_NOT_COMPLETED,
 			self::ORDER_REFUNDED        => InvoiceErrorKind::ORDER,
 			self::MATBAO_TRANSPORT,
 			self::MATBAO_HTTP_TEMPORARY,
 			self::MATBAO_RESPONSE_UNREADABLE,
 			self::MATBAO_HTTP,
-			self::MATBAO_API            => InvoiceErrorKind::MATBAO,
+			self::MATBAO_API,
+			self::MATBAO_DUPLICATE_REFERENCE,
+			self::MATBAO_LOOKUP_MISMATCH     => InvoiceErrorKind::MATBAO,
 			self::QUEUE_FAILED,
 			self::UNEXPECTED            => InvoiceErrorKind::SYSTEM,
 		};
@@ -159,6 +192,7 @@ enum InvoiceErrorCode: string {
 			self::TEMPLATE_MISSING      => __( 'Chưa chọn mẫu hóa đơn', 'einvoice-matbao' ),
 			self::TEMPLATE_UNAVAILABLE  => __( 'Mẫu hóa đơn hết hiệu lực', 'einvoice-matbao' ),
 			self::TEMPLATE_REJECTED     => __( 'Mắt Bão từ chối mẫu hóa đơn', 'einvoice-matbao' ),
+			self::TEMPLATE_CHANGED      => __( 'Mẫu hóa đơn đã đổi giữa các lần gửi', 'einvoice-matbao' ),
 			self::ORDER_NOT_COMPLETED   => __( 'Đơn hàng không còn hoàn thành', 'einvoice-matbao' ),
 			self::ORDER_REFUNDED        => __( 'Đơn hàng đã hoàn tiền', 'einvoice-matbao' ),
 			self::MATBAO_TRANSPORT      => __( 'Không kết nối được Mắt Bão', 'einvoice-matbao' ),
@@ -166,6 +200,8 @@ enum InvoiceErrorCode: string {
 			self::MATBAO_RESPONSE_UNREADABLE => __( 'Không đọc được phản hồi Mắt Bão', 'einvoice-matbao' ),
 			self::MATBAO_HTTP           => __( 'Mắt Bão trả lỗi HTTP', 'einvoice-matbao' ),
 			self::MATBAO_API            => __( 'Mắt Bão từ chối hóa đơn', 'einvoice-matbao' ),
+			self::MATBAO_DUPLICATE_REFERENCE => __( 'Trùng mã tham chiếu tại Mắt Bão', 'einvoice-matbao' ),
+			self::MATBAO_LOOKUP_MISMATCH     => __( 'Hóa đơn tìm thấy không khớp đơn hàng', 'einvoice-matbao' ),
 			self::QUEUE_FAILED          => __( 'Không xếp được hàng đợi', 'einvoice-matbao' ),
 			self::UNEXPECTED            => __( 'Lỗi không xác định', 'einvoice-matbao' ),
 		};

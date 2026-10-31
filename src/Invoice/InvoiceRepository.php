@@ -74,6 +74,62 @@ final class InvoiceRepository {
 	}
 
 	/**
+	 * Moves an invoice to another status only if neither its status nor `updated_at` changed since
+	 * it was read, so the recovery sweep cannot take back a row another runner has just claimed.
+	 *
+	 * @param InvoiceRecord $invoice Invoice as read.
+	 * @param string        $to      New status.
+	 * @return bool Whether this call made the change.
+	 */
+	public function claim_unchanged( InvoiceRecord $invoice, string $to ): bool {
+		global $wpdb;
+
+		$updated = $wpdb->query(
+			$wpdb->prepare(
+				'UPDATE %i SET status = %s, updated_at = %s WHERE id = %d AND status = %s AND updated_at = %s',
+				Schema::invoice_table(),
+				$to,
+				current_time( 'mysql', true ),
+				$invoice->id,
+				$invoice->status,
+				$invoice->updated_at
+			)
+		);
+
+		return 1 === $updated;
+	}
+
+	/**
+	 * Moves an invoice from a stopped or final status back to `pending` and starts a new retry
+	 * cycle: attempts before this call no longer count as tries, but still decide whether the
+	 * next run looks the invoice up first.
+	 *
+	 * @param int    $invoice_id Invoice row ID.
+	 * @param string $from       Expected current status.
+	 * @return bool Whether this call made the change.
+	 */
+	public function restart( int $invoice_id, string $from ): bool {
+		global $wpdb;
+
+		$updated = $wpdb->query(
+			$wpdb->prepare(
+				'UPDATE %i SET status = %s, error_code = %s, error_kind = %s, retry_cycle_start = (SELECT COALESCE(MAX(id), 0) + 1 FROM %i WHERE invoice_id = %d), updated_at = %s WHERE id = %d AND status = %s',
+				Schema::invoice_table(),
+				InvoiceStatus::PENDING,
+				'',
+				'',
+				Schema::attempt_table(),
+				$invoice_id,
+				current_time( 'mysql', true ),
+				$invoice_id,
+				$from
+			)
+		);
+
+		return 1 === $updated;
+	}
+
+	/**
 	 * Sets the status and reason of an invoice and clears any recorded error.
 	 *
 	 * @param int                  $invoice_id Invoice row ID.
@@ -103,17 +159,40 @@ final class InvoiceRepository {
 	}
 
 	/**
+	 * Stores the template a create call is about to be sent with, without touching the status,
+	 * so a later lookup by `MTChieu` uses the same template.
+	 *
+	 * @param int    $invoice_id Invoice row ID.
+	 * @param string $form       `KHMSHDon`.
+	 * @param string $series     `KHHDon`.
+	 */
+	public function remember_template( int $invoice_id, string $form, string $series ): void {
+		global $wpdb;
+
+		$wpdb->update(
+			Schema::invoice_table(),
+			array(
+				'template_form'   => $form,
+				'template_series' => $series,
+			),
+			array( 'id' => $invoice_id )
+		);
+	}
+
+	/**
 	 * Records why an invoice was not created: the code, its kind, the status of that kind and the
 	 * Vietnamese reason.
 	 *
 	 * @param int              $invoice_id Invoice row ID.
 	 * @param InvoiceErrorCode $code       Error code.
 	 * @param string           $reason     Vietnamese reason, without secrets or personal data.
+	 * @param string|null      $status     InvoiceStatus instead of the one of the code's kind, e.g. `pending`
+	 *                                     while a retry waits or `needs_attention` once retries are used up.
 	 */
-	public function record_error( int $invoice_id, InvoiceErrorCode $code, string $reason ): void {
+	public function record_error( int $invoice_id, InvoiceErrorCode $code, string $reason, ?string $status = null ): void {
 		$this->update_status(
 			$invoice_id,
-			$code->kind()->status(),
+			$status ?? $code->kind()->status(),
 			$reason,
 			array(
 				'error_code' => $code->value,
@@ -136,6 +215,29 @@ final class InvoiceRepository {
 	}
 
 	/**
+	 * Invoices in a status that have not changed for a while.
+	 *
+	 * @param string $status        InvoiceStatus.
+	 * @param int    $older_than    Minimum age of the last change, in seconds.
+	 * @return list<InvoiceRecord>
+	 */
+	public function unchanged_for( string $status, int $older_than ): array {
+		global $wpdb;
+
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				'SELECT * FROM %i WHERE status = %s AND updated_at < %s ORDER BY id LIMIT 100',
+				Schema::invoice_table(),
+				$status,
+				gmdate( 'Y-m-d H:i:s', time() - $older_than )
+			),
+			ARRAY_A
+		);
+
+		return is_array( $rows ) ? array_values( array_map( array( InvoiceRecord::class, 'from_row' ), $rows ) ) : array();
+	}
+
+	/**
 	 * Records the start of a create call and returns the attempt ID.
 	 *
 	 * @param int $invoice_id Invoice row ID.
@@ -155,10 +257,11 @@ final class InvoiceRepository {
 	}
 
 	/**
-	 * Records the outcome of a create call.
+	 * Closes an attempt with its outcome.
 	 *
 	 * @param int         $attempt_id  Attempt ID.
-	 * @param string      $outcome     `success` or `failed`.
+	 * @param string      $outcome     `success`, `failed`, `not_sent` (never reached create-invoice), `lookup_failed`,
+	 *                                 `lookup_mismatch` or `abandoned` (closed by the recovery sweep).
 	 * @param string|null $error_kind  MatbaoError kind on failure.
 	 * @param int|null    $http_status HTTP status, when a response was received.
 	 * @param int|null    $api_code    Mat Bao `errorCode`, when present.

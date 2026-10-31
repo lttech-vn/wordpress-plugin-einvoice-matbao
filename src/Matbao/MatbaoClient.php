@@ -92,7 +92,8 @@ final class MatbaoClient {
 		$api_code = is_numeric( $item['errorcode'] ?? null ) ? (int) $item['errorcode'] : null;
 		$message  = is_string( $item['message'] ?? null ) && '' !== $item['message'] ? $item['message'] : 'Invoice rejected.';
 		if ( true !== ( $item['success'] ?? null ) ) {
-			throw new MatbaoError( MatbaoError::KIND_API, $message, $api_code ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Mat Bao message, escaped where rendered.
+			// An explicit `success` false is a rejection even without an errorCode; a missing flag is unreadable.
+			throw new MatbaoError( MatbaoError::KIND_API, $message, $api_code, null, true, array_key_exists( 'success', $item ) && false === $item['success'] ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Mat Bao message, escaped where rendered.
 		}
 
 		$created    = is_array( $item['data'] ?? null ) ? $item['data'] : array();
@@ -105,16 +106,53 @@ final class MatbaoClient {
 	}
 
 	/**
+	 * Looks up the invoices with a reference (`invoice-detail-batch`, `loai` 1 = by `MTChieu`).
+	 * Every row Mat Bao returns is passed on; the caller decides whether one is its draft.
+	 *
+	 * @param string $reference `MTChieu`.
+	 * @param string $form      `KHMSHDon` the invoice was sent with.
+	 * @param string $series    `KHHDon` the invoice was sent with.
+	 * @return list<MatbaoInvoice> Empty when Mat Bao has no such invoice.
+	 * @throws MatbaoError When the call fails.
+	 */
+	public function find_invoices_by_reference( string $reference, string $form, string $series ): array {
+		try {
+			$data = $this->authorized(
+				'POST',
+				'/api/invoice/invoice-detail-batch',
+				array(
+					'loai'     => 1,
+					'mauSo'    => $form,
+					'kiHieu'   => $series,
+					'danhSach' => array( $reference ),
+				)
+			);
+		} catch ( MatbaoError $error ) {
+			if ( MatbaoError::API_NOT_FOUND === $error->api_code ) {
+				return array();
+			}
+			throw $error;
+		}
+
+		// Only an explicit list proves anything; a 200 without one is an unreadable answer, not "not found".
+		if ( ! is_array( $data ) || ! is_array( $data['invoices'] ?? null ) ) {
+			throw new MatbaoError( MatbaoError::KIND_API, 'Unreadable invoice lookup response.' ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- plain text, escaped where rendered (Admin\Fragment).
+		}
+
+		return array_values( array_map( array( MatbaoInvoice::class, 'from_api' ), array_filter( $data['invoices'], 'is_array' ) ) );
+	}
+
+	/**
 	 * Calls an endpoint with the cached token, logging in again once if Mat Bao rejects it.
 	 *
 	 * @param string            $method HTTP method.
 	 * @param string            $path   Path with query string.
 	 * @param array<mixed>|null $body   JSON body.
 	 * @return mixed Decoded `data` of the response.
-	 * @throws MatbaoError When the call fails.
+	 * @throws MatbaoError When the call fails; errors from logging in are marked as raised before the call was sent.
 	 */
 	private function authorized( string $method, string $path, ?array $body = null ): mixed {
-		$token = $this->cached_token() ?? $this->login();
+		$token = $this->cached_token() ?? $this->login_before_call();
 
 		try {
 			return $this->request( $method, $path, $body, $token );
@@ -123,7 +161,20 @@ final class MatbaoClient {
 				throw $error;
 			}
 
-			return $this->request( $method, $path, $body, $this->login() );
+			return $this->request( $method, $path, $body, $this->login_before_call() );
+		}
+	}
+
+	/**
+	 * Logs in for another call, marking a failure as "that call was not sent".
+	 *
+	 * @throws MatbaoError When login fails.
+	 */
+	private function login_before_call(): string {
+		try {
+			return $this->login();
+		} catch ( MatbaoError $error ) {
+			throw $error->before_target_request();
 		}
 	}
 
