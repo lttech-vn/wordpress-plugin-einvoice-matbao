@@ -142,9 +142,14 @@ buyer, even with billing data.
 
 The CCCD is stored only in order meta, encrypted with `EINVOICE_MATBAO_ENCRYPTION_KEY`; without the
 key the individual option is disabled and refused server-side. Logs, order notes and invoice rows
-show only the last 4 digits. When the order completes, a **buyer snapshot** is captured into order
-meta and every send builds the payload from it (not from the current order). Blocks checkout (#9)
-reuses `BuyerRules`, `BuyerRequestStore` and `BuyerSnapshotter`.
+show only the last 4 digits; 12-digit runs in Mat Bao error messages are masked the same way. The
+request and snapshot meta are removed from WooCommerce REST order responses (wc/v2, wc/v3 and the
+experimental wc/v4). When the order completes and its invoice row is reserved, the buyer is checked
+against `BuyerRules` again (billing may have been edited); an invalid buyer fails the draft with a
+reason naming the fields only. Otherwise a **buyer snapshot** is captured into order meta and every
+send builds the payload from it (not from the current order). Blocks checkout (#9) reuses
+`BuyerRules`, `BuyerRequestStore::from_input` and `BuyerSnapshotter`; the browser rules in
+`assets/src/checkout-rules.ts` are covered by `bun run test`.
 
 ## Tests, lint and static analysis
 
