@@ -122,7 +122,8 @@ retry MUST look the invoice up by `MTChieu` first. A full refund moves the order
 on fires `do_action( 'einvoice_matbao_invoice_needs_attention', InvoiceRecord $invoice,
 InvoiceErrorCode $code )` once; an order the shop moved out of `completed` on purpose, and an
 error still waiting for a retry, do not.
-Admin and Lark alerts (#7) hook there.
+Admin and Lark alerts (#7) hook there. The `InvoiceRecord` carries `buyer_name` (a person's name or a
+business name), so an alert listener must not forward that column.
 
 ## Unit of measure (`DVTinh`)
 
@@ -227,6 +228,11 @@ suites through the same Docker Compose stack used locally.
   and nothing alerts.
 - A draft adopted by the lookup keeps the `NLap` Mat Bao reports, which may predate the day it was adopted.
 - The manual re-send button and the alert for `needs_attention` are #9 and #7.
+- A `buyer_invalid` row is `failed` and holds no buyer snapshot, and nothing restarts a `failed` row yet.
+  A re-send (#9) must run `BuyerSnapshotter::validate()` again and `capture()` when the row has no
+  snapshot or it needs updating. Capturing again is only safe while the invoice cannot have been created
+  (`!may_have_been_created`); otherwise #14 must compare `NMua_Ten`/`NMua_MST` in `lookup_mismatch`,
+  since adopting a draft compares only the total.
 - `DGia` = net / quantity can be a non-terminating fraction (net 100000, quantity 3); behavior on
   the demo API is unverified (#15).
 - `TgTTTBChu` carries Vietnamese diacritics; the proven demo payloads were sent without. Confirm in #15.

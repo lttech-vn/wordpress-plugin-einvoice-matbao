@@ -132,6 +132,17 @@ final class DraftInvoiceWorkflow {
 			return;
 		}
 
+		// A missing or changed encryption key is a configuration problem, not invalid buyer data, so
+		// it is told apart before BuyerRules sees an unreadable citizen ID as an invalid one.
+		try {
+			$snapshot->payload_fields();
+		} catch ( InvoiceDataError $error ) {
+			if ( $repository->reserve( $order_id, $reference, $buyer_name, $error->error_code->kind()->status() ) ) {
+				self::record_error( $repository, $order_id, $error->error_code, $error->getMessage() );
+			}
+			return;
+		}
+
 		$buyer_errors = $snapshotter->validate( $order );
 		if ( array() !== $buyer_errors ) {
 			$code = InvoiceErrorCode::BUYER_INVALID;
@@ -220,7 +231,7 @@ final class DraftInvoiceWorkflow {
 		$names  = array_map( static fn( string $field ): string => $labels[ $field ] ?? $field, $fields );
 
 		/* translators: %s: comma-separated list of invalid buyer fields. */
-		return sprintf( __( 'Không tạo hóa đơn nháp: thông tin người mua của đơn hàng không hợp lệ (%s); sửa thông tin thanh toán của đơn hàng rồi tạo lại.', 'einvoice-matbao' ), implode( ', ', $names ) );
+		return sprintf( __( 'Không tạo hóa đơn nháp: thông tin người mua của đơn hàng không hợp lệ (%s). Cần admin kiểm tra; gửi lại sau khi sửa thông tin.', 'einvoice-matbao' ), implode( ', ', $names ) );
 	}
 
 	/**
