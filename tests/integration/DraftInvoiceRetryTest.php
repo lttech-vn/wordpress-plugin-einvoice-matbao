@@ -355,6 +355,52 @@ final class DraftInvoiceRetryTest extends InvoiceWorkflowTestCase {
 		$this->assertCount( 1, $this->http->requests_to( self::CREATE_ROUTE ) );
 	}
 
+	public function test_restart_after_needs_attention_starts_a_new_retry_cycle(): void {
+		$this->fake_create_invoice_timeout();
+		$this->fake_lookup_not_found();
+		$exhausted = array();
+		add_action(
+			DraftInvoiceWorkflow::EXHAUSTED_HOOK,
+			static function ( int $order_id ) use ( &$exhausted ): void {
+				$exhausted[] = $order_id;
+			}
+		);
+		$order = $this->completed_order();
+		for ( $run = 0; $run < 6; $run++ ) {
+			$this->run_queued_draft_actions();
+		}
+		$this->assertSame( InvoiceStatus::NEEDS_ATTENTION, $this->invoice_of( $order )?->status );
+		$this->assertCount( 1, $exhausted );
+
+		$this->assertTrue( DraftInvoiceWorkflow::restart( $order->get_id(), InvoiceStatus::NEEDS_ATTENTION ) );
+		$this->assertFalse( DraftInvoiceWorkflow::restart( $order->get_id(), InvoiceStatus::NEEDS_ATTENTION ), 'Only one restart wins.' );
+		$this->run_queued_draft_actions();
+
+		$this->assertCount( 7, $this->http->requests_to( self::LOOKUP_ROUTE ), 'The restarted run still looks up first.' );
+		$this->assertSame( InvoiceStatus::PENDING, $this->invoice_of( $order )?->status );
+		$this->assertEqualsWithDelta( 60, $this->seconds_until_next_draft_action(), 5 );
+		$this->assertCount( 1, $exhausted, 'The new cycle is not exhausted by the old attempts.' );
+	}
+
+	public function test_order_completed_again_after_a_failed_send_was_stopped_looks_up_first(): void {
+		$this->fake_create_invoice_timeout();
+		$order = $this->completed_order();
+		$this->run_queued_draft_actions();
+		$order->update_status( 'cancelled' );
+		$this->run_queued_draft_actions();
+		$this->assertSame( InvoiceStatus::STOPPED, $this->invoice_of( $order )?->status );
+
+		$this->fake_lookup_found( 'c3RvcHBlZA==' );
+		$order->update_status( 'completed' );
+		$this->run_queued_draft_actions();
+
+		$this->assertCount( 1, $this->http->requests_to( self::LOOKUP_ROUTE ) );
+		$this->assertCount( 1, $this->http->requests_to( self::CREATE_ROUTE ) );
+		$record = $this->invoice_of( $order );
+		$this->assertSame( InvoiceStatus::DRAFT_CREATED, $record?->status );
+		$this->assertSame( 'c3RvcHBlZA==', $record->matbao_invoice_id );
+	}
+
 	public function test_recovery_sweep_is_scheduled_once(): void {
 		DraftInvoiceWorkflow::schedule_recovery();
 		DraftInvoiceWorkflow::schedule_recovery();

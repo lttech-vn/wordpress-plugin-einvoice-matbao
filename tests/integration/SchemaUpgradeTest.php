@@ -52,7 +52,7 @@ final class SchemaUpgradeTest extends WP_UnitTestCase {
 
 		Schema::maybe_install();
 
-		$this->assertSame( '2', get_option( Schema::VERSION_OPTION ) );
+		$this->assertSame( '3', get_option( Schema::VERSION_OPTION ) );
 		$columns = $this->columns();
 		$this->assertContains( 'error_code', $columns );
 		$this->assertContains( 'error_kind', $columns );
@@ -94,6 +94,38 @@ final class SchemaUpgradeTest extends WP_UnitTestCase {
 
 		$this->assertStringContainsString( 'Lỗi cũ trước bản v2', $html );
 		$this->assertStringNotContainsString( 'data-einv-error-code', $html );
+	}
+
+	public function test_v2_table_gets_the_retry_cycle_column_and_keeps_its_rows(): void {
+		global $wpdb;
+		$this->create_v1_table();
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- test fixture DDL: the v2 columns.
+		$wpdb->query( $wpdb->prepare( "ALTER TABLE %i ADD error_code varchar(40) NOT NULL DEFAULT '', ADD error_kind varchar(20) NOT NULL DEFAULT ''", Schema::invoice_table() ) );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery -- test fixture row.
+		$wpdb->insert(
+			Schema::invoice_table(),
+			array(
+				'order_id'      => 7002,
+				'reference'     => 'WC7002',
+				'status'        => InvoiceStatus::FAILED,
+				'status_reason' => 'Lỗi bản v2',
+				'error_code'    => 'matbao_http',
+				'error_kind'    => 'matbao',
+				'created_at'    => '2026-01-02 03:04:05',
+				'updated_at'    => '2026-01-02 03:04:05',
+			)
+		);
+		update_option( Schema::VERSION_OPTION, '2' );
+		$this->assertNotContains( 'retry_cycle_start', $this->columns() );
+
+		Schema::maybe_install();
+
+		$this->assertSame( '3', get_option( Schema::VERSION_OPTION ) );
+		$this->assertContains( 'retry_cycle_start', $this->columns() );
+		$invoice = ( new InvoiceRepository() )->find_by_order( 7002 );
+		$this->assertNotNull( $invoice );
+		$this->assertSame( 'matbao_http', $invoice->error_code );
+		$this->assertSame( 0, $invoice->retry_cycle_start );
 	}
 
 	/**
