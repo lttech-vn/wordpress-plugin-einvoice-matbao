@@ -163,8 +163,7 @@ invoice or queues a draft action.
 
 The notice shows for `manage_options` users (at most 10 open alerts, one query), links to the
 order and can be dismissed. The recovery sweep deletes alerts whose invoice was resent, paid or
-removed, and alerts dismissed more than 30 days ago. Deleting all alert options on uninstall
-belongs to #13.
+removed, and alerts dismissed more than 30 days ago.
 
 ## Unit of measure (`DVTinh`)
 
@@ -243,7 +242,16 @@ the user with that email, ten per page, like WooCommerce does.
   order eraser (10), so it still finds orders by billing email. When WooCommerce anonymizes an order
   (its eraser with "Remove personal data from orders" on, or its scheduled removal), the plugin
   erases that order's data through `woocommerce_privacy_remove_order_personal_data` too.
-- Limit: values shorter than 3 characters are not searched for in free text.
+- **Erasure during a send**: when the invoice is still waiting to be sent or retried, the right to
+  erasure wins. The buyer meta is deleted, so the next attempt fails with a buyer-data error and
+  the invoice becomes a failure for the admin to handle; a draft already created on Mat Bao stays
+  there, outside the plugin. The eraser message says so.
+- Orders in every status are covered, including trash and checkout drafts. The export also lists
+  the buyer name on the invoice row and its status reason (ID numbers masked by `Invoice\Redactor`).
+- Limits: values shorter than 3 characters are not searched for in free text. The order note
+  written for a submitted ID number holds only its mask (`********1234`) and is not deleted, here
+  or on uninstall. The export never carries the full ID number: a person who needs it must ask the
+  store, which verifies their identity and reads it manually from the encrypted order meta.
 
 ### Deactivate and uninstall
 
@@ -258,10 +266,11 @@ in the Action Scheduler tables directly). On multisite it runs on every site.
 | Data | Default uninstall | With "Xóa toàn bộ dữ liệu" on |
 |------|-------------------|-------------------------------|
 | Mat Bao and Lark credentials (`einvoice_matbao_credentials`) | deleted | deleted |
-| Transients `einvoice_matbao_*` (token, templates cache) | deleted | deleted |
+| Transients (Mat Bao token, templates cache), deleted by name so a persistent object cache is covered; token names are listed in the option `einvoice_matbao_token_keys` | deleted | deleted |
 | Queued actions in group `einvoice-matbao` | cancelled | cancelled |
 | Tables `{prefix}einvoice_matbao_invoice` and `_attempt` | kept | dropped |
-| Order meta `_einvoice_buyer_request`, `_einvoice_buyer_snapshot` (legacy and HPOS) | kept | deleted |
+| Order meta `_einvoice_buyer_request` (including the encrypted ID number `id_encrypted`), `_einvoice_buyer_snapshot` (legacy and HPOS) | kept | deleted |
+| Order note with the masked ID number | kept | kept |
 | Product meta `_einvoice_matbao_unit` | kept | deleted |
 | Every other `einvoice_matbao_*` option (settings, schema version, alert records `einvoice_matbao_alert_*`) | kept | deleted |
 | WooCommerce orders and products | kept | kept |
@@ -269,7 +278,7 @@ in the Action Scheduler tables directly). On multisite it runs on every site.
 The switch is in the **Gỡ plugin** section of the settings page (`POST settings/uninstall`): off by
 default, Administrator and `wp_rest` nonce like every settings route, and turning it on requires
 typing `XOA HET DU LIEU`. Turning it off needs no confirmation. Invoices on Mat Bao are never
-affected.
+affected. Deleting the meta on a very large shop runs one statement per key without batching.
 
 ## Tests, lint and static analysis
 

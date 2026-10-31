@@ -14,6 +14,7 @@ use LTTech\EinvoiceMatbao\Buyer\BuyerType;
 use LTTech\EinvoiceMatbao\Invoice\InvoiceRecord;
 use LTTech\EinvoiceMatbao\Invoice\InvoiceRepository;
 use LTTech\EinvoiceMatbao\Invoice\InvoiceStatus;
+use LTTech\EinvoiceMatbao\Invoice\Redactor;
 use LTTech\EinvoiceMatbao\Invoice\Schema;
 use WC_Order;
 use WP_User;
@@ -226,6 +227,8 @@ final class BuyerPersonalData {
 		if ( null !== $invoice ) {
 			$values[ __( 'Mã tham chiếu (MTChieu)', 'einvoice-matbao' ) ] = $invoice->reference;
 			$values[ __( 'Trạng thái hóa đơn', 'einvoice-matbao' ) ]      = InvoiceStatus::label( $invoice->status );
+			$values[ __( 'Tên người mua trên hóa đơn', 'einvoice-matbao' ) ] = Redactor::redact( $invoice->buyer_name );
+			$values[ __( 'Lý do trạng thái', 'einvoice-matbao' ) ]        = Redactor::redact( $invoice->status_reason );
 		}
 
 		$rows = array();
@@ -353,7 +356,7 @@ final class BuyerPersonalData {
 	private static function retained_message( WC_Order $order, InvoiceRecord $invoice ): string {
 		return sprintf(
 			/* translators: 1: order number, 2: reference (MTChieu). */
-			__( 'Giữ lại bản ghi hóa đơn của đơn %1$s (mã tham chiếu %2$s, trạng thái, lịch sử gửi) vì nghĩa vụ kế toán; tên người mua trong bản ghi đã được ẩn danh. Hóa đơn hoặc bản nháp đã tạo trên Mắt Bão nằm ngoài phạm vi plugin: cần xử lý trực tiếp trên hệ thống hóa đơn Mắt Bão.', 'einvoice-matbao' ),
+			__( 'Giữ lại bản ghi hóa đơn của đơn %1$s (mã tham chiếu %2$s, trạng thái, lịch sử gửi) vì nghĩa vụ kế toán; tên người mua trong bản ghi đã được ẩn danh. Hóa đơn hoặc bản nháp đã tạo trên Mắt Bão nằm ngoài phạm vi plugin: cần xử lý trực tiếp trên hệ thống hóa đơn Mắt Bão. Nếu hóa đơn đang chờ gửi hoặc gửi lại, yêu cầu xóa được ưu tiên: hóa đơn có thể chuyển sang trạng thái lỗi để quản trị viên xử lý.', 'einvoice-matbao' ),
 			$order->get_order_number(),
 			$invoice->reference
 		);
@@ -384,6 +387,7 @@ final class BuyerPersonalData {
 				'page'     => max( 1, $page ),
 				'customer' => $customers,
 				'type'     => 'shop_order',
+				'status'   => array_merge( array_keys( wc_get_order_statuses() ), array( 'trash', 'checkout-draft' ) ), // "any" leaves out trash and drafts.
 				'orderby'  => 'ID',
 				'order'    => 'ASC',
 			)
