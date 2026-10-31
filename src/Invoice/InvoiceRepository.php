@@ -113,7 +113,7 @@ final class InvoiceRepository {
 
 		$updated = $wpdb->query(
 			$wpdb->prepare(
-				'UPDATE %i SET status = %s, error_code = %s, error_kind = %s, retry_cycle_start = (SELECT COALESCE(MAX(id), 0) + 1 FROM %i WHERE invoice_id = %d), updated_at = %s WHERE id = %d AND status = %s',
+				'UPDATE %i SET status = %s, error_code = %s, error_kind = %s, retry_cycle_start = (SELECT COALESCE(MAX(id), 0) + 1 FROM %i WHERE invoice_id = %d), alert_cycle = alert_cycle + 1, updated_at = %s WHERE id = %d AND status = %s',
 				Schema::invoice_table(),
 				InvoiceStatus::PENDING,
 				'',

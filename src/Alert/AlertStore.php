@@ -8,9 +8,11 @@
 namespace LTTech\EinvoiceMatbao\Alert;
 
 /**
- * One non-autoloaded option per (order, error code, retry cycle). `add_option()` fails when the
- * name exists, which makes "first one wins" atomic and survives restarts and cache flushes. A
- * resend by an admin starts a new retry cycle, so the same error on that order alerts again.
+ * One non-autoloaded option per (order, error code, alert cycle). `add_option()` does nothing when
+ * the name exists, so the first writer wins and this survives restarts and cache flushes. This
+ * assumes no concurrent writer changes the same option between its own check and insert; the
+ * worst case of such a race is one duplicate Lark message. A restart of the invoice bumps
+ * `alert_cycle` (also when it stops before any attempt), so the same error alerts again.
  * Stored values hold ids, the error code and delivery flags only: no personal data, no secrets.
  */
 final class AlertStore {
@@ -25,7 +27,7 @@ final class AlertStore {
 	 *
 	 * @param int    $order_id   Order ID.
 	 * @param string $error_code InvoiceErrorCode value.
-	 * @param int    $cycle      InvoiceRecord::$retry_cycle_start.
+	 * @param int    $cycle      InvoiceRecord::$alert_cycle.
 	 */
 	public static function key( int $order_id, string $error_code, int $cycle ): string {
 		return self::PREFIX . $order_id . '_' . $error_code . '_' . $cycle;
@@ -37,7 +39,7 @@ final class AlertStore {
 	 * @param string $key        Alert key.
 	 * @param int    $order_id   Order ID.
 	 * @param string $error_code InvoiceErrorCode value.
-	 * @param int    $cycle      Retry cycle.
+	 * @param int    $cycle      Alert cycle.
 	 * @return bool False when this alert already exists.
 	 */
 	public static function create( string $key, int $order_id, string $error_code, int $cycle ): bool {

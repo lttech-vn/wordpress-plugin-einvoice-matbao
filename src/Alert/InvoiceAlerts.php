@@ -46,8 +46,8 @@ final class InvoiceAlerts {
 			return;
 		}
 
-		$key = AlertStore::key( $invoice->order_id, $code->value, $invoice->retry_cycle_start );
-		if ( ! AlertStore::create( $key, $invoice->order_id, $code->value, $invoice->retry_cycle_start ) ) {
+		$key = AlertStore::key( $invoice->order_id, $code->value, $invoice->alert_cycle );
+		if ( ! AlertStore::create( $key, $invoice->order_id, $code->value, $invoice->alert_cycle ) ) {
 			return;
 		}
 

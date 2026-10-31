@@ -41,7 +41,7 @@ final class AdminAlertNotice {
 			if (
 				null === $invoice || ! $order instanceof \WC_Order || null === $code
 				|| $invoice->error_code !== $alert['code']
-				|| $invoice->retry_cycle_start !== $alert['cycle']
+				|| $invoice->alert_cycle !== $alert['cycle']
 				|| ! in_array( $invoice->status, array( InvoiceStatus::FAILED, InvoiceStatus::NEEDS_ATTENTION, InvoiceStatus::NOT_CONFIGURED ), true )
 			) {
 				continue;

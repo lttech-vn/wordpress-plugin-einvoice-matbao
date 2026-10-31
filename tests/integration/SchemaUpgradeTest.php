@@ -52,7 +52,7 @@ final class SchemaUpgradeTest extends WP_UnitTestCase {
 
 		Schema::maybe_install();
 
-		$this->assertSame( '3', get_option( Schema::VERSION_OPTION ) );
+		$this->assertSame( Schema::VERSION, get_option( Schema::VERSION_OPTION ) );
 		$columns = $this->columns();
 		$this->assertContains( 'error_code', $columns );
 		$this->assertContains( 'error_kind', $columns );
@@ -120,7 +120,7 @@ final class SchemaUpgradeTest extends WP_UnitTestCase {
 
 		Schema::maybe_install();
 
-		$this->assertSame( '3', get_option( Schema::VERSION_OPTION ) );
+		$this->assertSame( Schema::VERSION, get_option( Schema::VERSION_OPTION ) );
 		$this->assertContains( 'retry_cycle_start', $this->columns() );
 		$invoice = ( new InvoiceRepository() )->find_by_order( 7002 );
 		$this->assertNotNull( $invoice );
