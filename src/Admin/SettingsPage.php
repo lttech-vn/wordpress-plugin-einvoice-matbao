@@ -186,6 +186,19 @@ final class SettingsPage {
 				</section>
 
 				<section class="<?php echo esc_attr( $card ); ?>">
+					<h2 class="<?php echo esc_attr( $title ); ?>"><?php esc_html_e( 'Đơn vị tính', 'einvoice-matbao' ); ?></h2>
+					<form hx-post="<?php echo esc_url( rest_url( SettingsController::NAMESPACE . '/settings/unit' ) ); ?>" hx-target="next .einv-result" class="mt-4 space-y-4">
+						<div>
+							<label class="<?php echo esc_attr( $label ); ?>" for="einv-default-unit"><?php esc_html_e( 'Đơn vị tính mặc định (DVTinh)', 'einvoice-matbao' ); ?></label>
+							<input id="einv-default-unit" name="default_unit" type="text" maxlength="<?php echo esc_attr( (string) Settings::MAX_UNIT_LENGTH ); ?>" class="<?php echo esc_attr( $input ); ?>" value="<?php echo esc_attr( $settings->default_unit() ); ?>" placeholder="<?php echo esc_attr( Settings::DEFAULT_UNIT ); ?>" />
+							<p class="<?php echo esc_attr( $help ); ?>"><?php esc_html_e( 'Dùng cho sản phẩm không có đơn vị tính riêng, phí và vận chuyển. Có thể đặt riêng ở từng sản phẩm. Tối đa 50 ký tự; để trống để dùng "Gói".', 'einvoice-matbao' ); ?></p>
+						</div>
+						<button type="submit" class="<?php echo esc_attr( $button ); ?>"><?php esc_html_e( 'Lưu', 'einvoice-matbao' ); ?></button>
+					</form>
+					<div class="einv-result" aria-live="polite"></div>
+				</section>
+
+				<section class="<?php echo esc_attr( $card ); ?>">
 					<h2 class="<?php echo esc_attr( $title ); ?>"><?php esc_html_e( 'Cảnh báo Lark', 'einvoice-matbao' ); ?></h2>
 					<p class="<?php echo esc_attr( $help ); ?> mb-4"><?php esc_html_e( 'Webhook của custom bot Lark trong group nhận cảnh báo. Webhook và secret được lưu mã hóa và không hiển thị lại.', 'einvoice-matbao' ); ?></p>
 					<form hx-post="<?php echo esc_url( rest_url( SettingsController::NAMESPACE . '/settings/lark' ) ); ?>" hx-target="next .einv-result" class="space-y-4">

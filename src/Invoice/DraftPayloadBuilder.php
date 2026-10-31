@@ -7,6 +7,8 @@
 
 namespace LTTech\EinvoiceMatbao\Invoice;
 
+use LTTech\EinvoiceMatbao\Admin\ProductUnitField;
+use LTTech\EinvoiceMatbao\Settings;
 use WC_Order;
 use WC_Order_Item;
 use WC_Order_Item_Fee;
@@ -30,9 +32,6 @@ final class DraftPayloadBuilder {
 
 	/** `TSuat` values accepted from WooCommerce rates. */
 	public const ALLOWED_TAX_RATES = array( 0, 5, 8, 10 );
-
-	/** `DVTinh` until per-store and per-product units exist (ticket #12). */
-	public const DEFAULT_UNIT = 'Gói';
 
 	/** `DVTTe` for VND. */
 	private const CURRENCY_VND = 704;
@@ -68,10 +67,12 @@ final class DraftPayloadBuilder {
 		}
 
 		$rates = $this->stored_rate_percents( $order );
-		$lines = array();
-		$items = $order->get_items( array( 'line_item', 'fee', 'shipping' ) );
+		// Read once per payload so the units are a snapshot of the settings when the draft is built.
+		$default_unit = ( new Settings() )->default_unit();
+		$lines        = array();
+		$items        = $order->get_items( array( 'line_item', 'fee', 'shipping' ) );
 		foreach ( $items as $item ) {
-			$line = $this->line( $item, count( $lines ) + 1, $rates );
+			$line = $this->line( $item, count( $lines ) + 1, $rates, $default_unit );
 			if ( null !== $line ) {
 				$lines[] = $line;
 			}
@@ -128,10 +129,11 @@ final class DraftPayloadBuilder {
 	 * @param WC_Order_Item      $item  Product, fee or shipping item.
 	 * @param int                $index `STT`.
 	 * @param array<int, string> $rates Stored rate percent by tax rate ID.
+	 * @param string             $default_unit Store default `DVTinh`.
 	 * @return array<string, int|float|string>|null Null for a fee or shipping line of 0 đồng, which is left off.
 	 * @throws InvoiceDataError When the line has an unusable tax rate, a negative or fractional amount.
 	 */
-	private function line( WC_Order_Item $item, int $index, array $rates ): ?array {
+	private function line( WC_Order_Item $item, int $index, array $rates, string $default_unit ): ?array {
 		$name = $item->get_name();
 		if ( $item instanceof WC_Order_Item_Product ) {
 			$quantity = (float) $item->get_quantity();
@@ -140,12 +142,14 @@ final class DraftPayloadBuilder {
 			$taxable  = 'none' !== $item->get_tax_status();
 			$product  = $item->get_product();
 			$code     = $product instanceof \WC_Product ? (string) $product->get_sku() : '';
+			$unit     = $product instanceof \WC_Product ? ProductUnitField::unit_for( $product, $default_unit ) : $default_unit;
 		} elseif ( $item instanceof WC_Order_Item_Fee || $item instanceof WC_Order_Item_Shipping ) {
 			$quantity = 1.0;
 			$net      = $item->get_total();
 			$taxes    = $item->get_taxes();
 			$taxable  = 'none' !== $item->get_tax_status();
 			$code     = '';
+			$unit     = $default_unit;
 		} else {
 			self::fail( __( 'Đơn hàng có loại dòng không hỗ trợ.', 'einvoice-matbao' ) );
 		}
@@ -188,7 +192,7 @@ final class DraftPayloadBuilder {
 
 		return $line + array(
 			'THHDVu'       => mb_substr( $name, 0, self::MAX_ITEM_NAME_LENGTH ),
-			'DVTinh'       => self::DEFAULT_UNIT,
+			'DVTinh'       => $unit,
 			'SLuong'       => self::number( $quantity ),
 			'DGia'         => self::number( round( $net / $quantity, 6 ) ),
 			'ThTienChuaCK' => $net,

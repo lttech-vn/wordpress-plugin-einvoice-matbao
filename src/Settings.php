@@ -31,6 +31,12 @@ final class Settings {
 	/** `NMua_Ten` maximum length (Mat Bao create-invoice definition). */
 	public const MAX_BUYER_NAME_LENGTH = 400;
 
+	/** `DVTinh` when no store default is configured. */
+	public const DEFAULT_UNIT = 'Gói';
+
+	/** `DVTinh` maximum length (Mat Bao create-invoice definition). */
+	public const MAX_UNIT_LENGTH = 50;
+
 	/**
 	 * Whether a prefix is allowed: ASCII letters and digits only, short enough for 10-digit order IDs.
 	 *
@@ -54,6 +60,15 @@ final class Settings {
 		$name = $this->string_value( 'walk_in_buyer_name' );
 
 		return '' === $name ? self::DEFAULT_WALK_IN_BUYER_NAME : $name;
+	}
+
+	/**
+	 * Store-wide default `DVTinh`, or "Gói" when none is configured.
+	 */
+	public function default_unit(): string {
+		$unit = $this->string_value( 'default_unit' );
+
+		return '' === $unit ? self::DEFAULT_UNIT : $unit;
 	}
 
 	/**
@@ -88,6 +103,15 @@ final class Settings {
 				'walk_in_buyer_name' => $walk_in_buyer_name,
 			)
 		);
+	}
+
+	/**
+	 * Saves the store-wide default unit. Callers validate the length first.
+	 *
+	 * @param string $unit Unit, or empty for the built-in default.
+	 */
+	public function save_default_unit( string $unit ): void {
+		$this->update( array( 'default_unit' => $unit ) );
 	}
 
 	/**
