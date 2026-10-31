@@ -31,7 +31,12 @@ describe("checkout invoice request", { serial: false }, () => {
 					params: { ...BILLING },
 				});
 				await agent.act(BUYER_GOALS[buyer], { params: BUYER_PARAMS[buyer] });
-				await agent.act("choose cash on delivery if a payment method must be chosen, then place the order");
+				if (checkout === "classic") {
+					await agent.act("choose cash on delivery if a payment method must be chosen, then place the order");
+				} else {
+					// Blocks disables the button while it validates; an exact tap waits for it to be actionable.
+					await screen.getByRole("button", "Place Order").tap();
+				}
 				await expect(browser).toHaveURL(/order-received/);
 				await expect(screen.getByText("Dịch vụ E2E", { exact: false }).first()).toBeVisible();
 
