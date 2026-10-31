@@ -40,10 +40,10 @@ enum InvoiceErrorCode: string {
 	/** The snapshot holds a citizen ID but no encryption key is configured when sending. */
 	case BUYER_ID_KEY_MISSING = 'buyer_id_key_missing';
 
-	case CREDENTIALS_MISSING   = 'credentials_missing';
-	case TEMPLATE_MISSING      = 'template_missing';
-	case TEMPLATE_UNAVAILABLE  = 'template_unavailable';
-	case TEMPLATE_REJECTED     = 'template_rejected';
+	case CREDENTIALS_MISSING  = 'credentials_missing';
+	case TEMPLATE_MISSING     = 'template_missing';
+	case TEMPLATE_UNAVAILABLE = 'template_unavailable';
+	case TEMPLATE_REJECTED    = 'template_rejected';
 
 	/**
 	 * The default template changed after a create call that may have reached Mat Bao under the

@@ -389,7 +389,7 @@ final class DraftInvoiceBuyerSnapshotTest extends InvoiceWorkflowTestCase {
 	 * Collects the codes of every needs-attention hook from now on.
 	 */
 	private function collect_needs_attention(): object {
-		$collected = new \stdClass();
+		$collected        = new \stdClass();
 		$collected->codes = array();
 		add_action(
 			DraftInvoiceWorkflow::NEEDS_ATTENTION_ACTION,
