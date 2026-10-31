@@ -57,7 +57,10 @@ skipped with a reason. Failures are not retried yet.
 
 Before the create call the action re-reads the order and settings and asks Mat Bao for the
 templates of the invoice year (`/api/invoice/templates`): the default template must still be
-listed as a VAT template with numbers left, so a template of last year is blocked after New Year.
+listed as a VAT template with numbers left, so a template of last year is blocked after New Year. The
+list is cached for 5 minutes (`TemplateCache`, one transient per account and year) and dropped
+when the default template or the credentials are saved, and when the template is unavailable or
+rejected by Mat Bao.
 
 ### Blocked drafts and error classification
 

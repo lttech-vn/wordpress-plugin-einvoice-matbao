@@ -9,7 +9,9 @@ namespace LTTech\EinvoiceMatbao\Invoice;
 
 use LTTech\EinvoiceMatbao\CredentialStore;
 use LTTech\EinvoiceMatbao\Matbao\MatbaoClient;
+use LTTech\EinvoiceMatbao\Matbao\MatbaoCredentials;
 use LTTech\EinvoiceMatbao\Matbao\MatbaoError;
+use LTTech\EinvoiceMatbao\Matbao\TemplateCache;
 use LTTech\EinvoiceMatbao\Settings;
 use WC_Order;
 
@@ -104,12 +106,14 @@ final class DraftInvoiceWorkflow {
 	 * @param Settings            $settings   Invoicing settings.
 	 * @param CredentialStore     $store      Mat Bao credentials.
 	 * @param DraftPayloadBuilder $builder    Payload builder.
+	 * @param TemplateCache       $templates  Cached Mat Bao templates list.
 	 */
 	public function __construct(
 		private readonly InvoiceRepository $repository = new InvoiceRepository(),
 		private readonly Settings $settings = new Settings(),
 		private readonly CredentialStore $store = new CredentialStore(),
 		private readonly DraftPayloadBuilder $builder = new DraftPayloadBuilder(),
+		private readonly TemplateCache $templates = new TemplateCache(),
 	) {
 	}
 
@@ -170,12 +174,13 @@ final class DraftInvoiceWorkflow {
 
 		$client = new MatbaoClient( $credentials );
 		try {
-			$template_available = $this->template_available( $client, $template, $issued_on );
+			$template_available = $this->template_available( $client, $credentials, $template, $issued_on );
 		} catch ( MatbaoError $error ) {
 			self::record_error( $this->repository, $order_id, InvoiceErrorCode::from_matbao( $error ), $error->getMessage() );
 			return;
 		}
 		if ( ! $template_available ) {
+			TemplateCache::forget();
 			self::record_error(
 				$this->repository,
 				$order_id,
@@ -196,7 +201,10 @@ final class DraftInvoiceWorkflow {
 			$invoice_id = $client->create_invoice( $payload );
 		} catch ( MatbaoError $error ) {
 			$this->repository->finish_attempt( $attempt, 'failed', $error->kind, $error->http_status, $error->api_code, $error->getMessage() );
-			$code   = InvoiceErrorCode::from_matbao( $error );
+			$code = InvoiceErrorCode::from_matbao( $error );
+			if ( InvoiceErrorCode::TEMPLATE_REJECTED === $code ) {
+				TemplateCache::forget();
+			}
 			$reason = InvoiceErrorCode::TEMPLATE_REJECTED === $code
 				/* translators: 1: Mat Bao message, 2: template form number (KHMSHDon), 3: template series (KHHDon). */
 				? sprintf( __( 'Mắt Bão từ chối mẫu hóa đơn %2$s / %3$s (%1$s); chọn lại mẫu mặc định.', 'einvoice-matbao' ), $error->getMessage(), $template['form'], $template['series'] )
@@ -221,15 +229,17 @@ final class DraftInvoiceWorkflow {
 
 	/**
 	 * Whether Mat Bao still offers the default template for the invoice year with numbers left.
-	 * A template of last year (series C25...) is no longer offered once the year changes.
+	 * A template of last year (series C25...) is no longer offered once the year changes. The list
+	 * may be up to TemplateCache's lifetime old; a rejection on create drops it.
 	 *
-	 * @param MatbaoClient                        $client    Client.
-	 * @param array{form: string, series: string} $template  Default template.
-	 * @param \DateTimeImmutable                  $issued_on `NLap`, Vietnam time.
+	 * @param MatbaoClient                        $client      Client.
+	 * @param MatbaoCredentials                   $credentials Account of the client.
+	 * @param array{form: string, series: string} $template    Default template.
+	 * @param \DateTimeImmutable                  $issued_on   `NLap`, Vietnam time.
 	 * @throws MatbaoError When the templates call fails.
 	 */
-	private function template_available( MatbaoClient $client, array $template, \DateTimeImmutable $issued_on ): bool {
-		foreach ( $client->templates( (int) $issued_on->format( 'Y' ) ) as $offered ) {
+	private function template_available( MatbaoClient $client, MatbaoCredentials $credentials, array $template, \DateTimeImmutable $issued_on ): bool {
+		foreach ( $this->templates->templates( $client, $credentials, (int) $issued_on->format( 'Y' ) ) as $offered ) {
 			if ( $offered->is_vat() && $offered->form === $template['form'] && $offered->series === $template['series'] ) {
 				return $offered->has_remaining_numbers();
 			}

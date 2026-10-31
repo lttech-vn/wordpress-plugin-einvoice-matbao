@@ -9,6 +9,7 @@ namespace LTTech\EinvoiceMatbao;
 
 use LTTech\EinvoiceMatbao\Lark\LarkWebhook;
 use LTTech\EinvoiceMatbao\Matbao\MatbaoCredentials;
+use LTTech\EinvoiceMatbao\Matbao\TemplateCache;
 
 /**
  * Stores each credential set as one encrypted JSON blob in a non-autoloaded option.
@@ -88,6 +89,7 @@ final class CredentialStore {
 				'password'    => $credentials->password,
 			)
 		);
+		TemplateCache::forget();
 	}
 
 	/**
