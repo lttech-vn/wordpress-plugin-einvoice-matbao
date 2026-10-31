@@ -19,6 +19,8 @@ final class OrderInvoiceMetaBoxTest extends InvoiceWorkflowTestCase {
 
 	public function test_meta_box_is_registered_on_the_order_screen(): void {
 		global $wp_meta_boxes;
+		require_once ABSPATH . 'wp-admin/includes/template.php';
+		set_current_screen( 'dashboard' );
 		$screen = OrderUtil::get_order_admin_screen();
 
 		OrderInvoiceMetaBox::add_meta_box();

@@ -1,0 +1,173 @@
+<?php
+/**
+ * Database access for invoices and attempts.
+ *
+ * @package EinvoiceMatbao
+ */
+
+namespace LTTech\EinvoiceMatbao\Invoice;
+
+// phpcs:disable WordPress.DB.DirectDatabaseQuery -- custom tables (ADR 0002); status rows must never be served from a cache.
+
+/**
+ * Reads and writes the invoice and attempt tables. Reservation and claiming rely on single
+ * atomic statements (`INSERT IGNORE` against `UNIQUE(order_id)`, conditional `UPDATE`), so two
+ * hooks or two queue runners for the same order cannot both win.
+ */
+final class InvoiceRepository {
+
+	/**
+	 * Inserts the invoice row of an order unless one already exists.
+	 *
+	 * @param int    $order_id   WooCommerce order ID.
+	 * @param string $reference  `MTChieu`.
+	 * @param string $buyer_name `NMua_Ten` snapshot.
+	 * @param string $status     Initial InvoiceStatus.
+	 * @param string $reason     Status reason, or empty.
+	 * @return bool Whether this call inserted the row.
+	 */
+	public function reserve( int $order_id, string $reference, string $buyer_name, string $status, string $reason = '' ): bool {
+		global $wpdb;
+
+		$now = current_time( 'mysql', true );
+
+		$inserted = $wpdb->query(
+			$wpdb->prepare(
+				'INSERT IGNORE INTO %i (order_id, reference, status, status_reason, buyer_name, created_at, updated_at) VALUES (%d, %s, %s, %s, %s, %s, %s)',
+				Schema::invoice_table(),
+				$order_id,
+				$reference,
+				$status,
+				$reason,
+				$buyer_name,
+				$now,
+				$now
+			)
+		);
+
+		return 1 === $inserted;
+	}
+
+	/**
+	 * Moves an invoice from one status to another only if it is still in the expected status.
+	 *
+	 * @param int    $invoice_id Invoice row ID.
+	 * @param string $from       Expected current status.
+	 * @param string $to         New status.
+	 * @return bool Whether this call made the change.
+	 */
+	public function claim( int $invoice_id, string $from, string $to ): bool {
+		global $wpdb;
+
+		$updated = $wpdb->query(
+			$wpdb->prepare(
+				'UPDATE %i SET status = %s, updated_at = %s WHERE id = %d AND status = %s',
+				Schema::invoice_table(),
+				$to,
+				current_time( 'mysql', true ),
+				$invoice_id,
+				$from
+			)
+		);
+
+		return 1 === $updated;
+	}
+
+	/**
+	 * Sets the status and reason of an invoice.
+	 *
+	 * @param int                  $invoice_id Invoice row ID.
+	 * @param string               $status     InvoiceStatus.
+	 * @param string               $reason     Reason, or empty.
+	 * @param array<string, mixed> $fields     Other columns to set.
+	 */
+	public function update_status( int $invoice_id, string $status, string $reason = '', array $fields = array() ): void {
+		global $wpdb;
+
+		$wpdb->update(
+			Schema::invoice_table(),
+			array_merge(
+				$fields,
+				array(
+					'status'        => $status,
+					'status_reason' => $reason,
+					'updated_at'    => current_time( 'mysql', true ),
+				)
+			),
+			array( 'id' => $invoice_id )
+		);
+	}
+
+	/**
+	 * The invoice of an order, or null.
+	 *
+	 * @param int $order_id WooCommerce order ID.
+	 */
+	public function find_by_order( int $order_id ): ?InvoiceRecord {
+		global $wpdb;
+
+		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE order_id = %d', Schema::invoice_table(), $order_id ), ARRAY_A );
+
+		return is_array( $row ) ? InvoiceRecord::from_row( $row ) : null;
+	}
+
+	/**
+	 * Records the start of a create call and returns the attempt ID.
+	 *
+	 * @param int $invoice_id Invoice row ID.
+	 */
+	public function start_attempt( int $invoice_id ): int {
+		global $wpdb;
+
+		$wpdb->insert(
+			Schema::attempt_table(),
+			array(
+				'invoice_id' => $invoice_id,
+				'started_at' => current_time( 'mysql', true ),
+			)
+		);
+
+		return (int) $wpdb->insert_id;
+	}
+
+	/**
+	 * Records the outcome of a create call.
+	 *
+	 * @param int         $attempt_id  Attempt ID.
+	 * @param string      $outcome     `success` or `failed`.
+	 * @param string|null $error_kind  MatbaoError kind on failure.
+	 * @param int|null    $http_status HTTP status, when a response was received.
+	 * @param int|null    $api_code    Mat Bao `errorCode`, when present.
+	 * @param string      $message     Mat Bao message or fixed text; never secrets.
+	 */
+	public function finish_attempt( int $attempt_id, string $outcome, ?string $error_kind = null, ?int $http_status = null, ?int $api_code = null, string $message = '' ): void {
+		global $wpdb;
+
+		$wpdb->update(
+			Schema::attempt_table(),
+			array(
+				'finished_at' => current_time( 'mysql', true ),
+				'outcome'     => $outcome,
+				'error_kind'  => $error_kind,
+				'http_status' => $http_status,
+				'api_code'    => $api_code,
+				'message'     => $message,
+			),
+			array( 'id' => $attempt_id )
+		);
+	}
+
+	/**
+	 * Attempts of an invoice, oldest first.
+	 *
+	 * @param int $invoice_id Invoice row ID.
+	 * @return list<array<string, mixed>>
+	 */
+	public function attempts( int $invoice_id ): array {
+		global $wpdb;
+
+		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE invoice_id = %d ORDER BY id', Schema::attempt_table(), $invoice_id ), ARRAY_A );
+
+		return is_array( $rows ) ? array_values( $rows ) : array();
+	}
+}

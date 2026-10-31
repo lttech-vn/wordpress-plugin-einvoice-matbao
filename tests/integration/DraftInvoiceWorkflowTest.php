@@ -122,8 +122,8 @@ final class DraftInvoiceWorkflowTest extends InvoiceWorkflowTestCase {
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery -- test resets the reservation on purpose.
 		$wpdb->delete( $wpdb->prefix . 'einvoice_matbao_invoice', array( 'order_id' => $order->get_id() ) );
 
-		do_action( 'woocommerce_order_status_completed', $order->get_id(), $order );
-		do_action( 'woocommerce_order_status_completed', $order->get_id(), $order );
+		DraftInvoiceWorkflow::on_order_completed( $order->get_id(), $order );
+		DraftInvoiceWorkflow::on_order_completed( $order->get_id(), $order );
 
 		$this->assertCount( 1, $this->queued_draft_action_ids() );
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery -- test inspects raw storage on purpose.
@@ -136,8 +136,8 @@ final class DraftInvoiceWorkflowTest extends InvoiceWorkflowTestCase {
 		$order = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
 		$order->update_status( 'completed' );
 
-		do_action( DraftInvoiceWorkflow::ACTION, $order->get_id() );
-		do_action( DraftInvoiceWorkflow::ACTION, $order->get_id() );
+		do_action( 'einvoice_matbao_create_draft', $order->get_id() );
+		do_action( 'einvoice_matbao_create_draft', $order->get_id() );
 
 		$this->assertCount( 1, $this->http->requests_to( self::CREATE_ROUTE ) );
 		$this->assertSame( InvoiceStatus::DRAFT_CREATED, $this->invoice_of( $order )?->status );
@@ -212,7 +212,7 @@ final class DraftInvoiceWorkflowTest extends InvoiceWorkflowTestCase {
 		$this->configure_matbao();
 		$this->fake_create_invoice_ok();
 		$order = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
-		$fee = new WC_Order_Item_Fee();
+		$fee   = new WC_Order_Item_Fee();
 		$fee->set_name( 'Phí xử lý' );
 		$fee->set_amount( '20000' );
 		$fee->set_total( '20000' );
