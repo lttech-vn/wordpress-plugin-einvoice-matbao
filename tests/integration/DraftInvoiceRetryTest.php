@@ -360,6 +360,54 @@ final class DraftInvoiceRetryTest extends InvoiceWorkflowTestCase {
 		$this->assertSame( array(), $this->attempts_of( $record ) );
 	}
 
+	public function test_sweep_never_leaves_two_pending_actions_for_one_order(): void {
+		$this->fake_create_invoice_ok();
+		$order  = $this->completed_order();
+		$record = $this->invoice_of( $order );
+		$this->assertNotNull( $record );
+		$this->assertCount( 1, $this->queued_draft_action_ids() );
+		// A runner claimed the row and died while its action is still queued.
+		( new InvoiceRepository() )->claim( $record->id, InvoiceStatus::PENDING, InvoiceStatus::SENDING );
+		$this->age_invoice( $record, HOUR_IN_SECONDS );
+
+		( new DraftInvoiceWorkflow() )->recover_stuck();
+
+		$this->assertSame( InvoiceStatus::PENDING, $this->invoice_of( $order )?->status );
+		$this->assertCount( 1, $this->queued_draft_action_ids() );
+	}
+
+	public function test_sweep_does_not_reclaim_a_sending_row_that_changed_since_it_was_read(): void {
+		$order  = $this->completed_order();
+		$record = $this->invoice_of( $order );
+		$this->assertNotNull( $record );
+		as_unschedule_all_actions( DraftInvoiceWorkflow::ACTION );
+		$repository = new InvoiceRepository();
+		$repository->claim( $record->id, InvoiceStatus::PENDING, InvoiceStatus::SENDING );
+		$this->age_invoice( $record, HOUR_IN_SECONDS );
+		$stale = $repository->find_by_order( $order->get_id() );
+		$this->assertNotNull( $stale );
+
+		// Another runner finished and claimed it again after the sweep read the row.
+		$this->age_invoice( $record, 10 );
+
+		$this->assertFalse( $repository->claim_unchanged( $stale, InvoiceStatus::PENDING ) );
+		$this->assertSame( InvoiceStatus::SENDING, $this->invoice_of( $order )?->status );
+	}
+
+	public function test_claim_lost_to_a_row_already_sending_sends_nothing(): void {
+		$this->fake_create_invoice_ok();
+		$order  = $this->completed_order();
+		$record = $this->invoice_of( $order );
+		$this->assertNotNull( $record );
+		( new InvoiceRepository() )->claim( $record->id, InvoiceStatus::PENDING, InvoiceStatus::SENDING );
+
+		$this->run_queued_draft_actions();
+
+		$this->assertCount( 0, $this->http->requests_to( self::CREATE_ROUTE ) );
+		$this->assertCount( 0, $this->http->requests_to( self::LOOKUP_ROUTE ) );
+		$this->assertSame( InvoiceStatus::SENDING, $this->invoice_of( $order )?->status );
+	}
+
 	public function test_pending_row_with_a_scheduled_retry_is_not_an_orphan(): void {
 		$this->fake_create_invoice_timeout();
 		$order = $this->completed_order();
