@@ -44,6 +44,7 @@ final class Plugin {
 		if ( is_admin() ) {
 			Admin\SettingsPage::register();
 			Admin\OrderInvoiceMetaBox::register();
+			Admin\ProductUnitField::register();
 		}
 	}
 

@@ -46,6 +46,7 @@ final class SettingsController {
 			'/settings/lark/test'   => array( WP_REST_Server::CREATABLE, 'test_lark' ),
 			'/settings/template'    => array( WP_REST_Server::CREATABLE, 'save_template' ),
 			'/settings/invoicing'   => array( WP_REST_Server::CREATABLE, 'save_invoicing' ),
+			'/settings/unit'        => array( WP_REST_Server::CREATABLE, 'save_unit' ),
 		);
 
 		foreach ( $routes as $route => list( $methods, $handler ) ) {
@@ -267,6 +268,36 @@ final class SettingsController {
 				__( 'Đã lưu. Ví dụ MTChieu: %1$s. Tên người mua vãng lai: %2$s.', 'einvoice-matbao' ),
 				$prefix . Settings::REFERENCE_MARKER . '1234',
 				$settings->walk_in_buyer_name()
+			)
+		);
+	}
+
+	/**
+	 * Saves the store-wide default unit of measure (`DVTinh`).
+	 *
+	 * @param WP_REST_Request $request Request.
+	 */
+	public function save_unit( WP_REST_Request $request ): WP_REST_Response {
+		$unit = self::text_param( $request, 'default_unit' );
+
+		if ( mb_strlen( $unit ) > Settings::MAX_UNIT_LENGTH ) {
+			return Fragment::error(
+				sprintf(
+					/* translators: %d: maximum unit length in characters. */
+					__( 'Đơn vị tính tối đa %d ký tự.', 'einvoice-matbao' ),
+					Settings::MAX_UNIT_LENGTH
+				)
+			);
+		}
+
+		$settings = new Settings();
+		$settings->save_default_unit( $unit );
+
+		return Fragment::success(
+			sprintf(
+				/* translators: %s: default unit of measure. */
+				__( 'Đã lưu. Đơn vị tính mặc định: %s.', 'einvoice-matbao' ),
+				$settings->default_unit()
 			)
 		);
 	}

@@ -55,6 +55,15 @@ shipping as their own lines, `TSuat` 0/5/8/10 or -1 for tax status `none`) and m
 the order totals; otherwise nothing is sent and the invoice is marked failed. 0 VND orders are
 skipped with a reason. Failures are not retried yet.
 
+## Unit of measure (`DVTinh`)
+
+The store default is set on the settings page; fees and shipping always use it. A product or
+variation can override it, and a variation without its own override inherits its parent's.
+
+Limits: the per-product unit can only be edited on the product edit screen (and in its variation
+panels). Quick edit, bulk edit and CSV import do not support it yet; they leave an existing
+override untouched.
+
 ## Tests, lint and static analysis
 
 One command runs everything (starts the stack if needed):
