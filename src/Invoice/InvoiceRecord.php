@@ -20,6 +20,8 @@ final class InvoiceRecord {
 	 * @param string      $reference         `MTChieu`, fixed at reservation.
 	 * @param string      $status            InvoiceStatus constant.
 	 * @param string      $status_reason     Why the status was set, or empty.
+	 * @param string      $error_code        InvoiceErrorCode value, or empty when there is no error.
+	 * @param string      $error_kind        InvoiceErrorKind value, or empty when there is no error.
 	 * @param string      $buyer_name        `NMua_Ten` captured when the order completed.
 	 * @param string      $template_form     `KHMSHDon` sent, or empty before sending.
 	 * @param string      $template_series   `KHHDon` sent, or empty before sending.
@@ -32,6 +34,8 @@ final class InvoiceRecord {
 		public readonly string $reference,
 		public readonly string $status,
 		public readonly string $status_reason,
+		public readonly string $error_code,
+		public readonly string $error_kind,
 		public readonly string $buyer_name,
 		public readonly string $template_form,
 		public readonly string $template_series,
@@ -52,12 +56,21 @@ final class InvoiceRecord {
 			self::text( $row['reference'] ?? null ),
 			self::text( $row['status'] ?? null ),
 			self::text( $row['status_reason'] ?? null ),
+			self::text( $row['error_code'] ?? null ),
+			self::text( $row['error_kind'] ?? null ),
 			self::text( $row['buyer_name'] ?? null ),
 			self::text( $row['template_form'] ?? null ),
 			self::text( $row['template_series'] ?? null ),
 			is_string( $row['matbao_invoice_id'] ?? null ) ? $row['matbao_invoice_id'] : null,
 			is_string( $row['issued_on'] ?? null ) ? $row['issued_on'] : null,
 		);
+	}
+
+	/**
+	 * The recorded error, or null when there is none or the stored code is unknown.
+	 */
+	public function error(): ?InvoiceErrorCode {
+		return InvoiceErrorCode::tryFrom( $this->error_code );
 	}
 
 	/**

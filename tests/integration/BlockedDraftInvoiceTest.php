@@ -266,7 +266,7 @@ final class BlockedDraftInvoiceTest extends InvoiceWorkflowTestCase {
 		$order = $this->create_order( array( array( $this->create_product( 'Bảy', '100000', self::CLASS_SEVEN ), 1 ) ) );
 
 		$this->complete_and_run( $order );
-		do_action( DraftInvoiceWorkflow::ACTION, $order->get_id() );
+		do_action( 'einvoice_matbao_create_draft', $order->get_id() );
 		$this->run_queued_draft_actions();
 
 		$this->assertFalse( InvoiceErrorKind::DATA->is_auto_retryable() );

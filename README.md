@@ -55,6 +55,30 @@ shipping as their own lines, `TSuat` 0/5/8/10 or -1 for tax status `none`) and m
 the order totals; otherwise nothing is sent and the invoice is marked failed. 0 VND orders are
 skipped with a reason. Failures are not retried yet.
 
+Before the create call the action re-reads the order and settings and asks Mat Bao for the
+templates of the invoice year (`/api/invoice/templates`): the default template must still be
+listed as a VAT template with numbers left, so a template of last year is blocked after New Year.
+
+### Blocked drafts and error classification
+
+Every reason a draft is not created is stored on the invoice row as a stable `error_code`
+(`InvoiceErrorCode`) and `error_kind` (`InvoiceErrorKind`) next to the Vietnamese
+`status_reason`. The order status is never changed. The order meta box shows the kind, a short
+label and the reason (`data-einv-error-code` / `data-einv-error-kind` attributes).
+
+| Kind     | Status           | Codes                                                                                   | Auto retry |
+|----------|------------------|-----------------------------------------------------------------------------------------|------------|
+| `data`   | `failed`         | non-VND currency, fractional VND, unsupported or missing tax rate, several rates on a line, totals mismatch, `MTChieu` > 20 characters, ... | no |
+| `config` | `not_configured` | credentials missing, template missing, template not offered or out of numbers, template rejected by Mat Bao (`errorCode` 308/327) | no |
+| `order`  | `stopped`        | order left `completed`, refunded before sending                                         | no |
+| `matbao` | `failed`         | Mat Bao transport, HTTP or API error (create-invoice or templates)                     | allowed (#6) |
+| `system` | `failed`         | queueing failed, unexpected exception                                                  | no |
+
+`InvoiceErrorKind::is_auto_retryable()` is the switch for #6. Each recorded error an admin must act
+on fires `do_action( 'einvoice_matbao_invoice_needs_attention', InvoiceRecord $invoice,
+InvoiceErrorCode $code )` once; an order the shop moved out of `completed` on purpose does not.
+Admin and Lark alerts (#7) hook there.
+
 ## Unit of measure (`DVTinh`)
 
 The store default is set on the settings page; fees and shipping always use it. A product or

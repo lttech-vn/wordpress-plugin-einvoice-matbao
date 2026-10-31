@@ -19,13 +19,22 @@ use WC_Order;
  * (`pending` → `sending`) before calling Mat Bao, so a duplicate run cannot send twice.
  *
  * Only orders completing while the plugin is active are handled; older orders are never scanned.
- * Failures are recorded once and not retried here (background retry and recovery of rows left
- * in `sending` are ticket #6).
+ * Every reason a draft is not created is recorded as an InvoiceErrorCode (code, kind, status and
+ * Vietnamese reason) and announced through NEEDS_ATTENTION_ACTION. Failures are not retried here
+ * (background retry of InvoiceErrorKind::MATBAO errors and recovery of rows left in `sending` are
+ * ticket #6).
  */
 final class DraftInvoiceWorkflow {
 
 	public const ACTION = 'einvoice_matbao_create_draft';
 	public const GROUP  = 'einvoice-matbao';
+
+	/**
+	 * Fired once each time an invoice records an error an admin has to act on
+	 * (InvoiceErrorCode::needs_attention()), with the updated InvoiceRecord and the
+	 * InvoiceErrorCode. Admin and Lark alerts (#7) hook here.
+	 */
+	public const NEEDS_ATTENTION_ACTION = 'einvoice_matbao_invoice_needs_attention';
 
 	/**
 	 * Hooks the order status change and the queued action.
@@ -58,14 +67,11 @@ final class DraftInvoiceWorkflow {
 		$buyer_name = $settings->walk_in_buyer_name();
 
 		if ( strlen( $reference ) > Settings::MAX_REFERENCE_LENGTH ) {
-			$repository->reserve(
-				$order_id,
-				substr( $reference, 0, Settings::MAX_REFERENCE_LENGTH ),
-				$buyer_name,
-				InvoiceStatus::FAILED,
+			$code = InvoiceErrorCode::REFERENCE_TOO_LONG;
+			if ( $repository->reserve( $order_id, substr( $reference, 0, Settings::MAX_REFERENCE_LENGTH ), $buyer_name, $code->kind()->status() ) ) {
 				/* translators: %s: reference (MTChieu). */
-				sprintf( __( 'Mã tham chiếu %s dài hơn 20 ký tự.', 'einvoice-matbao' ), $reference )
-			);
+				self::record_error( $repository, $order_id, $code, sprintf( __( 'Mã tham chiếu %s dài hơn 20 ký tự.', 'einvoice-matbao' ), $reference ) );
+			}
 			return;
 		}
 
@@ -77,10 +83,7 @@ final class DraftInvoiceWorkflow {
 		if ( $repository->reserve( $order_id, $reference, $buyer_name, InvoiceStatus::PENDING ) ) {
 			$action_id = as_enqueue_async_action( self::ACTION, array( $order_id ), self::GROUP );
 			if ( 0 === $action_id ) {
-				$invoice = ( new InvoiceRepository() )->find_by_order( $order_id );
-				if ( null !== $invoice ) {
-					$repository->update_status( $invoice->id, InvoiceStatus::FAILED, __( 'Không xếp được tác vụ tạo hóa đơn nháp vào hàng đợi.', 'einvoice-matbao' ) );
-				}
+				self::record_error( $repository, $order_id, InvoiceErrorCode::QUEUE_FAILED, __( 'Không xếp được tác vụ tạo hóa đơn nháp vào hàng đợi.', 'einvoice-matbao' ) );
 			}
 		}
 	}
@@ -125,7 +128,7 @@ final class DraftInvoiceWorkflow {
 			$this->send_claimed( $invoice, $order_id );
 		} catch ( \Throwable ) {
 			// Details may carry URLs or tokens, so the stored reason stays generic.
-			$this->repository->update_status( $invoice->id, InvoiceStatus::FAILED, __( 'Lỗi không xác định khi gửi hóa đơn nháp; cần admin kiểm tra.', 'einvoice-matbao' ) );
+			self::record_error( $this->repository, $order_id, InvoiceErrorCode::UNEXPECTED, __( 'Lỗi không xác định khi gửi hóa đơn nháp; cần admin kiểm tra.', 'einvoice-matbao' ) );
 		}
 	}
 
@@ -138,18 +141,22 @@ final class DraftInvoiceWorkflow {
 	private function send_claimed( InvoiceRecord $invoice, int $order_id ): void {
 		$order = wc_get_order( $order_id );
 		if ( ! $order instanceof WC_Order || 'completed' !== $order->get_status() ) {
-			$this->repository->update_status( $invoice->id, InvoiceStatus::STOPPED, __( 'Đơn hàng không còn ở trạng thái hoàn thành khi gửi.', 'einvoice-matbao' ) );
+			self::record_error( $this->repository, $order_id, InvoiceErrorCode::ORDER_NOT_COMPLETED, __( 'Đơn hàng không còn ở trạng thái hoàn thành khi gửi.', 'einvoice-matbao' ) );
 			return;
 		}
 		if ( (float) $order->get_total_refunded() > 0 ) {
-			$this->repository->update_status( $invoice->id, InvoiceStatus::STOPPED, __( 'Đơn hàng đã hoàn tiền trước khi gửi.', 'einvoice-matbao' ) );
+			self::record_error( $this->repository, $order_id, InvoiceErrorCode::ORDER_REFUNDED, __( 'Đơn hàng đã hoàn tiền trước khi gửi.', 'einvoice-matbao' ) );
 			return;
 		}
 
 		$credentials = $this->store->matbao();
-		$template    = $this->settings->default_template();
-		if ( null === $credentials || null === $template ) {
-			$this->repository->update_status( $invoice->id, InvoiceStatus::NOT_CONFIGURED, __( 'Chưa cấu hình kết nối Mắt Bão hoặc mẫu hóa đơn mặc định.', 'einvoice-matbao' ) );
+		if ( null === $credentials ) {
+			self::record_error( $this->repository, $order_id, InvoiceErrorCode::CREDENTIALS_MISSING, __( 'Chưa cấu hình kết nối Mắt Bão.', 'einvoice-matbao' ) );
+			return;
+		}
+		$template = $this->settings->default_template();
+		if ( null === $template ) {
+			self::record_error( $this->repository, $order_id, InvoiceErrorCode::TEMPLATE_MISSING, __( 'Chưa chọn mẫu hóa đơn mặc định.', 'einvoice-matbao' ) );
 			return;
 		}
 
@@ -157,16 +164,44 @@ final class DraftInvoiceWorkflow {
 		try {
 			$payload = $this->builder->build( $order, $invoice->reference, $invoice->buyer_name, $template, $issued_on );
 		} catch ( InvoiceDataError $error ) {
-			$this->repository->update_status( $invoice->id, InvoiceStatus::FAILED, $error->getMessage() );
+			self::record_error( $this->repository, $order_id, $error->error_code, $error->getMessage() );
+			return;
+		}
+
+		$client = new MatbaoClient( $credentials );
+		try {
+			$template_available = $this->template_available( $client, $template, $issued_on );
+		} catch ( MatbaoError $error ) {
+			self::record_error( $this->repository, $order_id, InvoiceErrorCode::from_matbao( $error ), $error->getMessage() );
+			return;
+		}
+		if ( ! $template_available ) {
+			self::record_error(
+				$this->repository,
+				$order_id,
+				InvoiceErrorCode::TEMPLATE_UNAVAILABLE,
+				sprintf(
+					/* translators: 1: template form number (KHMSHDon), 2: template series (KHHDon), 3: year. */
+					__( 'Mẫu hóa đơn %1$s / %2$s không còn trong danh sách mẫu năm %3$s của Mắt Bão hoặc đã hết số; chọn lại mẫu mặc định.', 'einvoice-matbao' ),
+					$template['form'],
+					$template['series'],
+					$issued_on->format( 'Y' )
+				)
+			);
 			return;
 		}
 
 		$attempt = $this->repository->start_attempt( $invoice->id );
 		try {
-			$invoice_id = ( new MatbaoClient( $credentials ) )->create_invoice( $payload );
+			$invoice_id = $client->create_invoice( $payload );
 		} catch ( MatbaoError $error ) {
 			$this->repository->finish_attempt( $attempt, 'failed', $error->kind, $error->http_status, $error->api_code, $error->getMessage() );
-			$this->repository->update_status( $invoice->id, InvoiceStatus::FAILED, $error->getMessage() );
+			$code   = InvoiceErrorCode::from_matbao( $error );
+			$reason = InvoiceErrorCode::TEMPLATE_REJECTED === $code
+				/* translators: 1: Mat Bao message, 2: template form number (KHMSHDon), 3: template series (KHHDon). */
+				? sprintf( __( 'Mắt Bão từ chối mẫu hóa đơn %2$s / %3$s (%1$s); chọn lại mẫu mặc định.', 'einvoice-matbao' ), $error->getMessage(), $template['form'], $template['series'] )
+				: $error->getMessage();
+			self::record_error( $this->repository, $order_id, $code, $reason );
 			return;
 		}
 
@@ -182,5 +217,46 @@ final class DraftInvoiceWorkflow {
 				'template_series'   => $template['series'],
 			)
 		);
+	}
+
+	/**
+	 * Whether Mat Bao still offers the default template for the invoice year with numbers left.
+	 * A template of last year (series C25...) is no longer offered once the year changes.
+	 *
+	 * @param MatbaoClient                        $client    Client.
+	 * @param array{form: string, series: string} $template  Default template.
+	 * @param \DateTimeImmutable                  $issued_on `NLap`, Vietnam time.
+	 * @throws MatbaoError When the templates call fails.
+	 */
+	private function template_available( MatbaoClient $client, array $template, \DateTimeImmutable $issued_on ): bool {
+		foreach ( $client->templates( (int) $issued_on->format( 'Y' ) ) as $offered ) {
+			if ( $offered->is_vat() && $offered->form === $template['form'] && $offered->series === $template['series'] ) {
+				return $offered->has_remaining_numbers();
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Records an error on the invoice of an order and fires NEEDS_ATTENTION_ACTION when an admin
+	 * has to act.
+	 *
+	 * @param InvoiceRepository $repository Invoice storage.
+	 * @param int               $order_id   Order ID.
+	 * @param InvoiceErrorCode  $code       Error code.
+	 * @param string            $reason     Vietnamese reason.
+	 */
+	private static function record_error( InvoiceRepository $repository, int $order_id, InvoiceErrorCode $code, string $reason ): void {
+		$invoice = $repository->find_by_order( $order_id );
+		if ( null === $invoice ) {
+			return;
+		}
+
+		$repository->record_error( $invoice->id, $code, $reason );
+		$invoice = $repository->find_by_order( $order_id );
+		if ( null !== $invoice && $code->needs_attention() ) {
+			do_action( 'einvoice_matbao_invoice_needs_attention', $invoice, $code );
+		}
 	}
 }

@@ -13,7 +13,7 @@ namespace LTTech\EinvoiceMatbao\Invoice;
  */
 final class Schema {
 
-	public const VERSION        = '1';
+	public const VERSION        = '2';
 	public const VERSION_OPTION = 'einvoice_matbao_db_version';
 
 	/**
@@ -63,6 +63,8 @@ final class Schema {
   reference varchar(20) NOT NULL,
   status varchar(20) NOT NULL,
   status_reason text NULL,
+  error_code varchar(40) NOT NULL DEFAULT '',
+  error_kind varchar(20) NOT NULL DEFAULT '',
   buyer_name varchar(400) NOT NULL DEFAULT '',
   template_form varchar(6) NOT NULL DEFAULT '',
   template_series varchar(6) NOT NULL DEFAULT '',

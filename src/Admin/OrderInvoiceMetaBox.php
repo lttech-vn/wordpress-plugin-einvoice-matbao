@@ -14,7 +14,8 @@ use WC_Order;
 use WP_Post;
 
 /**
- * Shows the invoice status, `MTChieu`, Mat Bao invoice ID and the last error of an order.
+ * Shows the invoice status, `MTChieu`, Mat Bao invoice ID and the last error (kind, label and
+ * reason) of an order.
  * Works on both the HPOS and the legacy (posts) order screens. Read-only: there is no create or
  * resend button in this ticket, and skipped 0 VND orders never get one.
  */
@@ -85,6 +86,17 @@ final class OrderInvoiceMetaBox {
 				esc_html( $invoice->template_form . '/' . $invoice->template_series ),
 				/* translators: %s: invoice date. */
 				esc_html( sprintf( __( '– ngày lập %s', 'einvoice-matbao' ), $invoice->issued_on ) )
+			);
+		}
+		$error = $invoice->error();
+		if ( null !== $error ) {
+			printf(
+				'<p data-einv-error-code="%1$s" data-einv-error-kind="%2$s"><strong>%3$s</strong> %4$s – %5$s</p>',
+				esc_attr( $error->value ),
+				esc_attr( $error->kind()->value ),
+				esc_html__( 'Loại lỗi:', 'einvoice-matbao' ),
+				esc_html( $error->kind()->label() ),
+				esc_html( $error->label() )
 			);
 		}
 		if ( '' !== $invoice->status_reason ) {
