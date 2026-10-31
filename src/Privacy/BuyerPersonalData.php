@@ -225,10 +225,10 @@ final class BuyerPersonalData {
 
 		$invoice = ( new InvoiceRepository() )->find_by_order( $order->get_id() );
 		if ( null !== $invoice ) {
-			$values[ __( 'Mã tham chiếu (MTChieu)', 'einvoice-matbao' ) ] = $invoice->reference;
-			$values[ __( 'Trạng thái hóa đơn', 'einvoice-matbao' ) ]      = InvoiceStatus::label( $invoice->status );
+			$values[ __( 'Mã tham chiếu (MTChieu)', 'einvoice-matbao' ) ]    = $invoice->reference;
+			$values[ __( 'Trạng thái hóa đơn', 'einvoice-matbao' ) ]         = InvoiceStatus::label( $invoice->status );
 			$values[ __( 'Tên người mua trên hóa đơn', 'einvoice-matbao' ) ] = Redactor::redact( $invoice->buyer_name );
-			$values[ __( 'Lý do trạng thái', 'einvoice-matbao' ) ]        = Redactor::redact( $invoice->status_reason );
+			$values[ __( 'Lý do trạng thái', 'einvoice-matbao' ) ]           = Redactor::redact( $invoice->status_reason );
 		}
 
 		$rows = array();

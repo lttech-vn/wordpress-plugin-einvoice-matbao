@@ -301,10 +301,10 @@ final class MatbaoClient {
 		if ( $ttl > 0 ) {
 			$name = $this->token_transient();
 			set_transient( $name, $this->encryption->encrypt( $token ), $ttl );
-			$keys = array_values( array_diff( self::token_keys(), array( $name ) ) );
+			$keys   = array_values( array_diff( self::token_keys(), array( $name ) ) );
 			$keys[] = $name;
-			while ( count( $keys ) > self::MAX_TOKEN_KEYS ) {
-				delete_transient( (string) array_shift( $keys ) );
+			foreach ( array_splice( $keys, 0, max( 0, count( $keys ) - self::MAX_TOKEN_KEYS ) ) as $evicted ) {
+				delete_transient( $evicted );
 			}
 			update_option( self::TOKEN_KEYS_OPTION, $keys, false );
 		}

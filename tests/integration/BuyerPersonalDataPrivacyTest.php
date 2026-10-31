@@ -345,7 +345,14 @@ final class BuyerPersonalDataPrivacyTest extends InvoiceWorkflowTestCase {
 	 */
 	private function orders_with_request_meta( string $email ): array {
 		$ids = array();
-		foreach ( wc_get_orders( array( 'billing_email' => $email, 'limit' => -1, 'status' => 'any', 'return' => 'ids' ) ) as $id ) {
+		foreach ( wc_get_orders(
+			array(
+				'billing_email' => $email,
+				'limit'         => -1,
+				'status'        => 'any',
+				'return'        => 'ids',
+			)
+		) as $id ) {
 			if ( '' !== (string) wc_get_order( $id )->get_meta( BuyerRequestStore::META_KEY ) ) {
 				$ids[] = $id;
 			}
