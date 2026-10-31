@@ -24,6 +24,7 @@ final class Plugin {
 		add_action( 'init', array( self::class, 'load_textdomain' ) );
 		add_action( 'plugins_loaded', array( self::class, 'boot' ) );
 		register_activation_hook( EINVOICE_MATBAO_FILE, array( Invoice\Schema::class, 'install' ) );
+		register_deactivation_hook( EINVOICE_MATBAO_FILE, array( self::class, 'deactivate' ) );
 	}
 
 	/**
@@ -42,9 +43,11 @@ final class Plugin {
 		Buyer\OrderRestPrivacy::register();
 		Alert\InvoiceAlerts::register();
 		Invoice\OrderChangeWatcher::register();
+		Privacy\BuyerPersonalData::register();
 
 		add_action( 'rest_api_init', array( Admin\SettingsController::class, 'register_routes' ) );
 		add_action( 'rest_api_init', array( Admin\InvoiceController::class, 'register_routes' ) );
+		add_action( 'rest_api_init', array( Uninstall\UninstallSettingsController::class, 'register_routes' ) );
 		add_filter( 'rest_pre_serve_request', array( Admin\SettingsController::class, 'serve_html' ), 10, 4 );
 
 		if ( is_admin() ) {
@@ -53,6 +56,14 @@ final class Plugin {
 			Admin\OrderListInvoiceFilter::register();
 			Admin\ProductUnitField::register();
 		}
+	}
+
+	/**
+	 * Cancels the plugin's queued actions (drafts, recovery sweep, alerts); data stays.
+	 * The sweep is queued again on the next `action_scheduler_init` after reactivation.
+	 */
+	public static function deactivate(): void {
+		Uninstall\Uninstaller::cancel_scheduled_actions();
 	}
 
 	/**

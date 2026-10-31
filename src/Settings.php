@@ -10,7 +10,8 @@ namespace LTTech\EinvoiceMatbao;
 use LTTech\EinvoiceMatbao\Matbao\TemplateCache;
 
 /**
- * Default template, `MTChieu` prefix and walk-in buyer name, stored in one option.
+ * Default template, `MTChieu` prefix, walk-in buyer name, default unit and the delete-on-uninstall
+ * switch, stored in one option.
  * Secrets never go here; see CredentialStore.
  */
 final class Settings {
@@ -90,6 +91,22 @@ final class Settings {
 			'form'   => $form,
 			'series' => $series,
 		);
+	}
+
+	/**
+	 * Whether uninstalling the plugin deletes all of its data (off by default; see Uninstaller).
+	 */
+	public function delete_data_on_uninstall(): bool {
+		return '1' === $this->string_value( 'delete_data_on_uninstall' );
+	}
+
+	/**
+	 * Turns deleting all data on uninstall on or off. Callers require the confirmation first.
+	 *
+	 * @param bool $enabled Whether to delete everything on uninstall.
+	 */
+	public function save_delete_data_on_uninstall( bool $enabled ): void {
+		$this->update( array( 'delete_data_on_uninstall' => $enabled ? '1' : '' ) );
 	}
 
 	/**

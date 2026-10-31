@@ -278,16 +278,13 @@ final class BuyerPersonalDataPrivacyTest extends InvoiceWorkflowTestCase {
 		$order->set_billing_email( $email );
 		$order->set_billing_phone( '0900000001' );
 		$order->set_customer_id( 0 );
-		do_action( // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- fires a WooCommerce hook.
-			'woocommerce_checkout_create_order',
-			$order,
-			array(
-				'billing_first_name' => $order->get_billing_first_name(),
-				'billing_last_name'  => $order->get_billing_last_name(),
-				'billing_phone'      => $order->get_billing_phone(),
-				'billing_email'      => $email,
-			)
+		$billing = array(
+			'billing_first_name' => $order->get_billing_first_name(),
+			'billing_last_name'  => $order->get_billing_last_name(),
+			'billing_phone'      => $order->get_billing_phone(),
+			'billing_email'      => $email,
 		);
+		do_action( 'woocommerce_checkout_create_order', $order, $billing ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- fires a WooCommerce hook.
 		$order->save();
 
 		return $order;

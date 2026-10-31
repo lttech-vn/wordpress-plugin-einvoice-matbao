@@ -71,6 +71,7 @@ final class UninstallTest extends WP_UnitTestCase {
 
 	public function test_default_uninstall_removes_credentials_and_caches_and_keeps_invoice_data(): void {
 		$fixture = $this->store_plugin_data();
+		$version = get_option( Schema::VERSION_OPTION );
 
 		Uninstaller::run();
 
@@ -87,7 +88,7 @@ final class UninstallTest extends WP_UnitTestCase {
 		$this->assertNotSame( '', (string) $order->get_meta( BuyerSnapshotter::META_KEY ) );
 		$this->assertSame( 'Thùng', get_post_meta( $fixture['product_id'], ProductUnitField::META_KEY, true ) );
 		$this->assertSame( 'INV', ( new Settings() )->reference_prefix() );
-		$this->assertSame( Schema::VERSION, get_option( Schema::VERSION_OPTION ) );
+		$this->assertSame( $version, get_option( Schema::VERSION_OPTION ) );
 		$this->assertNotFalse( get_option( self::ALERT_OPTION ) );
 	}
 
@@ -119,7 +120,7 @@ final class UninstallTest extends WP_UnitTestCase {
 	public function test_uninstall_file_runs_the_uninstaller_when_wordpress_deletes_the_plugin(): void {
 		$this->store_plugin_data();
 		if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
-			define( 'WP_UNINSTALL_PLUGIN', 'einvoice-matbao/einvoice-matbao.php' );
+			define( 'WP_UNINSTALL_PLUGIN', 'einvoice-matbao/einvoice-matbao.php' ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedConstantFound -- core's uninstall constant.
 		}
 
 		include dirname( __DIR__, 2 ) . '/uninstall.php';
@@ -199,11 +200,14 @@ final class UninstallTest extends WP_UnitTestCase {
 	private function shadow_invoice_tables(): void {
 		global $wpdb;
 
-		// The test case turns CREATE TABLE into CREATE TEMPORARY TABLE.
-		// phpcs:disable WordPress.DB.DirectDatabaseQuery -- test fixture DDL.
-		$wpdb->query( $wpdb->prepare( 'CREATE TABLE %i LIKE %i', Schema::invoice_table(), Schema::invoice_table() ) );
-		$wpdb->query( $wpdb->prepare( 'CREATE TABLE %i LIKE %i', Schema::attempt_table(), Schema::attempt_table() ) );
-		// phpcs:enable
+		// The test case turns CREATE TABLE into CREATE TEMPORARY TABLE, shadowing the real table.
+		foreach ( array( Schema::invoice_table(), Schema::attempt_table() ) as $table ) {
+			// phpcs:disable WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.NotPrepared -- test fixture DDL copied from the real table.
+			$create = $wpdb->get_row( $wpdb->prepare( 'SHOW CREATE TABLE %i', $table ), ARRAY_N );
+			$this->assertIsArray( $create );
+			$wpdb->query( (string) $create[1] );
+			// phpcs:enable
+		}
 	}
 
 	/**
@@ -240,9 +244,10 @@ final class UninstallTest extends WP_UnitTestCase {
 		global $wpdb;
 
 		// phpcs:disable WordPress.DB.DirectDatabaseQuery -- test inspects raw storage.
-		$rows = $wpdb->get_col( "SELECT meta_key FROM {$wpdb->postmeta} WHERE meta_key LIKE '\\_einvoice\\_buyer\\_%'" );
+		$like = $wpdb->esc_like( '_einvoice_buyer_' ) . '%';
+		$rows = $wpdb->get_col( $wpdb->prepare( 'SELECT meta_key FROM %i WHERE meta_key LIKE %s', $wpdb->postmeta, $like ) );
 		if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->prefix . 'wc_orders_meta' ) ) ) {
-			$rows = array_merge( $rows, $wpdb->get_col( $wpdb->prepare( "SELECT meta_key FROM %i WHERE meta_key LIKE '\\_einvoice\\_buyer\\_%'", $wpdb->prefix . 'wc_orders_meta' ) ) );
+			$rows = array_merge( $rows, $wpdb->get_col( $wpdb->prepare( 'SELECT meta_key FROM %i WHERE meta_key LIKE %s', $wpdb->prefix . 'wc_orders_meta', $like ) ) );
 		}
 		// phpcs:enable
 

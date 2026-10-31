@@ -12,6 +12,7 @@ use LTTech\EinvoiceMatbao\Encryption;
 use LTTech\EinvoiceMatbao\Matbao\MatbaoCredentials;
 use LTTech\EinvoiceMatbao\Matbao\MatbaoTemplate;
 use LTTech\EinvoiceMatbao\Settings;
+use LTTech\EinvoiceMatbao\Uninstall\UninstallSettingsController;
 
 /**
  * Renders the htmx settings page inside `#einv-app` and loads its scoped assets.
@@ -220,6 +221,8 @@ final class SettingsPage {
 					</form>
 					<div class="einv-result" aria-live="polite"></div>
 				</section>
+
+				<?php UninstallSettingsController::render_section(); ?>
 			</div>
 		</div>
 		<?php
