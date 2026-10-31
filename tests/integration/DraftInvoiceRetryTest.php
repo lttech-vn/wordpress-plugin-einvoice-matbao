@@ -233,8 +233,8 @@ final class DraftInvoiceRetryTest extends InvoiceWorkflowTestCase {
 		$this->run_queued_draft_actions();
 		$this->fake_lookup_found();
 
-		do_action( DraftInvoiceWorkflow::ACTION, $order->get_id() );
-		do_action( DraftInvoiceWorkflow::ACTION, $order->get_id() );
+		do_action( 'einvoice_matbao_create_draft', $order->get_id() );
+		do_action( 'einvoice_matbao_create_draft', $order->get_id() );
 
 		$this->assertCount( 1, $this->http->requests_to( self::CREATE_ROUTE ) );
 		$this->assertSame( InvoiceStatus::DRAFT_CREATED, $this->invoice_of( $order )?->status );
@@ -326,7 +326,14 @@ final class DraftInvoiceRetryTest extends InvoiceWorkflowTestCase {
 		DraftInvoiceWorkflow::schedule_recovery();
 		DraftInvoiceWorkflow::schedule_recovery();
 
-		$this->assertCount( 1, as_get_scheduled_actions( array( 'hook' => DraftInvoiceWorkflow::RECOVERY_ACTION, 'status' => \ActionScheduler_Store::STATUS_PENDING ), 'ids' ) );
+		$pending = as_get_scheduled_actions(
+			array(
+				'hook'   => DraftInvoiceWorkflow::RECOVERY_ACTION,
+				'status' => \ActionScheduler_Store::STATUS_PENDING,
+			),
+			'ids'
+		);
+		$this->assertCount( 1, $pending );
 	}
 
 	/**
