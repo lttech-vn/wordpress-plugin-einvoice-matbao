@@ -36,6 +36,7 @@ if ! wp config has EINVOICE_MATBAO_ENCRYPTION_KEY --path=/var/www/html; then
 	wp config set EINVOICE_MATBAO_ENCRYPTION_KEY "e2e-$(head -c 24 /dev/urandom | base64 | tr -dc 'A-Za-z0-9')-key-material" --path=/var/www/html >/dev/null
 fi
 
+wp user update admin --user_pass="${EINV_E2E_ADMIN_PASS:-e2e-admin-pass}" >/dev/null
 wp option update woocommerce_currency VND >/dev/null
 wp option update woocommerce_price_num_decimals 0 >/dev/null
 wp option update woocommerce_default_country VN >/dev/null
@@ -62,6 +63,13 @@ wp option update woocommerce_cod_settings --format=json '{"enabled":"yes","title
 	}
 	if ( ! get_page_by_path( "classic-checkout" ) ) {
 		wp_insert_post( array( "post_type" => "page", "post_status" => "publish", "post_name" => "classic-checkout", "post_title" => "Classic checkout", "post_content" => "<!-- wp:shortcode -->[woocommerce_checkout]<!-- /wp:shortcode -->" ) );
+	}
+	// Block hooks insert the invoice block only when the page is saved in the editor, so a
+	// checkout page created before the plugin was active needs it placed explicitly.
+	$checkout = get_post( wc_get_page_id( "checkout" ) );
+	$anchor   = "<!-- /wp:woocommerce/checkout-contact-information-block -->";
+	if ( $checkout && false === strpos( $checkout->post_content, "wp:einvoice-matbao/invoice-request" ) && false !== strpos( $checkout->post_content, $anchor ) ) {
+		wp_update_post( array( "ID" => $checkout->ID, "post_content" => str_replace( $anchor, $anchor . "\n\n<!-- wp:einvoice-matbao/invoice-request /-->", $checkout->post_content ) ) );
 	}
 	echo "product ", wc_get_product_id_by_sku( "E2E-SVC" ), "\n";
 ' 2>/dev/null

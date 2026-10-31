@@ -2,3 +2,4 @@ node_modules/
 results/
 __pycache__/
 *.pyc
+.e2e/
