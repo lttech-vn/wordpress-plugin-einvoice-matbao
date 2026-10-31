@@ -92,15 +92,15 @@ function einv_e2e_fake_matbao( string $method, string $path, array $args ): arra
 			)
 		);
 		update_option(
-	'einv_e2e_last_create',
-	wp_json_encode(
-		array(
-			'MTChieu'  => $invoice['MTChieu'] ?? '',
-			'NMua_Ten' => $invoice['NMua_Ten'] ?? '',
-		)
-	),
-	false
-);
+			'einv_e2e_last_create',
+			wp_json_encode(
+				array(
+					'MTChieu'  => $invoice['MTChieu'] ?? '',
+					'NMua_Ten' => $invoice['NMua_Ten'] ?? '',
+				)
+			),
+			false
+		);
 	} elseif ( 'POST /api/invoice/invoice-detail-batch' === $route ) {
 		$json = array(
 			'errorCode' => 301,
