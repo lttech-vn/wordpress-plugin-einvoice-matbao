@@ -224,6 +224,63 @@ final class ClassicCheckoutBuyerTest extends InvoiceWorkflowTestCase {
 		ClassicCheckout::save_to_order( $order, $this->billing() );
 	}
 
+	public function test_order_creation_refuses_an_individual_request_without_a_key_and_stores_nothing(): void {
+		$_POST = $this->individual_post();
+		$order = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
+
+		try {
+			ClassicCheckout::save_to_order( $order, $this->billing() );
+			$this->fail( 'An individual request without an encryption key must be refused.' );
+		} catch ( \Exception $error ) {
+			$this->assertStringContainsString( 'mã hóa', $error->getMessage() );
+		}
+
+		$this->assertNull( ( new BuyerRequestStore() )->load( $order ) );
+		$this->assertStringNotContainsString( self::ID_NUMBER, (string) wp_json_encode( $this->all_meta( $order ) ) );
+	}
+
+	public function test_business_request_ignores_posted_individual_fields(): void {
+		$this->with_encryption_key();
+
+		$order   = $this->order_with_request( array( 'einv_id_number' => self::ID_NUMBER ) + $this->business_post() );
+		$request = ( new BuyerRequestStore() )->load( $order );
+
+		$this->assertNotNull( $request );
+		$this->assertSame( '', $request['id_encrypted'] );
+		$this->assertSame( '', $request['id_mask'] );
+		$this->assertStringNotContainsString( '1234', (string) wp_json_encode( $this->all_meta( $order ) ) );
+	}
+
+	public function test_individual_request_ignores_posted_business_fields(): void {
+		$this->with_encryption_key();
+
+		$order   = $this->order_with_request(
+			array(
+				'einv_business_name' => 'Doanh nghiệp Thử',
+				'einv_tax_code'      => self::TAX_CODE,
+			) + $this->individual_post()
+		);
+		$request = ( new BuyerRequestStore() )->load( $order );
+
+		$this->assertNotNull( $request );
+		$this->assertSame( '', $request['business_name'] );
+		$this->assertSame( '', $request['tax_code'] );
+	}
+
+	public function test_lengths_count_characters_not_bytes(): void {
+		$this->with_encryption_key();
+
+		$at_limit  = $this->validate_checkout( array( 'einv_address' => str_repeat( 'ạ', 400 ) ) + $this->individual_post() );
+		$over      = $this->validate_checkout( array( 'einv_address' => str_repeat( 'ạ', 401 ) ) + $this->individual_post() );
+		$name_ok   = $this->validate_checkout( $this->individual_post(), array( 'billing_first_name' => str_repeat( 'Ư', 50 ), 'billing_last_name' => str_repeat( 'ơ', 49 ) ) );
+		$name_long = $this->validate_checkout( $this->individual_post(), array( 'billing_first_name' => str_repeat( 'Ư', 50 ), 'billing_last_name' => str_repeat( 'ơ', 50 ) ) );
+
+		$this->assertSame( array(), $at_limit->get_error_codes() );
+		$this->assertSame( array( 'einvoice_buyer_address' ), $over->get_error_codes() );
+		$this->assertSame( array(), $name_ok->get_error_codes() );
+		$this->assertSame( array( 'einvoice_buyer_full_name' ), $name_long->get_error_codes() );
+	}
+
 	public function test_fields_render_with_the_checkbox_and_individual_disabled_without_a_key(): void {
 		$html = $this->render_fields();
 
