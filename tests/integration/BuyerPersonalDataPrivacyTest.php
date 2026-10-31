@@ -182,6 +182,78 @@ final class BuyerPersonalDataPrivacyTest extends InvoiceWorkflowTestCase {
 		$this->assertSame( 'WC' . $order->get_id(), $this->invoice_of( $reloaded )?->reference );
 	}
 
+	public function test_woocommerce_order_anonymization_also_scrubs_the_buyer_echo_in_status_reason_and_attempts(): void {
+		$this->fake_create_invoice_error_with_buyer_echo();
+		$order = $this->completed_individual_order( self::EMAIL );
+		$this->assertStringContainsString( 'Nguyễn Văn A', $this->stored_attempt_messages( $order ) );
+
+		WC_Privacy_Erasers::remove_order_personal_data( $order );
+
+		$this->assertStringNotContainsString( 'Nguyễn Văn A', $this->stored_attempt_messages( $order ) );
+		$this->assertNotSame( 'Nguyễn Văn A', $this->invoice_of( $order )?->buyer_name );
+	}
+
+	public function test_eraser_wins_over_a_pending_invoice_and_says_so(): void {
+		$this->configure_matbao();
+		$order = $this->order_with_request( $this->individual_post(), self::EMAIL );
+		$order->update_status( 'completed' );
+		$invoice = $this->invoice_of( $order ) ?? ( new InvoiceRepository() )->reserve( $order->get_id(), 'WC' . $order->get_id(), 'Nguyễn Văn A', InvoiceStatus::PENDING );
+		$this->assertNotNull( $invoice );
+
+		$result = BuyerPersonalData::erase( self::EMAIL, 1 );
+
+		$reloaded = wc_get_order( $order->get_id() );
+		$this->assertInstanceOf( WC_Order::class, $reloaded );
+		$this->assertSame( '', (string) $reloaded->get_meta( BuyerRequestStore::META_KEY ), 'The right to erasure wins over the queued send.' );
+		$this->assertTrue( $result['items_retained'] );
+		$this->assertStringContainsString( 'đang chờ gửi', implode( "\n", $result['messages'] ) );
+	}
+
+	public function test_paged_export_and_erase_cover_more_orders_than_one_page_and_leave_other_emails_alone(): void {
+		$this->configure_matbao();
+		for ( $i = 0; $i < 12; $i++ ) {
+			$this->order_with_request( $this->individual_post(), self::EMAIL );
+		}
+		$other = $this->order_with_request( $this->individual_post(), self::OTHER_EMAIL );
+
+		$first = BuyerPersonalData::erase( self::EMAIL, 1 );
+		$this->assertFalse( $first['done'] );
+		$this->assertTrue( $first['items_removed'] );
+		$second = BuyerPersonalData::erase( self::EMAIL, 2 );
+		$this->assertTrue( $second['done'] );
+		$this->assertTrue( $second['items_removed'] );
+		$this->assertFalse( BuyerPersonalData::erase( self::EMAIL, 3 )['items_removed'] );
+
+		$this->assertSame( array(), $this->orders_with_request_meta( self::EMAIL ) );
+		$untouched = wc_get_order( $other->get_id() );
+		$this->assertInstanceOf( WC_Order::class, $untouched );
+		$this->assertNotSame( '', (string) $untouched->get_meta( BuyerRequestStore::META_KEY ) );
+	}
+
+	public function test_trashed_orders_are_still_erased(): void {
+		$this->configure_matbao();
+		$order = $this->order_with_request( $this->individual_post(), self::EMAIL );
+		$order->set_status( 'trash' );
+		$order->save();
+		$this->assertSame( 'trash', wc_get_order( $order->get_id() )->get_status() );
+
+		$this->assertTrue( BuyerPersonalData::erase( self::EMAIL, 1 )['items_removed'], 'A trashed order is still erased.' );
+		$this->assertSame( '', (string) wc_get_order( $order->get_id() )->get_meta( BuyerRequestStore::META_KEY ) );
+		$this->assertSame( array(), $this->orders_with_request_meta( self::EMAIL ) );
+	}
+
+	public function test_export_includes_the_stored_status_reason_and_invoice_buyer_name(): void {
+		$this->fake_create_invoice_error_with_buyer_echo();
+		$order = $this->completed_individual_order( self::EMAIL );
+
+		$values = array_column( BuyerPersonalData::export( self::EMAIL, 1 )['data'][0]['data'], 'value', 'name' );
+
+		$this->assertSame( 'Nguyễn Văn A', $values['Tên người mua trên hóa đơn'] );
+		$this->assertArrayHasKey( 'Lý do trạng thái', $values );
+		$this->assertStringNotContainsString( 'v1.', $values['Lý do trạng thái'] );
+		$this->assertNotNull( $order );
+	}
+
 	public function test_full_core_erasure_with_woocommerce_order_removal_finds_and_erases_the_order(): void {
 		update_option( 'woocommerce_erasure_request_removes_order_data', 'yes' );
 		$order   = $this->completed_individual_order( self::EMAIL );
@@ -249,6 +321,37 @@ final class BuyerPersonalDataPrivacyTest extends InvoiceWorkflowTestCase {
 		$this->complete_and_run( $order );
 
 		return $order;
+	}
+
+	/**
+	 * Posted fields of an individual buyer.
+	 *
+	 * @return array<string, string>
+	 */
+	private function individual_post(): array {
+		return array(
+			'einv_request_invoice' => '1',
+			'einv_buyer_type'      => 'individual',
+			'einv_address'         => 'Số 1 Đường Thử, Quận Thử',
+			'einv_id_number'       => self::ID_NUMBER,
+		);
+	}
+
+	/**
+	 * IDs of the orders of an email that still hold the stored checkout request.
+	 *
+	 * @param string $email Billing email.
+	 * @return list<int>
+	 */
+	private function orders_with_request_meta( string $email ): array {
+		$ids = array();
+		foreach ( wc_get_orders( array( 'billing_email' => $email, 'limit' => -1, 'status' => 'any', 'return' => 'ids' ) ) as $id ) {
+			if ( '' !== (string) wc_get_order( $id )->get_meta( BuyerRequestStore::META_KEY ) ) {
+				$ids[] = $id;
+			}
+		}
+
+		return $ids;
 	}
 
 	/**
