@@ -9,30 +9,29 @@ Stack verified: WordPress 7.1.4, WooCommerce 11.2.1, PHP 8.5.12 (the `compose.ya
 
 ## What is tested (`army/checkout-invoice.army.ts`)
 
-Classic checkout: walk-in (no tick), individual and business buyer. Each places an order, completes it, then expects
-the draft in the order meta box ("Đã tạo nháp") and in WooCommerce → invoice list. Mat Bao is answered by the fake in
-`wordpress/einv-e2e-http.php` (a request to any host other than the demo API is refused; the production host never
-leaves). Agent steps: invoice request fields on Classic. Exact `screen` actions: billing fields, place order, login.
-Order completion goes through an E2E-only REST route of the same mu-plugin.
+Classic and Checkout Blocks: walk-in (no tick) and business buyer; Classic also individual. Each places an order,
+completes it, then expects the draft in the order meta box ("Đã tạo nháp") and in WooCommerce → invoice list. Mat Bao
+is answered by the fake in `wordpress/einv-e2e-http.php` (a request to any host other than the demo API is refused; the
+production host never leaves). Agent steps: the invoice request fields. Exact `screen` actions: billing fields (exact
+labels: `Address` must not match `Email address`), place order, login. Order completion goes through an E2E-only REST
+route of the same mu-plugin.
 
-**Blocks** tests exist (agent `text`: standard tool-calling agent on the text endpoint) but are skipped unless
-`E2E_BLOCKS=1`; no combination was stable inside the time-box. Real results (one run each, live mode):
+Real results with the decision model (live mode, same code, one run each):
 
-| Combination | Result |
-|---|---|
-| Blocks walk-in, Chromium, agent `text` | Passes (no agent step: exact fills + place order) |
-| Blocks business, Chromium, agent `text` | Fails: the model reports no invoice-request checkbox on the checkout (2 model calls, ~5 s). The block is in the page content and registered, but the agent does not find it; not diagnosed further |
-| Blocks, Chromium, decision model (`default`) | Fails: `scroll_to` without a target, then 25 calls without concluding |
-| Blocks walk-in, Lightpanda, agent `text` | Fails at order placement (`expect.toHaveURL`) |
-| Blocks business, Lightpanda, agent `text` | Fails: no invoice checkbox found (1 call) |
-| Classic x3, Lightpanda, decision model | Pass (walk-in 8 s, individual 18 s / 12 calls, business 14 s / 15 calls) |
-| Classic x3, Chromium, decision model | Pass (same step counts) |
+| Browser | Classic walk-in | Classic individual | Classic business | Blocks walk-in | Blocks business | Model calls (total) |
+|---|---|---|---|---|---|---|
+| Chromium (default) | pass 8 s | pass 19 s, 12 calls | pass 12 s, 15 calls | pass 4 s | pass 13 s, 15 calls | 42 |
+| Lightpanda 1.0.2 | pass 7 s | pass 47 s, 12 calls | pass 14 s, 15 calls | pass 4 s | pass 13 s, 15 calls | 42 |
 
-Lightpanda first failed with `GLIBC_2.38 not found` on the bookworm image; the runner now uses `node:26-trixie-slim`
-(glibc 2.41) and the pinned aarch64/x86_64 Lightpanda 1.0.2 binary. Select it with `E2E_BROWSER=lightpanda`. Chromium
-stays the default and the recorded cache is for Chromium. "No payment methods" seen earlier on Blocks was the
-`Address` label matching `Email address`; COD is available (Store API lists `cod`), so no extra gateway was added.
-Until Blocks is stable it is covered by unit tests only.
+Both browsers pass everything, so the cheaper and simpler Chromium stays the default (Lightpanda: `E2E_BROWSER=lightpanda`;
+the committed cache is recorded on Chromium). The `text` agent (`E2E_BLOCKS_AGENT=text`) is kept as an option but is not
+needed. Blocks originally failed because Classic and Blocks bundles clobbered each other's minified globals (fixed in
+PR #30: IIFE bundles, Classic script not loaded on Checkout Blocks pages). Lightpanda first failed on the bookworm image
+with `GLIBC_2.38 not found`; the runner now uses `node:26-trixie-slim` (glibc 2.41) and a sha256-pinned binary.
+
+Setup note: on a Checkout page created by WooCommerce, the invoice block does not appear on the front end by itself
+(`blockHooks` only inserts it when the editor saves the page). `setup-site.sh` therefore inserts the block markup with
+`wp eval`; this is a product observation, not something this test fixes.
 
 ## Modes
 
@@ -59,6 +58,6 @@ Real demo: `EINV_DEMO_E2E=1 EINV_DEMO_MST=… EINV_DEMO_USER=… EINV_DEMO_PASS=
 
 ## Cost and limits
 
-Recording the three Classic tests: about 190k tokens (29 decision-model calls). Replay: no model call.
-Limits: Blocks not covered (table above); walk-in has no agent step (nothing to act on); one browser (Chromium); the cache depends on
+Recording: about 245k tokens (42 decision-model calls) for all five tests. Replay: no model call.
+Limits: walk-in has no agent step (nothing to act on); one browser (Chromium); the cache depends on
 the exact page markup, so WooCommerce updates may require a re-record.
