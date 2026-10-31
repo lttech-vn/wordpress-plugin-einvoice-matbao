@@ -41,6 +41,38 @@ final class MatbaoError extends RuntimeException {
 	}
 
 	/**
+	 * Whether the failure looks temporary, so trying again later can succeed: the request did not
+	 * complete, a 5xx/408/429 status, or a response that could not be understood. Anything else
+	 * (other 4xx, a rejected invoice, bad credentials) needs a person.
+	 */
+	public function is_retryable(): bool {
+		if ( self::KIND_TRANSPORT === $this->kind ) {
+			return true;
+		}
+		if ( self::KIND_HTTP === $this->kind ) {
+			return $this->is_temporary_http_status();
+		}
+
+		return $this->is_unreadable_response();
+	}
+
+	/**
+	 * Whether an HTTP error has a status worth retrying (5xx, 408 timeout, 429 rate limit).
+	 */
+	public function is_temporary_http_status(): bool {
+		return self::KIND_HTTP === $this->kind
+			&& null !== $this->http_status
+			&& ( $this->http_status >= 500 || in_array( $this->http_status, array( 408, 429 ), true ) );
+	}
+
+	/**
+	 * Whether a 2xx response could not be understood (no Mat Bao rejection code, or code 200).
+	 */
+	public function is_unreadable_response(): bool {
+		return self::KIND_API === $this->kind && ( null === $this->api_code || 200 === $this->api_code );
+	}
+
+	/**
 	 * Whether Mat Bao rejected the credentials or token.
 	 */
 	public function is_unauthorized(): bool {

@@ -63,7 +63,7 @@ final class DraftPayloadBuilder {
 	public function build( WC_Order $order, string $reference, string $buyer_name, array $template, \DateTimeImmutable $issued_on ): array {
 		if ( 'VND' !== $order->get_currency() ) {
 			/* translators: %s: order currency code. */
-			self::fail( sprintf( __( 'Đơn hàng dùng tiền tệ %s; chỉ hỗ trợ VND.', 'einvoice-matbao' ), $order->get_currency() ) );
+			self::fail( InvoiceErrorCode::CURRENCY_NOT_VND, sprintf( __( 'Đơn hàng dùng tiền tệ %s; chỉ hỗ trợ VND.', 'einvoice-matbao' ), $order->get_currency() ) );
 		}
 
 		$rates = $this->stored_rate_percents( $order );
@@ -79,7 +79,7 @@ final class DraftPayloadBuilder {
 		}
 
 		if ( array() === $lines ) {
-			self::fail( __( 'Đơn hàng không có dòng hàng hóa, dịch vụ nào.', 'einvoice-matbao' ) );
+			self::fail( InvoiceErrorCode::NO_LINES, __( 'Đơn hàng không có dòng hàng hóa, dịch vụ nào.', 'einvoice-matbao' ) );
 		}
 
 		// Line amounts are whole VND (checked in line()), so the sums are exact integers.
@@ -89,6 +89,7 @@ final class DraftPayloadBuilder {
 
 		if ( ! self::same( (float) $tax, (float) $order->get_total_tax() ) || ! self::same( (float) $gross, (float) $order->get_total() ) ) {
 			self::fail(
+				InvoiceErrorCode::TOTALS_MISMATCH,
 				sprintf(
 					/* translators: 1: sum of line totals, 2: order total, 3: sum of line taxes, 4: order tax total. */
 					__( 'Tổng các dòng (%1$s, thuế %3$s) không khớp tổng đơn hàng (%2$s, thuế %4$s).', 'einvoice-matbao' ),
@@ -151,13 +152,13 @@ final class DraftPayloadBuilder {
 			$code     = '';
 			$unit     = $default_unit;
 		} else {
-			self::fail( __( 'Đơn hàng có loại dòng không hỗ trợ.', 'einvoice-matbao' ) );
+			self::fail( InvoiceErrorCode::LINE_TYPE_UNSUPPORTED, __( 'Đơn hàng có loại dòng không hỗ trợ.', 'einvoice-matbao' ) );
 		}
 
 		$net = self::whole_vnd( $net, $name );
 		if ( $net < 0 || $quantity <= 0 ) {
 			/* translators: %s: order line name. */
-			self::fail( sprintf( __( 'Dòng "%s" có số tiền âm hoặc số lượng không hợp lệ.', 'einvoice-matbao' ), $name ) );
+			self::fail( InvoiceErrorCode::LINE_AMOUNT_INVALID, sprintf( __( 'Dòng "%s" có số tiền âm hoặc số lượng không hợp lệ.', 'einvoice-matbao' ), $name ) );
 		}
 
 		$line_taxes = is_array( $taxes['total'] ?? null ) ? array_filter( $taxes['total'], static fn( $amount ): bool => '' !== $amount && null !== $amount ) : array();
@@ -178,7 +179,7 @@ final class DraftPayloadBuilder {
 
 		if ( ! $taxable && 0 !== $tax ) {
 			/* translators: %s: order line name. */
-			self::fail( sprintf( __( 'Dòng "%s" không chịu thuế nhưng có tiền thuế.', 'einvoice-matbao' ), $name ) );
+			self::fail( InvoiceErrorCode::UNTAXED_LINE_WITH_TAX, sprintf( __( 'Dòng "%s" không chịu thuế nhưng có tiền thuế.', 'einvoice-matbao' ), $name ) );
 		}
 
 		$line = array(
@@ -216,14 +217,14 @@ final class DraftPayloadBuilder {
 	private function rate( string $name, array $line_taxes, array $rates ): int {
 		if ( 1 !== count( $line_taxes ) ) {
 			/* translators: %s: order line name. */
-			self::fail( sprintf( __( 'Dòng "%s" cần đúng một thuế suất GTGT.', 'einvoice-matbao' ), $name ) );
+			self::fail( InvoiceErrorCode::LINE_TAX_RATE_COUNT, sprintf( __( 'Dòng "%s" cần đúng một thuế suất GTGT.', 'einvoice-matbao' ), $name ) );
 		}
 
 		$rate_id = (int) array_key_first( $line_taxes );
 		$percent = $rates[ $rate_id ] ?? '';
 		if ( '' === $percent ) {
 			/* translators: %s: order line name. */
-			self::fail( sprintf( __( 'Không tìm thấy thuế suất đã lưu của dòng "%s".', 'einvoice-matbao' ), $name ) );
+			self::fail( InvoiceErrorCode::TAX_RATE_NOT_STORED, sprintf( __( 'Không tìm thấy thuế suất đã lưu của dòng "%s".', 'einvoice-matbao' ), $name ) );
 		}
 
 		foreach ( self::ALLOWED_TAX_RATES as $allowed ) {
@@ -233,6 +234,7 @@ final class DraftPayloadBuilder {
 		}
 
 		self::fail(
+			InvoiceErrorCode::TAX_RATE_UNSUPPORTED,
 			sprintf(
 				/* translators: 1: tax rate percent, 2: order line name. */
 				__( 'Thuế suất %1$s%% của dòng "%2$s" không thuộc 0%%, 5%%, 8%%, 10%%.', 'einvoice-matbao' ),
@@ -261,11 +263,12 @@ final class DraftPayloadBuilder {
 	/**
 	 * Refuses the order with an admin-facing reason.
 	 *
-	 * @param string $reason Vietnamese reason, without personal data.
+	 * @param InvoiceErrorCode $code   Stable code (a data error).
+	 * @param string           $reason Vietnamese reason, without personal data.
 	 * @throws InvoiceDataError Always.
 	 */
-	private static function fail( string $reason ): never {
-		throw new InvoiceDataError( $reason ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- plain text, escaped where rendered.
+	private static function fail( InvoiceErrorCode $code, string $reason ): never {
+		throw new InvoiceDataError( $code, $reason ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- plain text, escaped where rendered.
 	}
 
 	/**
@@ -280,7 +283,7 @@ final class DraftPayloadBuilder {
 		$rounded = round( $value );
 		if ( abs( $value - $rounded ) >= self::AMOUNT_TOLERANCE ) {
 			/* translators: 1: order line name, 2: amount. */
-			self::fail( sprintf( __( 'Dòng "%1$s" có số tiền %2$s không phải số nguyên đồng (VND).', 'einvoice-matbao' ), $name, wc_format_localized_decimal( (string) $value ) ) );
+			self::fail( InvoiceErrorCode::AMOUNT_NOT_WHOLE_VND, sprintf( __( 'Dòng "%1$s" có số tiền %2$s không phải số nguyên đồng (VND).', 'einvoice-matbao' ), $name, wc_format_localized_decimal( (string) $value ) ) );
 		}
 
 		return (int) $rounded;

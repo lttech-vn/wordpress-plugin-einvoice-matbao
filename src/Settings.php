@@ -7,6 +7,8 @@
 
 namespace LTTech\EinvoiceMatbao;
 
+use LTTech\EinvoiceMatbao\Matbao\TemplateCache;
+
 /**
  * Default template, `MTChieu` prefix and walk-in buyer name, stored in one option.
  * Secrets never go here; see CredentialStore.
@@ -127,6 +129,7 @@ final class Settings {
 				'template_series' => $series,
 			)
 		);
+		TemplateCache::forget();
 	}
 
 	/**

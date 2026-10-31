@@ -74,7 +74,7 @@ final class InvoiceRepository {
 	}
 
 	/**
-	 * Sets the status and reason of an invoice.
+	 * Sets the status and reason of an invoice and clears any recorded error.
 	 *
 	 * @param int                  $invoice_id Invoice row ID.
 	 * @param string               $status     InvoiceStatus.
@@ -87,6 +87,10 @@ final class InvoiceRepository {
 		$wpdb->update(
 			Schema::invoice_table(),
 			array_merge(
+				array(
+					'error_code' => '',
+					'error_kind' => '',
+				),
 				$fields,
 				array(
 					'status'        => $status,
@@ -95,6 +99,26 @@ final class InvoiceRepository {
 				)
 			),
 			array( 'id' => $invoice_id )
+		);
+	}
+
+	/**
+	 * Records why an invoice was not created: the code, its kind, the status of that kind and the
+	 * Vietnamese reason.
+	 *
+	 * @param int              $invoice_id Invoice row ID.
+	 * @param InvoiceErrorCode $code       Error code.
+	 * @param string           $reason     Vietnamese reason, without secrets or personal data.
+	 */
+	public function record_error( int $invoice_id, InvoiceErrorCode $code, string $reason ): void {
+		$this->update_status(
+			$invoice_id,
+			$code->kind()->status(),
+			$reason,
+			array(
+				'error_code' => $code->value,
+				'error_kind' => $code->kind()->value,
+			)
 		);
 	}
 
