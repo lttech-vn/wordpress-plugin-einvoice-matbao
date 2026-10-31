@@ -77,24 +77,26 @@ final class ClassicCheckout {
 				</label>
 			</p>
 			<div id="einv-invoice-fields" data-einv-encryption="<?php echo $can_person ? '1' : '0'; ?>"<?php echo $requested ? '' : ' hidden'; ?>>
-				<p class="form-row form-row-wide" id="einv_buyer_type_field">
+				<fieldset class="form-row form-row-wide" id="einv_buyer_type_field" aria-describedby="einv_buyer_type_error">
+					<legend><?php esc_html_e( 'Xuất hóa đơn cho', 'einvoice-matbao' ); ?>&nbsp;<abbr class="required" title="<?php esc_attr_e( 'bắt buộc', 'einvoice-matbao' ); ?>" aria-hidden="true">*</abbr></legend>
 					<label class="woocommerce-form__label woocommerce-form__label-for-radio radio">
-						<input type="radio" class="woocommerce-form__input input-radio" name="einv_buyer_type" value="individual"<?php checked( BuyerType::INDIVIDUAL, $type ); ?><?php echo $can_person ? '' : ' disabled'; ?> />
+						<input type="radio" class="woocommerce-form__input input-radio" name="einv_buyer_type" value="individual" required<?php checked( $can_person && BuyerType::INDIVIDUAL === $type ); ?><?php echo $can_person ? '' : ' disabled'; ?> />
 						<span><?php esc_html_e( 'Cá nhân', 'einvoice-matbao' ); ?></span>
 					</label>
 					<label class="woocommerce-form__label woocommerce-form__label-for-radio radio">
-						<input type="radio" class="woocommerce-form__input input-radio" name="einv_buyer_type" value="business"<?php checked( BuyerType::BUSINESS, $type ); ?> />
+						<input type="radio" class="woocommerce-form__input input-radio" name="einv_buyer_type" value="business" required<?php checked( BuyerType::BUSINESS, $type ); ?> />
 						<span><?php esc_html_e( 'Doanh nghiệp', 'einvoice-matbao' ); ?></span>
 					</label>
 					<?php if ( ! $can_person ) : ?>
 						<small class="einv-note"><?php esc_html_e( 'Hiện cửa hàng chưa nhận được xuất hóa đơn cho cá nhân.', 'einvoice-matbao' ); ?></small>
 					<?php endif; ?>
-				</p>
+					<span class="einv-error-slot" id="einv_buyer_type_error" aria-live="polite"></span>
+				</fieldset>
 				<?php
 				self::text_field( 'einv_business_name', __( 'Tên doanh nghiệp', 'einvoice-matbao' ), BuyerRules::MAX_BUSINESS_NAME, 'business' );
 				self::text_field( 'einv_tax_code', __( 'Mã số thuế', 'einvoice-matbao' ), 14, 'business' );
 				self::text_field( 'einv_address', __( 'Địa chỉ xuất hóa đơn', 'einvoice-matbao' ), BuyerRules::MAX_ADDRESS, '' );
-				self::text_field( 'einv_id_number', __( 'Số CCCD', 'einvoice-matbao' ), 12, 'individual' );
+				self::text_field( 'einv_id_number', __( 'Số CCCD', 'einvoice-matbao' ), 12, 'individual', false );
 				?>
 			</div>
 		</div>
@@ -186,14 +188,16 @@ final class ClassicCheckout {
 	 * @param string $label      Label.
 	 * @param int    $max_length Maximum length.
 	 * @param string $only_for   Buyer type the row belongs to, or empty for both.
+	 * @param bool   $echo_value Whether a re-rendered form shows the posted value (never for the CCCD).
 	 */
-	private static function text_field( string $name, string $label, int $max_length, string $only_for ): void {
+	private static function text_field( string $name, string $label, int $max_length, string $only_for, bool $echo_value = true ): void {
 		?>
 		<p class="form-row form-row-wide" id="<?php echo esc_attr( $name ); ?>_field"<?php echo '' === $only_for ? '' : ' data-einv-only="' . esc_attr( $only_for ) . '"'; ?>>
-			<label for="<?php echo esc_attr( $name ); ?>"><?php echo esc_html( $label ); ?>&nbsp;<abbr class="required" title="<?php esc_attr_e( 'bắt buộc', 'einvoice-matbao' ); ?>">*</abbr></label>
+			<label for="<?php echo esc_attr( $name ); ?>"><?php echo esc_html( $label ); ?>&nbsp;<abbr class="required" title="<?php esc_attr_e( 'bắt buộc', 'einvoice-matbao' ); ?>" aria-hidden="true">*</abbr></label>
 			<span class="woocommerce-input-wrapper">
-				<input type="text" class="input-text" name="<?php echo esc_attr( $name ); ?>" id="<?php echo esc_attr( $name ); ?>" maxlength="<?php echo esc_attr( (string) $max_length ); ?>" value="<?php echo esc_attr( self::posted( $name ) ); ?>" autocomplete="off" />
+				<input type="text" class="input-text" name="<?php echo esc_attr( $name ); ?>" id="<?php echo esc_attr( $name ); ?>" maxlength="<?php echo esc_attr( (string) $max_length ); ?>" value="<?php echo esc_attr( $echo_value ? self::posted( $name ) : '' ); ?>" autocomplete="off" aria-required="true" aria-describedby="<?php echo esc_attr( $name ); ?>_error" />
 			</span>
+			<span class="einv-error-slot" id="<?php echo esc_attr( $name ); ?>_error" aria-live="polite"></span>
 		</p>
 		<?php
 	}
