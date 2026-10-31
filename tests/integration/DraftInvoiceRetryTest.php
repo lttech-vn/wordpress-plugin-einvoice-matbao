@@ -248,9 +248,7 @@ final class DraftInvoiceRetryTest extends InvoiceWorkflowTestCase {
 		$record = $this->invoice_of( $order );
 		$this->assertNotNull( $record );
 		$repository = new InvoiceRepository();
-		foreach ( $this->queued_draft_action_ids() as $id ) {
-			as_unschedule_all_actions( DraftInvoiceWorkflow::ACTION );
-		}
+		as_unschedule_all_actions( DraftInvoiceWorkflow::ACTION );
 		$repository->claim( $record->id, InvoiceStatus::PENDING, InvoiceStatus::SENDING );
 		$repository->start_attempt( $record->id );
 
@@ -293,6 +291,39 @@ final class DraftInvoiceRetryTest extends InvoiceWorkflowTestCase {
 		$this->assertCount( 1, $this->http->requests_to( self::LOOKUP_ROUTE ) );
 		$this->assertCount( 1, $this->http->requests_to( self::CREATE_ROUTE ) );
 		$this->assertSame( InvoiceStatus::DRAFT_CREATED, $this->invoice_of( $order )?->status );
+	}
+
+	public function test_sweep_recovering_a_lost_retry_does_not_use_up_a_try(): void {
+		$this->fake_create_invoice_timeout();
+		$order = $this->completed_order();
+		$this->run_queued_draft_actions();
+		$record = $this->invoice_of( $order );
+		$this->assertNotNull( $record );
+		as_unschedule_all_actions( DraftInvoiceWorkflow::ACTION );
+
+		$this->age_invoice( $record, HOUR_IN_SECONDS );
+		( new DraftInvoiceWorkflow() )->recover_stuck();
+		$this->assertCount( 1, $this->attempts_of( $record ), 'The sweep sent nothing, so it records no attempt.' );
+
+		$this->fake_lookup_not_found();
+		$this->run_queued_draft_actions();
+
+		$this->assertEqualsWithDelta( 300, $this->seconds_until_next_draft_action(), 5, 'Second failure waits the second delay.' );
+		$this->assertCount( 2, $this->attempts_of( $record ) );
+	}
+
+	public function test_sweep_with_a_broken_queue_does_not_add_attempts(): void {
+		add_filter( 'pre_as_enqueue_async_action', static fn(): int => 0 );
+		$order  = $this->completed_order();
+		$record = $this->invoice_of( $order );
+		$this->assertNotNull( $record );
+
+		for ( $sweep = 0; $sweep < 3; $sweep++ ) {
+			$this->age_invoice( $record, HOUR_IN_SECONDS );
+			( new DraftInvoiceWorkflow() )->recover_stuck();
+		}
+
+		$this->assertSame( array(), $this->attempts_of( $record ) );
 	}
 
 	public function test_pending_row_with_a_scheduled_retry_is_not_an_orphan(): void {
