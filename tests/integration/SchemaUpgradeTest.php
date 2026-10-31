@@ -159,6 +159,36 @@ final class SchemaUpgradeTest extends WP_UnitTestCase {
 		$this->assertSame( 0, $invoice->alert_cycle );
 	}
 
+	public function test_v4_table_gets_the_order_state_column_and_keeps_its_rows(): void {
+		global $wpdb;
+		$this->create_v1_table();
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- test fixture DDL: the v2 to v4 columns.
+		$wpdb->query( $wpdb->prepare( "ALTER TABLE %i ADD error_code varchar(40) NOT NULL DEFAULT '', ADD error_kind varchar(20) NOT NULL DEFAULT '', ADD retry_cycle_start bigint(20) unsigned NOT NULL DEFAULT 0, ADD alert_cycle int(10) unsigned NOT NULL DEFAULT 0", Schema::invoice_table() ) );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery -- test fixture row.
+		$wpdb->insert(
+			Schema::invoice_table(),
+			array(
+				'order_id'    => 7004,
+				'reference'   => 'WC7004',
+				'status'      => InvoiceStatus::DRAFT_CREATED,
+				'alert_cycle' => 2,
+				'created_at'  => '2026-01-02 03:04:05',
+				'updated_at'  => '2026-01-02 03:04:05',
+			)
+		);
+		update_option( Schema::VERSION_OPTION, '4' );
+		$this->assertNotContains( 'order_state', $this->columns() );
+
+		Schema::maybe_install();
+
+		$this->assertSame( Schema::VERSION, get_option( Schema::VERSION_OPTION ) );
+		$this->assertContains( 'order_state', $this->columns() );
+		$invoice = ( new InvoiceRepository() )->find_by_order( 7004 );
+		$this->assertNotNull( $invoice );
+		$this->assertSame( 2, $invoice->alert_cycle );
+		$this->assertSame( '', $invoice->order_state );
+	}
+
 	/**
 	 * Creates the v1 invoice table (without `error_code` / `error_kind`).
 	 */

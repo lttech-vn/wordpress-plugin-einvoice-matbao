@@ -46,6 +46,9 @@ final class InvoiceErrorCodeTest extends WP_UnitTestCase {
 			'template_changed'           => array( 'template_changed', 'config', 'not_configured', false ),
 			'order_not_completed'        => array( 'order_not_completed', 'order', 'stopped', false ),
 			'order_refunded'             => array( 'order_refunded', 'order', 'stopped', false ),
+			'order_amounts_changed'      => array( 'order_amounts_changed', 'order', 'stopped', false ),
+			'order_buyer_changed'        => array( 'order_buyer_changed', 'order', 'stopped', false ),
+			'order_refunded_after_draft' => array( 'order_refunded_after_draft', 'order', 'stopped', false ),
 			'matbao_transport'           => array( 'matbao_transport', 'matbao', 'failed', true ),
 			'matbao_http_temporary'      => array( 'matbao_http_temporary', 'matbao', 'failed', true ),
 			'matbao_response_unreadable' => array( 'matbao_response_unreadable', 'matbao', 'failed', true ),
@@ -92,7 +95,7 @@ final class InvoiceErrorCodeTest extends WP_UnitTestCase {
 		sort( $listed );
 		sort( $cases );
 		$this->assertSame( $listed, $cases );
-		$this->assertCount( 31, $cases );
+		$this->assertCount( 34, $cases );
 	}
 
 	/**

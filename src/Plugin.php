@@ -41,6 +41,7 @@ final class Plugin {
 		Checkout\BlocksCheckout::register();
 		Buyer\OrderRestPrivacy::register();
 		Alert\InvoiceAlerts::register();
+		Invoice\OrderChangeWatcher::register();
 
 		add_action( 'rest_api_init', array( Admin\SettingsController::class, 'register_routes' ) );
 		add_action( 'rest_api_init', array( Admin\InvoiceController::class, 'register_routes' ) );

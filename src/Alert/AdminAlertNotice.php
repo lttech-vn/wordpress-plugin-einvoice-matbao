@@ -9,7 +9,6 @@ namespace LTTech\EinvoiceMatbao\Alert;
 
 use LTTech\EinvoiceMatbao\Invoice\InvoiceErrorCode;
 use LTTech\EinvoiceMatbao\Invoice\InvoiceRepository;
-use LTTech\EinvoiceMatbao\Invoice\InvoiceStatus;
 
 /**
  * Shown to users who can `manage_options`. An alert listed here is still true: the invoice still
@@ -37,7 +36,7 @@ final class AdminAlertNotice {
 				null === $invoice || ! $order instanceof \WC_Order || null === $code
 				|| $invoice->error_code !== $alert['code']
 				|| $invoice->alert_cycle !== $alert['cycle']
-				|| ! in_array( $invoice->status, array( InvoiceStatus::FAILED, InvoiceStatus::NEEDS_ATTENTION, InvoiceStatus::NOT_CONFIGURED ), true )
+				|| ! $invoice->needs_admin()
 			) {
 				continue;
 			}

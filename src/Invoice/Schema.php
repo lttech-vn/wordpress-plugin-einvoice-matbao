@@ -13,7 +13,7 @@ namespace LTTech\EinvoiceMatbao\Invoice;
  */
 final class Schema {
 
-	public const VERSION        = '4';
+	public const VERSION        = '5';
 	public const VERSION_OPTION = 'einvoice_matbao_db_version';
 
 	/**
@@ -72,6 +72,7 @@ final class Schema {
   issued_on date NULL,
   retry_cycle_start bigint(20) unsigned NOT NULL DEFAULT 0,
   alert_cycle int(10) unsigned NOT NULL DEFAULT 0,
+  order_state varchar(120) NOT NULL DEFAULT '',
   created_at datetime NOT NULL,
   updated_at datetime NOT NULL,
   PRIMARY KEY  (id),

@@ -54,6 +54,15 @@ enum InvoiceErrorCode: string {
 	case ORDER_NOT_COMPLETED = 'order_not_completed';
 	case ORDER_REFUNDED      = 'order_refunded';
 
+	/** Lines, totals, tax or fees of the order changed after the draft was created (#14). Warning only. */
+	case ORDER_AMOUNTS_CHANGED = 'order_amounts_changed';
+
+	/** The buyer of the order changed after the draft was created (or after a create that may have reached Mat Bao). Warning only. */
+	case ORDER_BUYER_CHANGED = 'order_buyer_changed';
+
+	/** The order was refunded after the draft was created. Warning only. */
+	case ORDER_REFUNDED_AFTER_DRAFT = 'order_refunded_after_draft';
+
 	/** The request did not complete (DNS, TLS, timeout); create-invoice may or may not have run. */
 	case MATBAO_TRANSPORT = 'matbao_transport';
 
@@ -166,7 +175,10 @@ enum InvoiceErrorCode: string {
 			self::TEMPLATE_REJECTED,
 			self::TEMPLATE_CHANGED      => InvoiceErrorKind::CONFIG,
 			self::ORDER_NOT_COMPLETED,
-			self::ORDER_REFUNDED        => InvoiceErrorKind::ORDER,
+			self::ORDER_REFUNDED,
+			self::ORDER_AMOUNTS_CHANGED,
+			self::ORDER_BUYER_CHANGED,
+			self::ORDER_REFUNDED_AFTER_DRAFT => InvoiceErrorKind::ORDER,
 			self::MATBAO_TRANSPORT,
 			self::MATBAO_HTTP_TEMPORARY,
 			self::MATBAO_RESPONSE_UNREADABLE,
@@ -177,6 +189,14 @@ enum InvoiceErrorCode: string {
 			self::QUEUE_FAILED,
 			self::UNEXPECTED            => InvoiceErrorKind::SYSTEM,
 		};
+	}
+
+	/**
+	 * Whether the code only warns about an order that changed after the draft exists: the row keeps
+	 * its `draft_created` status and the draft is never updated, cancelled or recreated.
+	 */
+	public function is_post_draft_warning(): bool {
+		return in_array( $this, array( self::ORDER_AMOUNTS_CHANGED, self::ORDER_BUYER_CHANGED, self::ORDER_REFUNDED_AFTER_DRAFT ), true );
 	}
 
 	/**
@@ -216,6 +236,9 @@ enum InvoiceErrorCode: string {
 			self::TEMPLATE_CHANGED      => __( 'Mẫu hóa đơn đã đổi giữa các lần gửi', 'einvoice-matbao' ),
 			self::ORDER_NOT_COMPLETED   => __( 'Đơn hàng không còn hoàn thành', 'einvoice-matbao' ),
 			self::ORDER_REFUNDED        => __( 'Đơn hàng đã hoàn tiền', 'einvoice-matbao' ),
+			self::ORDER_AMOUNTS_CHANGED => __( 'Số tiền đơn hàng đổi sau khi có nháp', 'einvoice-matbao' ),
+			self::ORDER_BUYER_CHANGED   => __( 'Người mua đổi sau khi có nháp', 'einvoice-matbao' ),
+			self::ORDER_REFUNDED_AFTER_DRAFT => __( 'Đơn hàng hoàn tiền sau khi có nháp', 'einvoice-matbao' ),
 			self::MATBAO_TRANSPORT      => __( 'Không kết nối được Mắt Bão', 'einvoice-matbao' ),
 			self::MATBAO_HTTP_TEMPORARY => __( 'Mắt Bão tạm thời lỗi', 'einvoice-matbao' ),
 			self::MATBAO_RESPONSE_UNREADABLE => __( 'Không đọc được phản hồi Mắt Bão', 'einvoice-matbao' ),
