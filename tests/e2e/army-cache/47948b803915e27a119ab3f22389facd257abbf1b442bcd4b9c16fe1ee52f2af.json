@@ -1,6 +1,6 @@
 {
   "schemaVersion": "trace-1",
-  "createdAt": "2026-10-31T17:24:06.931Z",
+  "createdAt": "2026-11-01T01:29:13.771Z",
   "payload": {
     "actions": [
       {
@@ -57,7 +57,7 @@
       "provider": "e2e-text.chat",
       "model": "gpt-6-luna"
     },
-    "summary": "The screen shows the step is done (p=0.990, confidence 0.980).",
+    "summary": "The screen shows the step is done (p=1.000, confidence 1.000).",
     "startPath": "/?pagename=classic-checkout",
     "endPath": "/?pagename=classic-checkout",
     "endAnchors": [
@@ -103,7 +103,7 @@
         "name": "Yêu cầu xuất hóa đơn"
       }
     ],
-    "endWaitMs": 11036,
+    "endWaitMs": 11045,
     "keyedBy": {
       "cacheSchema": "trace-1",
       "policyVersion": "conservative/6",

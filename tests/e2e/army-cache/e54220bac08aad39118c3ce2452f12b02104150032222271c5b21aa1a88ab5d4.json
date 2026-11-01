@@ -1,0 +1,55 @@
+{
+  "schemaVersion": "trace-1",
+  "createdAt": "2026-11-01T01:32:00.842Z",
+  "payload": {
+    "actions": [
+      {
+        "name": "tap",
+        "summary": "tap button \"Kiểm tra kết nối\"",
+        "target": {
+          "role": "button",
+          "name": "Kiểm tra kết nối"
+        }
+      }
+    ],
+    "executor": {
+      "name": "decision",
+      "version": "2"
+    },
+    "recordedFor": {
+      "testId": "army/settings.army.ts::settings%20page::connection%20check%20succeeds%20against%20the%20fake%20and%20reports%20a%20rejected%20login",
+      "targetId": "chromium",
+      "instructionDigest": "5a262cddda92bc41c387eca6eca61d91650cf89c64ef440197c181c699646034",
+      "paramsDigest": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "callIndex": 0,
+      "agent": "admin"
+    },
+    "recordedBy": {
+      "provider": "e2e-text.chat",
+      "model": "gpt-6-luna"
+    },
+    "summary": "The screen shows the step is done (p=0.990, confidence 0.980).",
+    "startPath": "/wp-admin/admin.php?page=einvoice-matbao-settings",
+    "endPath": "/wp-admin/admin.php?page=einvoice-matbao-settings",
+    "endAnchors": [
+      {
+        "role": "status",
+        "name": "Thành công: Kết nối Mắt Bão thành công."
+      },
+      {
+        "text": "Warning: Cannot modify header information - headers already sent by (output started at /var/www/html/wp-content/plugins/einvoice-matbao/src/Admin/SettingsController.php:120) in /var/www/html/wp-includes/rest-api.php on line 813 Warning: Cannot modify header information - headers already sent by (ou…"
+      }
+    ],
+    "endWaitMs": 11309,
+    "keyedBy": {
+      "cacheSchema": "trace-1",
+      "policyVersion": "conservative/6",
+      "project": "2b483fc49e5e740989e492050e28e6fb856764a2ed52d31c600d470a05baba44",
+      "platform": "web",
+      "engineName": "web",
+      "engineSpiVersion": 1,
+      "appIdentity": "2ce612fe684f904f96ec07f53bc449688a65d26e28e9999fd2a1cec1cbd6fc2d",
+      "agentContextDigest": "2d87d669030adec1c5a4b621e02e4f297732729025497e06cd881ec089a136dd"
+    }
+  }
+}

@@ -9,7 +9,7 @@ import { PAGES, completedOrder, fake, invoiceOf, lines, resetWorld, script, seam
 const sent = sentCount;
 const lookups = async () => (await fake("requests?endpoint=invoice-detail-batch")).length as number;
 
-describe("blocked drafts", { serial: false }, () => {
+describe("blocked drafts", { serial: false, agent: "admin" }, () => {
 	beforeEach(async (ctx) => {
 		await resetWorld(ctx);
 		await signInAdmin(ctx);
@@ -48,13 +48,13 @@ describe("blocked drafts", { serial: false }, () => {
 		expect(await sent()).toBe(0);
 	});
 
-	test("a 0 VND order is skipped with a reason and has no resend button", async ({ app, screen, browser }) => {
+	test("a 0 VND order is skipped with a reason and has no resend button", async ({ app, screen, browser, agent }) => {
 		const orderId = await completedOrder({ app }, lines("E2E-FREE"));
 		await waitForStatus({ app }, orderId, "skipped");
 		expect(await sent()).toBe(0);
 
 		await app.open(PAGES.invoices);
-		await screen.getByRole("row").filter({ hasText: `#${orderId}` }).getByRole("button", "Chi tiết").tap();
+		await agent.act("open the details of the invoice of order {order}", { params: { order: `#${orderId}` } });
 		const detail = browser.locator(`[data-einv-invoice-detail]`);
 		await expect(detail).toBeVisible();
 		await expect(detail).toContainText("Bỏ qua");
@@ -85,7 +85,7 @@ describe("blocked drafts", { serial: false }, () => {
 	});
 });
 
-describe("retry and recovery", { serial: false }, () => {
+describe("retry and recovery", { serial: false, agent: "admin" }, () => {
 	beforeEach(async (ctx) => {
 		await resetWorld(ctx);
 		await signInAdmin(ctx);

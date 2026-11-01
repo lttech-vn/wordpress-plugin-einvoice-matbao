@@ -18,17 +18,16 @@ describe("unit of measure", { serial: false }, () => {
 	});
 });
 
-describe("product unit field", { serial: false }, () => {
+describe("product unit field", { serial: false, agent: "admin" }, () => {
 	beforeEach(async (ctx) => {
 		await resetWorld(ctx);
 		await signInAdmin(ctx);
 	});
 
-	test("the override saved on the product edit screen is sent on the invoice line", async ({ app, screen, browser }) => {
+	test("the override saved on the product edit screen is sent on the invoice line", async ({ app, screen, agent }) => {
 		const productId = (await seam({ app }, "/product-id/E2E-VAT5")).id as number;
 		await app.open(`/wp-admin/post.php?post=${productId}&action=edit`);
-		await screen.getByLabel("Đơn vị tính hóa đơn").fill("Tháng");
-		await browser.locator("#publish").tap();
+		await agent.act("set the field 'Đơn vị tính hóa đơn' to {unit} and update the product", { params: { unit: "Tháng" } });
 		await expect(screen.getByLabel("Đơn vị tính hóa đơn")).toHaveValue("Tháng");
 
 		const orderId = await completedOrder({ app }, { lines: [{ sku: "E2E-VAT5", qty: 1 }] });

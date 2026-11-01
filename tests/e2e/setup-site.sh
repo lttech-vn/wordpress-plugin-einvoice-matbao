@@ -64,6 +64,9 @@ wp option update woocommerce_default_country VN >/dev/null
 wp option update woocommerce_calc_taxes yes >/dev/null
 wp option update woocommerce_prices_include_tax no >/dev/null
 wp option update woocommerce_enable_guest_checkout yes >/dev/null
+# Pin the order storage: HPOS (the default for new shops). The legacy screens are covered by PHPUnit.
+wp option update woocommerce_custom_orders_table_enabled yes >/dev/null
+wp option update woocommerce_custom_orders_table_data_sync_enabled no >/dev/null
 wp option update woocommerce_coming_soon no >/dev/null
 wp option update woocommerce_checkout_phone_field required >/dev/null
 wp option update woocommerce_cod_settings --format=json '{"enabled":"yes","title":"COD","description":"","instructions":"","enable_for_methods":[],"enable_for_virtual":"yes"}' >/dev/null

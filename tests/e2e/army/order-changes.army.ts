@@ -7,7 +7,7 @@ import { PAGES, completedOrder, fake, invoiceOf, lines, resetWorld, script, seam
 
 const sent = sentCount;
 
-describe("order changes after the draft", { serial: false }, () => {
+describe("order changes after the draft", { serial: false, agent: "admin" }, () => {
 	beforeEach(async (ctx) => {
 		await resetWorld(ctx);
 		await signInAdmin(ctx);
@@ -57,12 +57,13 @@ describe("order changes after the draft", { serial: false }, () => {
 		expect(await sent()).toBe(1);
 	});
 
-	test("an administrator's buyer edit before the draft re-captures the snapshot (story 27)", async ({ app, browser, screen }) => {
+	test("an administrator's buyer edit before the draft re-captures the snapshot (story 27)", async ({ app, browser }) => {
 		// The order is completed but its job has not run; the admin fixes the invoice address on the order screen.
 		const order = await seam({ app }, "/order", { ...lines("E2E-SVC"), request: { type: "business", business_name: "CÔNG TY SAI", tax_code: "0000000000", address: "1 Đường Sai" } });
 		await seam({ app }, `/status/${order.id}`, { status: "completed", run_queue: false });
 		await app.open(PAGES.order(Number(order.id)));
-		// The admin changes the billing name through the real order screen form, as an administrator.
+		// The administrator edits the billing name on the real order screen. WooCommerce's address editor is a hidden
+		// panel with many identical controls, so these steps are exact.
 		await browser.locator("a.edit_address").first().tap();
 		await browser.locator("#_billing_first_name").fill("Chị");
 		await browser.locator("#_billing_last_name").fill("Sửa");

@@ -1,0 +1,87 @@
+{
+  "schemaVersion": "trace-1",
+  "createdAt": "2026-11-01T01:32:24.885Z",
+  "payload": {
+    "actions": [
+      {
+        "name": "type",
+        "summary": "type \"Tháng\" into textbox \"Đơn vị tính hóa đơn\" in \"Simple product\"",
+        "target": {
+          "role": "textbox",
+          "name": "Đơn vị tính hóa đơn",
+          "placeholder": "Gói",
+          "within": "Simple product"
+        },
+        "value": "Tháng"
+      },
+      {
+        "name": "tap",
+        "summary": "tap button \"Update\" in \"Publish\"",
+        "target": {
+          "role": "button",
+          "name": "Update",
+          "within": "Publish"
+        }
+      }
+    ],
+    "executor": {
+      "name": "decision",
+      "version": "2"
+    },
+    "recordedFor": {
+      "testId": "army/units-permissions.army.ts::product%20unit%20field::the%20override%20saved%20on%20the%20product%20edit%20screen%20is%20sent%20on%20the%20invoice%20line",
+      "targetId": "chromium",
+      "instructionDigest": "33c83e1f09d836f5ce5141bd83ac424d75a1672525ae17604f845ab324e2a176",
+      "paramsDigest": "ead4ae0dd92e684f28590abf5bd4d4ce00cf7d5ea542636f36d04b033a9bafce",
+      "callIndex": 0,
+      "agent": "admin"
+    },
+    "recordedBy": {
+      "provider": "e2e-text.chat",
+      "model": "gpt-6-luna"
+    },
+    "summary": "The screen shows the step is done (p=0.960, confidence 0.940).",
+    "startPath": "/wp-admin/post.php?post=14&action=edit",
+    "endPath": "/wp-admin/post.php?post=14&action=edit",
+    "endAnchors": [
+      {
+        "role": "link",
+        "name": "View Product"
+      },
+      {
+        "text": "Dismiss this notice."
+      },
+      {
+        "role": "textbox",
+        "name": "Đơn vị tính hóa đơn",
+        "placeholder": "Gói",
+        "value": "Tháng"
+      },
+      {
+        "text": "Product updated. View Product"
+      },
+      {
+        "role": "button",
+        "name": "Dismiss this notice."
+      }
+    ],
+    "goneAnchors": [
+      {
+        "role": "textbox",
+        "name": "Đơn vị tính hóa đơn",
+        "placeholder": "Gói"
+      }
+    ],
+    "endWaitMs": 11612,
+    "keyedBy": {
+      "cacheSchema": "trace-1",
+      "policyVersion": "conservative/6",
+      "project": "2b483fc49e5e740989e492050e28e6fb856764a2ed52d31c600d470a05baba44",
+      "platform": "web",
+      "engineName": "web",
+      "engineSpiVersion": 1,
+      "appIdentity": "2ce612fe684f904f96ec07f53bc449688a65d26e28e9999fd2a1cec1cbd6fc2d",
+      "agentContextDigest": "2d87d669030adec1c5a4b621e02e4f297732729025497e06cd881ec089a136dd"
+    }
+  }
+}
