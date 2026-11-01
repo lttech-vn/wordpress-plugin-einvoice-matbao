@@ -1,6 +1,6 @@
 {
   "schemaVersion": "trace-1",
-  "createdAt": "2026-11-01T01:32:00.842Z",
+  "createdAt": "2026-11-01T04:16:24.529Z",
   "payload": {
     "actions": [
       {
@@ -13,7 +13,7 @@
       }
     ],
     "executor": {
-      "name": "decision",
+      "name": "e2e-default-agent",
       "version": "2"
     },
     "recordedFor": {
@@ -25,10 +25,10 @@
       "agent": "admin"
     },
     "recordedBy": {
-      "provider": "e2e-text.chat",
+      "provider": "e2e-text-agent.chat",
       "model": "gpt-6-luna"
     },
-    "summary": "The screen shows the step is done (p=0.990, confidence 0.980).",
+    "summary": "Clicked “Kiểm tra kết nối” once. A green success notice appeared: “Thành công: Kết nối Mắt Bão thành công.”",
     "startPath": "/wp-admin/admin.php?page=einvoice-matbao-settings",
     "endPath": "/wp-admin/admin.php?page=einvoice-matbao-settings",
     "endAnchors": [
@@ -40,7 +40,7 @@
         "text": "Warning: Cannot modify header information - headers already sent by (output started at /var/www/html/wp-content/plugins/einvoice-matbao/src/Admin/SettingsController.php:120) in /var/www/html/wp-includes/rest-api.php on line 813 Warning: Cannot modify header information - headers already sent by (ou…"
       }
     ],
-    "endWaitMs": 11309,
+    "endWaitMs": 12505,
     "keyedBy": {
       "cacheSchema": "trace-1",
       "policyVersion": "conservative/6",

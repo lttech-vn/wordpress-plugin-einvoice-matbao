@@ -1,6 +1,6 @@
 {
   "schemaVersion": "trace-1",
-  "createdAt": "2026-11-01T01:31:45.447Z",
+  "createdAt": "2026-11-01T04:12:10.287Z",
   "payload": {
     "actions": [
       {
@@ -42,7 +42,7 @@
       }
     ],
     "executor": {
-      "name": "decision",
+      "name": "e2e-default-agent",
       "version": "2"
     },
     "recordedFor": {
@@ -54,10 +54,10 @@
       "agent": "admin"
     },
     "recordedBy": {
-      "provider": "e2e-text.chat",
+      "provider": "e2e-text-agent.chat",
       "model": "gpt-6-luna"
     },
-    "summary": "The screen shows the step is done (p=1.000, confidence 1.000).",
+    "summary": "Entered the tax code and login name, filled the password secret, and clicked “Lưu kết nối.” A green success notice confirms the connection credentials were saved encrypted; the password remains masked and is not rendered back.",
     "startPath": "/wp-admin/admin.php?page=einvoice-matbao-settings",
     "endPath": "/wp-admin/admin.php?page=einvoice-matbao-settings",
     "endAnchors": [
@@ -91,7 +91,7 @@
         "value": "e2e"
       }
     ],
-    "endWaitMs": 11506,
+    "endWaitMs": 12786,
     "keyedBy": {
       "cacheSchema": "trace-1",
       "policyVersion": "conservative/6",

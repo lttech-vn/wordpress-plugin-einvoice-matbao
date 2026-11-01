@@ -46,7 +46,7 @@ production host never leaves). Agent steps: the invoice request fields. Exact `s
 labels: `Address` must not match `Email address`), place order, login. Order completion goes through an E2E-only REST
 route of the same mu-plugin.
 
-Real results with the decision model (live mode, same code, one run each):
+Real results with the earlier decision-model executor (live mode, same code, one run each):
 
 | Browser | Classic walk-in | Classic individual | Classic business | Blocks walk-in | Blocks business | Model calls (total) |
 |---|---|---|---|---|---|---|
@@ -77,16 +77,23 @@ bun run e2e:replay                      # cache read-only + strict, any *_API_KE
 `scripts/run-e2e.ts` starts a compose project per run (no published port, random admin password), a browser
 container sharing the WordPress network namespace (`http://localhost`), copies `.e2e/` and `army-cache/` to
 `test-results/runs/<id>/`, applies a report gate (all passed) and removes everything it created, also on SIGINT/SIGTERM.
-The model variables (`E2E_SYSTEMONE_*`, `E2E_TEXT_*`) reach the container only in record/live. The text model URL must be
+Agent steps use one plain chat model (built-in agent, tool calls) for every agent, as in https://e2e.tester.army/docs/models; `E2E_SYSTEMONE_*` is no longer read. The model variables (`E2E_TEXT_*`) reach the container only in record/live. The text model URL must be
 reachable from the container.
 
-Agent steps replay from `army-cache/` (18 entries). Recording the whole suite costs about 1.5M tokens; replay costs none.
+Agent steps replay from `army-cache/` (11 entries, recorded with `gpt-6-luna`). Recording the whole suite costs about 0.7M tokens; replay costs none.
 Secrets for the settings tests are declared under `secrets` in the config (synthetic values); the agent sees only
 their names.
 
 Cache review: after `record`, inspect `test-results/runs/<id>/army-cache/*.json`, confirm no credentials or personal
 data (admin password is random per run, buyer data is synthetic), copy it to `army-cache/` and commit. A changed
 instruction, app screen or `params` needs a new recording.
+
+Order IDs and the replay cache (#35): the cache is keyed by an agent step's `params`, so a step that carries a
+WooCommerce order ID only replays while every earlier test creates the same orders. The first release run failed in a
+login (`signInAdmin` submitted before the page was ready), which shifted all later IDs and made six steps miss the cache
+(`MODEL_PROVIDER_FAILED` / `CI_MODEL_CALL_FORBIDDEN`). Two fixes: `signInAdmin` retries the form once, and opening the
+only invoice on the list is an exact locator (`openOnlyInvoice`), not an agent step with an ID in `params`. Keep IDs and
+timestamps out of `params`; read the first failure, not the cascade.
 
 Real demo: `EINV_DEMO_E2E=1 EINV_DEMO_MST=… EINV_DEMO_USER=… EINV_DEMO_PASS=… bun run e2e:live` (drafts only; never replay).
 

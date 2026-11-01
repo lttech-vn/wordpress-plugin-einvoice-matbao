@@ -1,8 +1,17 @@
 {
   "schemaVersion": "trace-1",
-  "createdAt": "2026-11-01T01:31:54.579Z",
+  "createdAt": "2026-11-01T04:12:30.825Z",
   "payload": {
     "actions": [
+      {
+        "name": "type",
+        "summary": "type \"0000000001}\" into textbox \"Mã số thuế\"",
+        "target": {
+          "role": "textbox",
+          "name": "Mã số thuế"
+        },
+        "value": "0000000001}"
+      },
       {
         "name": "type",
         "summary": "type \"0000000001\" into textbox \"Mã số thuế\"",
@@ -22,7 +31,7 @@
       }
     ],
     "executor": {
-      "name": "decision",
+      "name": "e2e-default-agent",
       "version": "2"
     },
     "recordedFor": {
@@ -34,10 +43,10 @@
       "agent": "admin"
     },
     "recordedBy": {
-      "provider": "e2e-text.chat",
+      "provider": "e2e-text-agent.chat",
       "model": "gpt-6-luna"
     },
-    "summary": "The screen shows the step is done (p=0.690, confidence 0.530).",
+    "summary": "Đã nhập riêng mã số thuế 0000000001 và nhấn “Lưu kết nối”. Trang hiển thị thông báo đỏ: “Lỗi: Cần nhập đủ mã số thuế, tên đăng nhập và mật khẩu.”",
     "startPath": "/wp-admin/admin.php?page=einvoice-matbao-settings",
     "endPath": "/wp-admin/admin.php?page=einvoice-matbao-settings",
     "endAnchors": [
@@ -60,7 +69,7 @@
         "name": "Mã số thuế"
       }
     ],
-    "endWaitMs": 11277,
+    "endWaitMs": 12939,
     "keyedBy": {
       "cacheSchema": "trace-1",
       "policyVersion": "conservative/6",

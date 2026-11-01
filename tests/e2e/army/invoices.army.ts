@@ -1,6 +1,6 @@
 import { test, describe, beforeEach } from "@e2e-dev/web";
 import { expect } from "e2e";
-import { PAGES, completedOrder, errorNotice, fake, okNotice, resetWorld, script, seam, signInAdmin, waitForStatus } from "./support.ts";
+import { PAGES, completedOrder, errorNotice, fake, okNotice, resetWorld, script, seam, signInAdmin, waitForStatus, openOnlyInvoice } from "./support.ts";
 
 // Stories 1, 3, 20-26: the invoice list, filters, search, detail with attempt history, status check, resend,
 // the dashboard counts and the order meta box. Mat Bao is the fake server; orders come from a seam.
@@ -11,7 +11,7 @@ describe("invoice admin", { serial: false, agent: "admin" }, () => {
 		await signInAdmin(ctx);
 	});
 
-	test("a completed order gets one draft shown in the order box, the list and the detail", async ({ app, screen, agent }) => {
+	test("a completed order gets one draft shown in the order box, the list and the detail", async ({ app, screen }) => {
 		const orderId = await completedOrder({ app });
 		await waitForStatus({ app }, orderId, "draft_created");
 
@@ -23,7 +23,7 @@ describe("invoice admin", { serial: false, agent: "admin" }, () => {
 		const row = screen.getByRole("row").filter({ hasText: `#${orderId}` });
 		await expect(row).toBeVisible();
 		await expect(row).toContainText("Đã tạo nháp");
-		await agent.act("open the details of the invoice of order {order}", { params: { order: `#${orderId}` } });
+		await openOnlyInvoice(screen);
 		await expect(screen.getByText("Lịch sử gửi")).toBeVisible();
 		await expect(screen.getByText("Thành công", { exact: true }).first()).toBeVisible();
 	});
@@ -116,44 +116,45 @@ describe("invoice admin", { serial: false, agent: "admin" }, () => {
 		await expect(screen.getByRole("row").filter({ hasText: `#${good}` })).toHaveCount(0);
 	});
 
-	test("the detail masks national ID numbers in the attempt history", async ({ app, screen, agent }) => {
+	test("the detail masks national ID numbers in the attempt history", async ({ app, screen }) => {
 		await script("create-invoice", [{ item_error: { errorCode: 201, message: "CCCD 012345678901 khong hop le" } }]);
 		const orderId = await completedOrder({ app });
 		await waitForStatus({ app }, orderId, "failed");
 
 		await app.open(PAGES.invoices);
-		await agent.act("open the details of the invoice of order {order}", { params: { order: `#${orderId}` } });
+		await openOnlyInvoice(screen);
 		await expect(screen.getByText("Lịch sử gửi")).toBeVisible();
 		await expect(screen.getByText("012345678901", { exact: false })).toHaveCount(0);
 		await expect(screen.getByText("********8901", { exact: false }).first()).toBeVisible();
 	});
 
-	test("check status confirms a draft that is still on Mat Bao", async ({ agent, app, screen }) => {
+	test("check status confirms a draft that is still on Mat Bao", async ({ app, screen }) => {
 		const orderId = await completedOrder({ app });
 		await waitForStatus({ app }, orderId, "draft_created");
 		await app.open(PAGES.invoices);
-		await agent.act("open the details of the invoice of order {order}, then check the status of that invoice on Mat Bao", { params: { order: `#${orderId}` } });
+		await openOnlyInvoice(screen);
+		await screen.getByRole("button", "Kiểm tra trạng thái").tap();
 		await expect(okNotice(screen)).toContainText("Hóa đơn nháp vẫn còn trên Mắt Bão.");
 	});
 
-	test("check status warns when the draft was issued on Mat Bao and never changes the row", async ({ agent, app, screen }) => {
+	test("check status warns when the draft was issued on Mat Bao and never changes the row", async ({ app, screen }) => {
 		const orderId = await completedOrder({ app });
 		const done = await waitForStatus({ app }, orderId, "draft_created");
 		await fake("issue", { mtChieu: done.invoice.reference });
 		await app.open(PAGES.invoices);
-		await agent.act("open the details of the invoice of order {order}", { params: { order: `#${orderId}` } });
+		await openOnlyInvoice(screen);
 		await screen.getByRole("button", "Kiểm tra trạng thái").tap(); // exact: a red warning is the expected result
 		await expect(errorNotice(screen)).toContainText("không còn ở trạng thái Nháp");
 		expect((await seam({ app }, `/invoice/${orderId}`)).invoice.status).toBe("draft_created");
 	});
 
-	test("a deleted draft is never recreated without an explicit confirmation", async ({ agent, app, screen, browser }) => {
+	test("a deleted draft is never recreated without an explicit confirmation", async ({ app, screen, browser }) => {
 		const orderId = await completedOrder({ app });
 		const done = await waitForStatus({ app }, orderId, "draft_created");
 		await fake("delete", { mtChieu: done.invoice.reference });
 
 		await app.open(PAGES.invoices);
-		await agent.act("open the details of the invoice of order {order}", { params: { order: `#${orderId}` } });
+		await openOnlyInvoice(screen);
 		await screen.getByRole("button", "Kiểm tra trạng thái").tap(); // exact: a red warning is the expected result
 		await expect(screen.getByText("Cảnh báo: hóa đơn nháp không còn trên Mắt Bão", { exact: false })).toBeVisible();
 		// The status check on its own made no create call.
@@ -174,7 +175,7 @@ describe("invoice admin", { serial: false, agent: "admin" }, () => {
 		expect((await fake("invoices")).length).toBe(1);
 	});
 
-	test("resend of a failed invoice looks the reference up first and never duplicates", async ({ app, screen, browser, agent }) => {
+	test("resend of a failed invoice looks the reference up first and never duplicates", async ({ app, screen, browser }) => {
 		// The create call reached Mat Bao but its reply was a 4xx the plugin treats as final.
 		await script("create-invoice", [{ http: 400, store: true }]);
 		const orderId = await completedOrder({ app });
@@ -182,7 +183,7 @@ describe("invoice admin", { serial: false, agent: "admin" }, () => {
 		expect((await fake("invoices")).length).toBe(1);
 
 		await app.open(PAGES.invoices);
-		await agent.act("open the details of the invoice of order {order}", { params: { order: `#${orderId}` } });
+		await openOnlyInvoice(screen);
 		const off = await browser.onDialog("accept");
 		await screen.getByRole("button", "Gửi lại").tap();
 		await expect(okNotice(screen)).toContainText("Đã xếp hóa đơn vào hàng đợi gửi lại");

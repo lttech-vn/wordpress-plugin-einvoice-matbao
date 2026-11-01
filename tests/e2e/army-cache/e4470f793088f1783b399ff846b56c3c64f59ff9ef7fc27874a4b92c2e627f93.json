@@ -1,26 +1,24 @@
 {
   "schemaVersion": "trace-1",
-  "createdAt": "2026-11-01T01:30:11.339Z",
+  "createdAt": "2026-11-01T04:17:35.779Z",
   "payload": {
     "actions": [
       {
-        "name": "check",
-        "summary": "check checkbox \"Yêu cầu xuất hóa đơn\"",
+        "name": "tap",
+        "summary": "tap checkbox \"Yêu cầu xuất hóa đơn\"",
         "target": {
           "role": "checkbox",
           "name": "Yêu cầu xuất hóa đơn"
-        },
-        "checked": true
+        }
       },
       {
-        "name": "check",
-        "summary": "check radio \"Cá nhân\" in \"Xuất hóa đơn cho\"",
+        "name": "tap",
+        "summary": "tap radio \"Cá nhân\" in \"Xuất hóa đơn cho\"",
         "target": {
           "role": "radio",
           "name": "Cá nhân",
           "within": "Xuất hóa đơn cho"
-        },
-        "checked": true
+        }
       },
       {
         "name": "type",
@@ -42,7 +40,7 @@
       }
     ],
     "executor": {
-      "name": "decision",
+      "name": "e2e-default-agent",
       "version": "2"
     },
     "recordedFor": {
@@ -54,10 +52,10 @@
       "agent": "default"
     },
     "recordedBy": {
-      "provider": "e2e-text.chat",
+      "provider": "e2e-text-agent.chat",
       "model": "gpt-6-luna"
     },
-    "summary": "The screen shows the step is done (p=0.990, confidence 0.980).",
+    "summary": "Checked “Yêu cầu xuất hóa đơn,” selected “Cá nhân,” and filled invoice address “1 Đường Thử Nghiệm, Quận 1, TP HCM” and CCCD “000000000042.” The checkout form shows the requested values.",
     "startPath": "/?pagename=classic-checkout",
     "endPath": "/?pagename=classic-checkout",
     "endAnchors": [
@@ -103,7 +101,7 @@
         "name": "Yêu cầu xuất hóa đơn"
       }
     ],
-    "endWaitMs": 11044,
+    "endWaitMs": 13384,
     "keyedBy": {
       "cacheSchema": "trace-1",
       "policyVersion": "conservative/6",

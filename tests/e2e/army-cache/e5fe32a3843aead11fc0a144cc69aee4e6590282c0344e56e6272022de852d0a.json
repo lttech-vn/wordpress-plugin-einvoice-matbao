@@ -1,6 +1,6 @@
 {
   "schemaVersion": "trace-1",
-  "createdAt": "2026-11-01T01:32:24.885Z",
+  "createdAt": "2026-11-01T04:13:45.324Z",
   "payload": {
     "actions": [
       {
@@ -25,7 +25,7 @@
       }
     ],
     "executor": {
-      "name": "decision",
+      "name": "e2e-default-agent",
       "version": "2"
     },
     "recordedFor": {
@@ -37,10 +37,10 @@
       "agent": "admin"
     },
     "recordedBy": {
-      "provider": "e2e-text.chat",
+      "provider": "e2e-text-agent.chat",
       "model": "gpt-6-luna"
     },
-    "summary": "The screen shows the step is done (p=0.960, confidence 0.940).",
+    "summary": "Set “Đơn vị tính hóa đơn” to “Tháng” and updated the product. The page confirms “Product updated” and the field remains saved as “Tháng”.",
     "startPath": "/wp-admin/post.php?post=14&action=edit",
     "endPath": "/wp-admin/post.php?post=14&action=edit",
     "endAnchors": [
@@ -72,7 +72,7 @@
         "placeholder": "Gói"
       }
     ],
-    "endWaitMs": 11612,
+    "endWaitMs": 14691,
     "keyedBy": {
       "cacheSchema": "trace-1",
       "policyVersion": "conservative/6",
