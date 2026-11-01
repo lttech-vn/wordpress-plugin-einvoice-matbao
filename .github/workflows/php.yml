@@ -1,42 +1,19 @@
-name: CI
+name: PHP
 
 on:
   push:
     branches: [main]
   pull_request:
+  workflow_call:
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  group: php-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  assets:
-    name: Build admin assets
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.4.4
-      - run: bun install --frozen-lockfile
-      - run: bun run test
-      - run: bun run build
-      - name: Assert admin CSS is scoped (no global preflight)
-        run: bun run check:css-scope
-      - name: Assert no CDN references in built assets
-        run: |
-          test -s assets/dist/admin.css
-          test -s assets/dist/htmx.min.js
-          test -s assets/dist/checkout.js
-          ! grep -rEl 'https?://(cdn|unpkg|cdnjs|jsdelivr)' assets/dist
-      - uses: actions/upload-artifact@v4
-        with:
-          name: assets-dist
-          path: assets/dist
-
   php:
     name: Lint, static analysis and integration tests (Docker)
     runs-on: ubuntu-latest
@@ -44,7 +21,7 @@ jobs:
       COMPOSE_PROJECT_NAME: einv-ci
       EINV_HTTP_PORT: "8080"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Build image
         run: docker compose build
       - name: Start WordPress + WooCommerce

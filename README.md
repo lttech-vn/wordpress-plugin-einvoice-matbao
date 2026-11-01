@@ -312,12 +312,39 @@ bun run watch:css  # rebuild CSS on change
 Tailwind utilities are scoped under `#einv-app` and preflight is not included, so WordPress admin
 styles are untouched; `bun run check:css-scope` (run in CI) fails if the build emits an unscoped rule.
 Design tokens (`einv-*`) come from Stripe `DESIGN.md` in VoltAgent/awesome-design-md. htmx is copied from the pinned npm package; nothing is loaded from a CDN.
-`assets/dist/` is gitignored and rebuilt by CI; release packages must run `bun run build` first.
+`assets/dist/` is gitignored and rebuilt by CI; `scripts/build-zip.sh` runs the build for release packages.
+
+## Install from a release
+
+Download `einvoice-matbao-X.Y.Z.zip` from the [Releases](../../releases) page. It contains `vendor/` and the
+built assets, so no Composer or bun is needed. Check it with `shasum -a 256 -c einvoice-matbao-X.Y.Z.zip.sha256`
+(or `gh attestation verify <zip> --repo lttech-vn/wordpress-plugin-einvoice-matbao`). In wp-admin open
+**Plugins → Add New → Upload Plugin**, choose the zip and activate (WooCommerce 11+ must be active).
+Updates are manual: upload the newer zip and replace the plugin. Set `EINVOICE_MATBAO_ENCRYPTION_KEY`
+before saving credentials (see above).
+
+## Releasing
+
+1. Bump `Version:` and `EINVOICE_MATBAO_VERSION` in `einvoice-matbao.php` together and merge to `main`.
+2. Tag and push: `git tag vX.Y.Z && git push origin vX.Y.Z` (`vX.Y.Z-rc.N` makes a prerelease).
+3. `release.yml` checks tag = header = constant, runs the assets, PHP and E2E workflows as gates, builds the zip with
+   `scripts/build-zip.sh`, installs it into a clean WordPress + WooCommerce (`scripts/smoke-zip.sh`),
+   attests provenance and publishes the Release with generated notes, the zip and its `.sha256`.
+
+Build locally with `scripts/build-zip.sh` (needs bun, zip and Docker or Composer); output is `dist/`.
 
 ## CI
 
-`.github/workflows/ci.yml` builds the assets with bun and runs PHPCS, PHPStan and both PHPUnit
-suites through the same Docker Compose stack used locally.
+One workflow per concern under `.github/workflows/`:
+
+| Workflow      | Trigger                    | Does                                                        |
+|---------------|----------------------------|-------------------------------------------------------------|
+| `assets.yml`  | PR, `main`                 | bun tests, build, CSS scope and no-CDN checks               |
+| `php.yml`     | PR, `main`                 | PHPCS, PHPStan, both PHPUnit suites (Docker Compose stack)  |
+| `e2e.yml`     | `main`                     | browser E2E from the committed replay cache (`tests/e2e`)   |
+| `release.yml` | tag `v*.*.*`               | verify tag, call the three above, package, smoke, publish   |
+
+`assets`, `php` and `e2e` also expose `workflow_call`, so `release.yml` reuses them as gates.
 
 ## Pinned versions and known limits
 

@@ -1,0 +1,97 @@
+name: Release
+
+# Push a tag vX.Y.Z (or vX.Y.Z-rc.N for a prerelease). The tag must match the plugin header version.
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Verify tag and version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      prerelease: ${{ steps.v.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - id: v
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          [[ "$tag" =~ ^v([0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?)$ ]] || { echo "Tag '$tag' is not vX.Y.Z[-suffix]" >&2; exit 1; }
+          version="${BASH_REMATCH[1]}"
+          scripts/plugin-version.sh "$version" >/dev/null
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if [[ "$version" == *-* ]]; then echo "prerelease=true" >> "$GITHUB_OUTPUT"; else echo "prerelease=false" >> "$GITHUB_OUTPUT"; fi
+
+  assets:
+    name: Assets gate
+    needs: verify
+    uses: ./.github/workflows/assets.yml
+
+  php:
+    name: PHP gate
+    needs: verify
+    uses: ./.github/workflows/php.yml
+
+  e2e:
+    name: E2E gate
+    needs: verify
+    uses: ./.github/workflows/e2e.yml
+
+  package:
+    name: Build and smoke-test the zip
+    needs: [verify, assets, php, e2e]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: 1.4.4
+      - name: Build the zip
+        env:
+          VERSION: ${{ needs.verify.outputs.version }}
+        run: scripts/build-zip.sh "$VERSION"
+      - name: Smoke test the zip in a clean WordPress + WooCommerce
+        env:
+          VERSION: ${{ needs.verify.outputs.version }}
+        run: scripts/smoke-zip.sh "dist/einvoice-matbao-$VERSION.zip"
+      - uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2
+        with:
+          subject-path: dist/einvoice-matbao-${{ needs.verify.outputs.version }}.zip
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: plugin-zip
+          path: dist/
+          if-no-files-found: error
+
+  publish:
+    name: Publish GitHub Release
+    needs: [verify, package]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: plugin-zip
+          path: dist
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.verify.outputs.version }}
+          PRERELEASE: ${{ needs.verify.outputs.prerelease }}
+        run: |
+          flags=(--generate-notes --verify-tag --title "$GITHUB_REF_NAME")
+          [ "$PRERELEASE" = "true" ] && flags+=(--prerelease)
+          gh release create "$GITHUB_REF_NAME" "dist/einvoice-matbao-$VERSION.zip" "dist/einvoice-matbao-$VERSION.zip.sha256" "${flags[@]}" --repo "$GITHUB_REPOSITORY"
