@@ -174,12 +174,13 @@ describe("retry and recovery", { serial: false, agent: "admin" }, () => {
 		const orderId = await completedOrder({ app });
 		const delays = [60, 300, 900, 3600, 21600];
 		for (const [i, delay] of delays.entries()) {
-			expect((await invoiceOf({ app }, orderId)).invoice.status).toBe("pending");
+			// Read the schedule first: it was queued during the failed send a moment ago, so the remaining wait is
+			// the delay minus that moment (a slow runner only widens the gap, hence the small window).
 			const next = await seam({ app }, "/next-retry");
 			expect(next.at, `retry ${i + 1} is queued`).not.toBeNull();
-			// Queued during the failed send a moment ago: the remaining wait is the delay minus that moment.
-			expect(next.at - next.now).toBeGreaterThan(delay - 60);
+			expect(next.at - next.now).toBeGreaterThan(delay - 15);
 			expect(next.at - next.now).toBeLessThanOrEqual(delay);
+			expect((await invoiceOf({ app }, orderId)).invoice.status).toBe("pending");
 			await seam({ app }, "/tick", { rounds: 1 }); // makes the retry due and runs it
 			expect(await sent()).toBe(i + 2);
 		}

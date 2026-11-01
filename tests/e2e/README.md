@@ -41,7 +41,7 @@ Stack verified: WordPress 7.1.4, WooCommerce 11.2.1, PHP 8.5.12 (the `compose.ya
 
 Classic and Checkout Blocks: walk-in (no tick) and business buyer; Classic also individual. Each places an order,
 completes it, then expects the draft in the order meta box ("Đã tạo nháp") and in WooCommerce → invoice list. Mat Bao
-is answered by the fake in `wordpress/einv-e2e-http.php` (a request to any host other than the demo API is refused; the
+is answered by the fake in `fake-matbao/router.php` (the mu-plugin `wordpress/einv-e2e-http.php` refuses a request to any host other than the fake or the demo API; the
 production host never leaves). Agent steps: the invoice request fields. Exact `screen` actions: billing fields (exact
 labels: `Address` must not match `Email address`), place order, login. Order completion goes through an E2E-only REST
 route of the same mu-plugin.
@@ -99,6 +99,6 @@ Real demo: `EINV_DEMO_E2E=1 EINV_DEMO_MST=… EINV_DEMO_USER=… EINV_DEMO_PASS=
 
 ## Cost and limits
 
-Recording: about 245k tokens for the five checkout tests, about 1.5M for the whole suite. Replay: no model call, about 2m20s for 65 tests.
+Recording: about 245k tokens for the five checkout tests, about 1.5M for the whole suite. Replay: no model call, about 10 min for 67 tests.
 Limits: walk-in has no agent step (nothing to act on); one browser (Chromium); the cache depends on
 the exact page markup, so WooCommerce updates may require a re-record.
