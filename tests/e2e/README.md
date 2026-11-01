@@ -80,7 +80,7 @@ container sharing the WordPress network namespace (`http://localhost`), copies `
 Agent steps use one plain chat model (built-in agent, tool calls) for every agent, as in https://e2e.tester.army/docs/models; `E2E_SYSTEMONE_*` is no longer read. The model variables (`E2E_TEXT_*`) reach the container only in record/live. The text model URL must be
 reachable from the container.
 
-Agent steps replay from `army-cache/` (11 entries, recorded with `gpt-6-luna`). Recording the whole suite costs about 0.7M tokens; replay costs none.
+Agent steps replay from `army-cache/` (11 entries, recorded with `gpt-6-luna`). Recording costs are under Cost and limits; replay costs none.
 Secrets for the settings tests are declared under `secrets` in the config (synthetic values); the agent sees only
 their names.
 
