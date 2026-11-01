@@ -159,6 +159,14 @@ add_action(
 						$order->add_product( $product, (int) ( $line['qty'] ?? 1 ) );
 					}
 				}
+				foreach ( (array) $request->get_param( 'fees' ) as $def ) {
+					$fee = new WC_Order_Item_Fee();
+					$fee->set_name( (string) ( $def['name'] ?? 'Phí' ) );
+					$fee->set_amount( (string) ( $def['amount'] ?? '0' ) );
+					$fee->set_total( (string) ( $def['amount'] ?? '0' ) );
+					$fee->set_tax_status( ( $def['taxable'] ?? true ) ? 'taxable' : 'none' );
+					$order->add_item( $fee );
+				}
 				$order->calculate_totals();
 				if ( null !== $request->get_param( 'total' ) ) {
 					$order->set_total( (string) $request->get_param( 'total' ) ); // Tamper: lines no longer add up to the total.
@@ -341,6 +349,29 @@ add_action(
 		$route(
 			'/option/(?P<name>einvoice_matbao_[a-z_]+)',
 			static fn( WP_REST_Request $request ): array => array( 'value' => get_option( (string) $request['name'], null ) ),
+			'GET'
+		);
+
+		// When the next queued draft retry is due, and the server clock, both Unix seconds (null when none is queued).
+		$route(
+			'/next-retry',
+			static function (): array {
+				$actions = as_get_scheduled_actions(
+					array(
+						'hook'     => 'einvoice_matbao_create_draft',
+						'status'   => 'pending',
+						'per_page' => 1,
+						'orderby'  => 'date',
+						'order'    => 'ASC',
+					)
+				);
+				$action  = reset( $actions );
+				$date    = $action ? $action->get_schedule()->get_date() : null;
+				return array(
+					'at'  => $date ? $date->getTimestamp() : null,
+					'now' => time(),
+				);
+			},
 			'GET'
 		);
 

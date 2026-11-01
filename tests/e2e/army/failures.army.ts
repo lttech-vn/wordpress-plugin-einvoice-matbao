@@ -48,6 +48,24 @@ describe("blocked drafts", { serial: false, agent: "admin" }, () => {
 		expect(await sent()).toBe(0);
 	});
 
+	test("a fee line is sent as its own line of quantity 1 and the totals still match", async ({ app }) => {
+		const orderId = await completedOrder({ app }, { fees: [{ name: "Phí xử lý E2E", amount: "50000" }] });
+		await waitForStatus({ app }, orderId, "draft_created");
+
+		const body = (await fake("requests?endpoint=create-invoice"))[0].body[0];
+		expect(body.DSHHDVu.length).toBe(2);
+		const fee = body.DSHHDVu.find((l: any) => l.THHDVu === "Phí xử lý E2E");
+		expect(fee).toBeDefined();
+		expect(fee.SLuong).toBe(1);
+		expect(fee.ThTien).toBe(50000);
+		expect(fee.TSuat).toBe(10);
+		expect(fee.DVTinh).toBe("Gói"); // the store default unit
+		const sum = (key: string) => body.DSHHDVu.reduce((n: number, l: any) => n + l[key], 0);
+		expect(body.TgThTien).toBe(sum("ThTien"));
+		expect(body.TgTThue).toBe(sum("TThue"));
+		expect(sum("TgTien")).toBe(165000); // 100000 + 50000 plus 10 % VAT
+	});
+
 	test("a 0 VND order is skipped with a reason and has no resend button", async ({ app, screen, browser }) => {
 		const orderId = await completedOrder({ app }, lines("E2E-FREE"));
 		await waitForStatus({ app }, orderId, "skipped");
@@ -149,6 +167,24 @@ describe("retry and recovery", { serial: false, agent: "admin" }, () => {
 		await app.open(PAGES.invoices);
 		await expect(screen.getByText("Có hóa đơn điện tử cần xử lý:", { exact: false })).toBeVisible();
 		await expect(screen.getByText(`#${orderId}`, { exact: false }).first()).toBeVisible();
+	});
+
+	test("the five retries are scheduled 1 min, 5 min, 15 min, 1 h and 6 h apart", async ({ app }) => {
+		await script("create-invoice", Array.from({ length: 8 }, () => ({ http: 503 })));
+		const orderId = await completedOrder({ app });
+		const delays = [60, 300, 900, 3600, 21600];
+		for (const [i, delay] of delays.entries()) {
+			expect((await invoiceOf({ app }, orderId)).invoice.status).toBe("pending");
+			const next = await seam({ app }, "/next-retry");
+			expect(next.at, `retry ${i + 1} is queued`).not.toBeNull();
+			// Queued during the failed send a moment ago: the remaining wait is the delay minus that moment.
+			expect(next.at - next.now).toBeGreaterThan(delay - 60);
+			expect(next.at - next.now).toBeLessThanOrEqual(delay);
+			await seam({ app }, "/tick", { rounds: 1 }); // makes the retry due and runs it
+			expect(await sent()).toBe(i + 2);
+		}
+		expect((await invoiceOf({ app }, orderId)).invoice.status).toBe("needs_attention");
+		expect((await seam({ app }, "/next-retry")).at).toBeNull();
 	});
 
 	test("a data error (HTTP 400) is final: no retry is queued", async ({ app }) => {

@@ -18,9 +18,9 @@ Two agents are configured: `default` (checkout) and `admin` (wp-admin; its conte
 | `checkout-validation.army.ts` | 16, 18: browser rules mirror the server rules; Store API refuses bad data; CCCD never stored in the clear | valid business and individual requests |
 | `settings.army.ts` | 28-31, 33: encrypted credentials, connection check, template pick, MTChieu prefix, walk-in name, unit | save and test the connection, pick a template |
 | `invoices.army.ts` | 1, 3, 20-26: list, filters, search, detail, status check, resend, dashboard | open an invoice detail |
-| `failures.army.ts` | 4-6, 8, 10, 12, 38-40: blocked drafts, 503/lost reply/305/exhausted retries | open an invoice detail |
+| `failures.army.ts` | 4-7, 8, 10, 12, 38-40: blocked drafts, fee lines (7), 503/lost reply/305/retry count and backoff delays/exhausted retries | open an invoice detail |
 | `order-changes.army.ts` | 11, 12, 27: warnings after the draft, snapshot behaviour | none (exact; see above) |
-| `units-permissions.army.ts` | 32, 34: unit of measure, non-admins refused | edit the product unit |
+| `units-permissions.army.ts` | 32, 34: unit of measure (32), non-admins refused | edit the product unit |
 
 Not covered here: Lark alerts, privacy export/erase, uninstall and the missing-WooCommerce path (PHPUnit covers them).
 Orders are HPOS (`setup-site.sh` pins it); the legacy order screens are covered by PHPUnit.
