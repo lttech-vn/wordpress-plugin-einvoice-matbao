@@ -1,6 +1,6 @@
 import { test, describe, beforeEach } from "@e2e-dev/web";
 import { expect } from "e2e";
-import { PAGES, completedOrder, fake, invoiceOf, lines, resetWorld, script, seam, sentCount, signInAdmin, waitForStatus } from "./support.ts";
+import { PAGES, completedOrder, fake, invoiceOf, lines, resetWorld, script, seam, sentCount, signInAdmin, waitForStatus, openOnlyInvoice } from "./support.ts";
 
 // Stories 4-6, 8, 10, 12, 38-40: what the plugin does when a draft cannot or should not be made, and how
 // temporary Mat Bao failures are retried. Orders come from a seam; Mat Bao is the fake server.
@@ -48,13 +48,13 @@ describe("blocked drafts", { serial: false, agent: "admin" }, () => {
 		expect(await sent()).toBe(0);
 	});
 
-	test("a 0 VND order is skipped with a reason and has no resend button", async ({ app, screen, browser, agent }) => {
+	test("a 0 VND order is skipped with a reason and has no resend button", async ({ app, screen, browser }) => {
 		const orderId = await completedOrder({ app }, lines("E2E-FREE"));
 		await waitForStatus({ app }, orderId, "skipped");
 		expect(await sent()).toBe(0);
 
 		await app.open(PAGES.invoices);
-		await agent.act("open the details of the invoice of order {order}", { params: { order: `#${orderId}` } });
+		await openOnlyInvoice(screen);
 		const detail = browser.locator(`[data-einv-invoice-detail]`);
 		await expect(detail).toBeVisible();
 		await expect(detail).toContainText("Bỏ qua");

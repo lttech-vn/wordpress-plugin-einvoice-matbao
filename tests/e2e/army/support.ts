@@ -74,22 +74,34 @@ export async function waitForStatus(ctx: Pick<Ctx, "app">, orderId: number, stat
 /** Signs in to wp-admin as the E2E administrator. */
 export async function signInAdmin(ctx: Ctx): Promise<void> {
 	const admin = credentials.user("admin");
-	await ctx.app.open("/wp-login.php");
-	await ctx.screen.getByLabel("Username or Email Address").fill(admin.username);
-	await ctx.screen.getByLabel("Password", { exact: false }).first().fill(admin.password);
-	await ctx.screen.getByRole("button", "Log In").tap();
-	await expect(ctx.browser).toHaveURL(/wp-admin/);
+	await submitLogin(ctx, admin.username, admin.password);
+}
+
+/**
+ * Fills the WordPress login form and waits for wp-admin. A cold runner can submit the form before the page is
+ * ready and land back on wp-login.php; one such flake used to fail a test, shift every later order ID and so
+ * invalidate the replay cache keyed by `params` (#35). The form is retried once before the test fails.
+ */
+async function submitLogin(ctx: Ctx, username: string, password: string): Promise<void> {
+	for (let attempt = 1; ; attempt++) {
+		await ctx.app.open("/wp-login.php");
+		await ctx.screen.getByLabel("Username or Email Address").fill(username);
+		await ctx.screen.getByLabel("Password", { exact: false }).first().fill(password);
+		await ctx.screen.getByRole("button", "Log In").tap();
+		try {
+			await expect(ctx.browser).toHaveURL(/wp-admin/);
+			return;
+		} catch (error) {
+			if (attempt >= 2) throw error;
+		}
+	}
 }
 
 /** Signs in as a throwaway user of a role (created through a seam). */
 export async function signInAs(ctx: Ctx, role: string): Promise<void> {
 	const user = await seam(ctx, "/user", { role });
 	if (!user.ok) throw new Error(`could not create a ${role} user`);
-	await ctx.app.open("/wp-login.php");
-	await ctx.screen.getByLabel("Username or Email Address").fill(user.login);
-	await ctx.screen.getByLabel("Password", { exact: false }).first().fill(user.password);
-	await ctx.screen.getByRole("button", "Log In").tap();
-	await expect(ctx.browser).toHaveURL(/wp-admin/);
+	await submitLogin(ctx, user.login, user.password);
 }
 
 export const PAGES = {
@@ -120,3 +132,12 @@ export const sentCount = async (): Promise<number> => (await fake("requests?endp
 
 /** Order lines of one seeded SKU. */
 export const lines = (sku: string) => ({ lines: [{ sku, qty: 1 }] });
+
+/**
+ * Opens the detail of the only invoice on the list page. Every test starts from a reset ledger, so there is exactly
+ * one row. An exact locator on purpose: an agent recording would bind to the order ID in the row and miss the replay
+ * cache in every later run (#35).
+ */
+export async function openOnlyInvoice(screen: any): Promise<void> {
+	await screen.getByRole("button", "Chi tiết").tap();
+}

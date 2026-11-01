@@ -1,6 +1,6 @@
 {
   "schemaVersion": "trace-1",
-  "createdAt": "2026-11-01T01:32:08.120Z",
+  "createdAt": "2026-11-01T04:13:20.810Z",
   "payload": {
     "actions": [
       {
@@ -30,7 +30,7 @@
       }
     ],
     "executor": {
-      "name": "decision",
+      "name": "e2e-default-agent",
       "version": "2"
     },
     "recordedFor": {
@@ -42,10 +42,10 @@
       "agent": "admin"
     },
     "recordedBy": {
-      "provider": "e2e-text.chat",
+      "provider": "e2e-text-agent.chat",
       "model": "gpt-6-luna"
     },
-    "summary": "The screen shows the step is done (p=0.730, confidence 0.600).",
+    "summary": "Reloaded the template list, selected series C26TKK, and saved it. The page confirmed: “Thành công: Đã chọn mẫu mặc định 1 / C26TKK.”.",
     "startPath": "/wp-admin/admin.php?page=einvoice-matbao-settings",
     "endPath": "/wp-admin/admin.php?page=einvoice-matbao-settings",
     "endAnchors": [
@@ -69,7 +69,7 @@
         "value": "1|C26TAT"
       }
     ],
-    "endWaitMs": 11362,
+    "endWaitMs": 12843,
     "keyedBy": {
       "cacheSchema": "trace-1",
       "policyVersion": "conservative/6",

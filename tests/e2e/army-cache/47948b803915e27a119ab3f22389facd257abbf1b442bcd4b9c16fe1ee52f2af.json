@@ -1,6 +1,6 @@
 {
   "schemaVersion": "trace-1",
-  "createdAt": "2026-11-01T01:29:13.771Z",
+  "createdAt": "2026-11-01T04:02:52.820Z",
   "payload": {
     "actions": [
       {
@@ -42,7 +42,7 @@
       }
     ],
     "executor": {
-      "name": "decision",
+      "name": "e2e-default-agent",
       "version": "2"
     },
     "recordedFor": {
@@ -54,10 +54,10 @@
       "agent": "default"
     },
     "recordedBy": {
-      "provider": "e2e-text.chat",
+      "provider": "e2e-text-agent.chat",
       "model": "gpt-6-luna"
     },
-    "summary": "The screen shows the step is done (p=1.000, confidence 1.000).",
+    "summary": "Checked 'Yêu cầu xuất hóa đơn', selected 'Cá nhân', and filled the invoice address and CCCD with the requested values.",
     "startPath": "/?pagename=classic-checkout",
     "endPath": "/?pagename=classic-checkout",
     "endAnchors": [
@@ -103,7 +103,7 @@
         "name": "Yêu cầu xuất hóa đơn"
       }
     ],
-    "endWaitMs": 11045,
+    "endWaitMs": 12430,
     "keyedBy": {
       "cacheSchema": "trace-1",
       "policyVersion": "conservative/6",
