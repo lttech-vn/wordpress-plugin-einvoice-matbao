@@ -1,6 +1,6 @@
 import { test, describe, beforeEach } from "@e2e-dev/web";
 import { expect } from "e2e";
-import { fake, resetWorld, seam, waitForStatus } from "./support.ts";
+import { fake, orderIdFromUrl, resetWorld, seam, waitForStatus } from "./support.ts";
 
 // Stories 13-19: the invoice request at checkout. Every step is exact (no agent): the browser rules mirror the
 // server rules, a failing form never reaches the server, and a direct Store API call is validated the same way.
@@ -89,7 +89,7 @@ describe("classic checkout validation", { serial: false }, () => {
 		await fillClassicBilling({ app, screen });
 		await placeOrder(screen).tap();
 		await expect(browser).toHaveURL(/order-received/);
-		const orderId = Number(/order-received(?:\/|=)(\d+)/.exec(await browser.url())?.[1]);
+		const orderId = await orderIdFromUrl(browser);
 		await seam({ app }, `/status/${orderId}`, { status: "completed" });
 		await waitForStatus({ app }, orderId, "draft_created");
 		expect((await fake("requests?endpoint=create-invoice"))[0].body[0].NMua_Ten).toBe("Khách hàng không lấy hóa đơn");
@@ -104,7 +104,7 @@ describe("classic checkout validation", { serial: false }, () => {
 		await screen.getByLabel("Địa chỉ xuất hóa đơn").fill("2 Đường Thử Nghiệm, Quận 3, TP HCM");
 		await placeOrder(screen).tap();
 		await expect(browser).toHaveURL(/order-received/);
-		const orderId = Number(/order-received(?:\/|=)(\d+)/.exec(await browser.url())?.[1]);
+		const orderId = await orderIdFromUrl(browser);
 		await seam({ app }, `/status/${orderId}`, { status: "completed" });
 		await waitForStatus({ app }, orderId, "draft_created");
 		const body = (await fake("requests?endpoint=create-invoice"))[0].body[0];
@@ -121,7 +121,7 @@ describe("classic checkout validation", { serial: false }, () => {
 		await screen.getByLabel("Số CCCD").fill("000000000042");
 		await placeOrder(screen).tap();
 		await expect(browser).toHaveURL(/order-received/);
-		const orderId = Number(/order-received(?:\/|=)(\d+)/.exec(await browser.url())?.[1]);
+		const orderId = await orderIdFromUrl(browser);
 		await seam({ app }, `/status/${orderId}`, { status: "completed" });
 		await waitForStatus({ app }, orderId, "draft_created");
 		const body = (await fake("requests?endpoint=create-invoice"))[0].body[0];

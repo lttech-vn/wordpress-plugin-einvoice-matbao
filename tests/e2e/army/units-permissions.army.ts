@@ -9,7 +9,7 @@ describe("unit of measure", { serial: false }, () => {
 		await resetWorld(ctx);
 	});
 
-	test("the store default unit is sent for products without an override, and for fees", async ({ app }) => {
+	test("the store default unit is sent for products without an override", async ({ app }) => {
 		await seam({ app }, "/settings", { unit: "Lượt" });
 		const orderId = await completedOrder({ app });
 		await waitForStatus({ app }, orderId, "draft_created");

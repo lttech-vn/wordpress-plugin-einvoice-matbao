@@ -1,5 +1,6 @@
 import { test, describe } from "@e2e-dev/web";
 import { credentials, expect } from "e2e";
+import { seam } from "./support.ts";
 
 // Classic and Blocks checkout with an invoice request; then the admin completes the order in the UI and the
 // admin screens must show the created draft. Mat Bao is answered by the fake mu-plugin unless
@@ -55,8 +56,7 @@ describe("checkout invoice request", { serial: false }, () => {
 				await expect(browser).toHaveURL(/wp-admin/);
 
 				// E2E-only REST route in the mu-plugin completes the order and runs the queue.
-				const done = await fetch(`${app.baseUrl}/?rest_route=/einv-e2e/v1/complete/${orderId}`, { method: "POST" });
-				expect(done.ok).toBe(true);
+				await seam({ app }, `/status/${orderId}`, { status: "completed" });
 				await app.open(`/wp-admin/post.php?post=${orderId}&action=edit`);
 
 				const created = screen.getByText("Đã tạo nháp", { exact: false });

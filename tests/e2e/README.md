@@ -1,8 +1,8 @@
 # Browser E2E (e2e framework)
 
 Browser tests for the plugin's user stories, run with [`e2e`](https://e2e.tester.army/) and modelled on the
-`workvps/manage` setup. `bun run e2e:replay` is a gate: CI runs it on pushes to `main` and before every release
-(`.github/workflows/ci.yml`, `release.yml`); pull requests do not. The Mat Bao demo API checks live in
+`workvps/manage` setup. `bun run e2e:replay` is meant as a gate: the `e2e` job (added with the release pipeline, #32) runs it on pushes to
+`main` and before every release; pull requests do not. The Mat Bao demo API checks live in
 [`demo-api/`](demo-api) (Python, guarded) and their results in `docs/research/e2e-demo-results.md`.
 
 ## Suites

@@ -35,6 +35,21 @@ describe("settings page", { serial: false }, () => {
 		expect(JSON.stringify(stored)).not.toContain("s3cret-pass-E2E");
 	});
 
+	test("without the encryption key nothing is saved and the page says why (story 29)", async ({ screen, app }) => {
+		await seam({ app }, "/encryption-key", { off: true });
+		await app.open(PAGES.settings);
+		await expect(screen.getByText("Chưa cấu hình khóa mã hóa", { exact: false }).first()).toBeVisible();
+		await screen.getByLabel("Mã số thuế").fill("0000000009");
+		await screen.getByLabel("Tên đăng nhập").fill("e2e-nokey");
+		await screen.getByLabel("Mật khẩu").fill("never-stored-E2E");
+		await screen.getByRole("button", "Lưu kết nối").tap();
+		await expect(screen.getByRole("alert").filter({ hasText: "Lỗi:" }).filter({ hasText: "Không lưu được" })).toContainText("chưa cấu hình khóa mã hóa");
+		await seam({ app }, "/encryption-key", { off: false });
+		const stored = await seam({ app }, "/option/einvoice_matbao_credentials");
+		expect(JSON.stringify(stored)).not.toContain("never-stored-E2E");
+		expect(JSON.stringify(stored)).not.toContain("e2e-nokey");
+	});
+
 	test("refuses incomplete credentials with a Vietnamese message", async ({ screen, app }) => {
 		await seam({ app }, "/credentials/clear", {}); // a stored password would be kept, so start with none
 		await app.open(PAGES.settings);
@@ -81,7 +96,18 @@ describe("settings page", { serial: false }, () => {
 		await expect(errorNotice(screen)).toContainText("Mẫu này không còn hiệu lực hoặc đã hết số trên Mắt Bão. Hãy chọn mẫu khác.");
 	});
 
-	test("saves the MTChieu prefix and the walk-in buyer name, and validates the prefix", async ({ screen, app }) => {
+	test("rejects a MTChieu prefix that would break the 20 character limit or has accents", async ({ screen, app, browser }) => {
+		for (const prefix of ["QUÁDÀI", "THISPREFIXISFARTOOLONGFORIT"]) {
+			await browser.evaluate(() => { const el = document.querySelector<HTMLInputElement>("#einv-reference-prefix"); el?.removeAttribute("maxlength"); el?.removeAttribute("pattern"); });
+			await screen.getByLabel("Prefix mã tham chiếu (MTChieu)").fill(prefix);
+			await screen.getByRole("button", "Lưu").first().tap();
+			await expect(errorNotice(screen)).toContainText("Prefix chỉ gồm chữ cái không dấu và chữ số");
+		}
+		await app.open(PAGES.settings);
+		await expect(screen.getByLabel("Prefix mã tham chiếu (MTChieu)")).toHaveValue("E2E");
+	});
+
+	test("saves the MTChieu prefix and the walk-in buyer name", async ({ screen, app }) => {
 		await screen.getByLabel("Prefix mã tham chiếu (MTChieu)").fill("SHOP");
 		await screen.getByLabel("Tên người mua vãng lai (NMua_Ten)").fill("Khách mua lẻ E2E");
 		await screen.getByRole("button", "Lưu").first().tap();

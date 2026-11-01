@@ -1,14 +1,13 @@
 import { test, describe, beforeEach } from "@e2e-dev/web";
 import { expect } from "e2e";
-import { PAGES, completedOrder, fake, invoiceOf, resetWorld, script, seam, signInAdmin, waitForStatus } from "./support.ts";
+import { PAGES, completedOrder, fake, invoiceOf, lines, resetWorld, script, seam, sentCount, signInAdmin, waitForStatus } from "./support.ts";
 
 // Stories 4-6, 8, 10, 12, 38-40: what the plugin does when a draft cannot or should not be made, and how
 // temporary Mat Bao failures are retried. Orders come from a seam; Mat Bao is the fake server.
 // "sent" = calls to create-invoice that reached the fake.
 
-const sent = async () => (await fake("requests?endpoint=create-invoice")).length as number;
+const sent = sentCount;
 const lookups = async () => (await fake("requests?endpoint=invoice-detail-batch")).length as number;
-const lines = (sku: string) => ({ lines: [{ sku, qty: 1 }] });
 
 describe("blocked drafts", { serial: false }, () => {
 	beforeEach(async (ctx) => {
@@ -136,7 +135,7 @@ describe("retry and recovery", { serial: false }, () => {
 		expect((await fake("invoices")).length).toBe(1);
 	});
 
-	test("after five failed retries the invoice needs attention and shows an admin notice once", async ({ app, screen }) => {
+	test("five retries are made (delays are made due by a seam), then the invoice needs attention and shows an admin notice", async ({ app, screen }) => {
 		await script("create-invoice", Array.from({ length: 8 }, () => ({ http: 503 })));
 		const orderId = await completedOrder({ app });
 		const row = await waitForStatus({ app }, orderId, "needs_attention", true);

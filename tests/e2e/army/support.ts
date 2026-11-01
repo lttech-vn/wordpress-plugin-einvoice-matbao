@@ -49,7 +49,9 @@ export const script = (endpoint: "create-invoice" | "invoice-detail-batch" | "te
 export async function resetWorld(ctx: Pick<Ctx, "app">): Promise<void> {
 	await fake("reset", {});
 	await seam(ctx, "/reset", {});
+	await seam(ctx, "/encryption-key", { off: false });
 	await seam(ctx, "/credentials/restore", {});
+	await seam(ctx, "/product-units/clear", {});
 	await seam(ctx, "/settings", { prefix: "E2E", walk_in: "", unit: "Gói", template: { form: "1", series: `C${String(new Date().getUTCFullYear()).slice(2)}TAT` } });
 }
 
@@ -105,3 +107,16 @@ export async function completedOrder(ctx: Pick<Ctx, "app">, extra: Json = {}): P
 /** The result notice the plugin renders after a htmx action: `role=status` on success, `role=alert` on error. */
 export const okNotice = (screen: any) => screen.getByRole("status").filter({ hasText: "Thành công" });
 export const errorNotice = (screen: any) => screen.getByRole("alert").filter({ hasText: "Lỗi" });
+
+/** Order ID in the thank-you URL of a placed order. */
+export async function orderIdFromUrl(browser: any): Promise<number> {
+	const id = Number(/order-received(?:\/|=)(\d+)/.exec(await browser.url())?.[1]);
+	if (!(id > 0)) throw new Error(`no order ID in ${await browser.url()}`);
+	return id;
+}
+
+/** Create-invoice calls that reached the fake. */
+export const sentCount = async (): Promise<number> => (await fake("requests?endpoint=create-invoice")).length;
+
+/** Order lines of one seeded SKU. */
+export const lines = (sku: string) => ({ lines: [{ sku, qty: 1 }] });

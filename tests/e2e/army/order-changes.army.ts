@@ -1,11 +1,11 @@
 import { test, describe, beforeEach } from "@e2e-dev/web";
 import { expect } from "e2e";
-import { PAGES, completedOrder, fake, invoiceOf, resetWorld, script, seam, signInAdmin, waitForStatus } from "./support.ts";
+import { PAGES, completedOrder, fake, invoiceOf, lines, resetWorld, script, seam, sentCount, signInAdmin, waitForStatus } from "./support.ts";
 
 // Stories 11, 12, 27: changing an order after the draft only warns (the draft is never updated or recreated);
 // before the draft an administrator's buyer edit re-captures the snapshot.
 
-const sent = async () => (await fake("requests?endpoint=create-invoice")).length as number;
+const sent = sentCount;
 
 describe("order changes after the draft", { serial: false }, () => {
 	beforeEach(async (ctx) => {
@@ -55,6 +55,23 @@ describe("order changes after the draft", { serial: false }, () => {
 		await expect(browser.locator("[data-einv-error-code='order_refunded_after_draft']")).toBeVisible();
 		expect((await invoiceOf({ app }, orderId)).invoice.status).toBe("draft_created");
 		expect(await sent()).toBe(1);
+	});
+
+	test("an administrator's buyer edit before the draft re-captures the snapshot (story 27)", async ({ app, browser, screen }) => {
+		// The order is completed but its job has not run; the admin fixes the invoice address on the order screen.
+		const order = await seam({ app }, "/order", { ...lines("E2E-SVC"), request: { type: "business", business_name: "CÔNG TY SAI", tax_code: "0000000000", address: "1 Đường Sai" } });
+		await seam({ app }, `/status/${order.id}`, { status: "completed", run_queue: false });
+		await app.open(PAGES.order(Number(order.id)));
+		// The admin changes the billing name through the real order screen form, as an administrator.
+		await browser.locator("a.edit_address").first().tap();
+		await browser.locator("#_billing_first_name").fill("Chị");
+		await browser.locator("#_billing_last_name").fill("Sửa");
+		await browser.locator("button.save_order, input.save_order").first().tap();
+		await seam({ app }, "/run-queue", {});
+		await waitForStatus({ app }, Number(order.id), "draft_created");
+		const body = (await fake("requests?endpoint=create-invoice"))[0].body[0];
+		expect(body.NMua_Ten).toBe("CÔNG TY SAI"); // business name is the buyer; billing name is not
+		expect(body.NMua_MST).toBe("0000000000");
 	});
 
 	test("a retry sends from the buyer snapshot, not from billing edited meanwhile", async ({ app }) => {

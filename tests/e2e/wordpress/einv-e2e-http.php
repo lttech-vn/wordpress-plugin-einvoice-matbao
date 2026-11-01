@@ -9,7 +9,8 @@
  *
  * Also registers the `einv-e2e/v1` REST seams the browser suite uses to arrange and inspect state the UI
  * cannot reach quickly (create/complete/refund orders, make retries due, read rows). They answer only on a
- * site that ran configure.php (option `einv_e2e_mode`), which exists on throwaway E2E containers only.
+ * site that ran configure.php (option `einv_e2e_mode`) and defines EINV_E2E in wp-config.php, which exist on
+ * throwaway E2E containers only. The file is copied into mu-plugins by setup-site.sh and never packaged.
  *
  * @package EinvoiceMatbao
  */
@@ -43,6 +44,16 @@ add_filter(
 	},
 	1,
 	3
+);
+
+/*
+ * Story 29: a test can take the encryption key away (option `einv_e2e_no_key`) through the plugin's own
+ * `einvoice_matbao_encryption_key` filter, which core only honours in local/development environments (the
+ * E2E site is `local`, see setup-site.sh).
+ */
+add_filter(
+	'einvoice_matbao_encryption_key',
+	static fn( $material ) => get_option( 'einv_e2e_no_key' ) ? '' : $material
 );
 
 /**
@@ -93,7 +104,7 @@ function einv_e2e_reset_data(): void {
 add_action(
 	'rest_api_init',
 	static function (): void {
-		$permission = static fn(): bool => false !== get_option( 'einv_e2e_mode', false );
+		$permission = static fn(): bool => defined( 'EINV_E2E' ) && false !== get_option( 'einv_e2e_mode', false );
 		$route      = static function ( string $path, callable $callback, string $methods = 'POST' ) use ( $permission ): void {
 			register_rest_route(
 				'einv-e2e/v1',
@@ -105,20 +116,6 @@ add_action(
 				)
 			);
 		};
-
-		// Completes an order and runs the queue.
-		$route(
-			'/complete/(?P<id>\d+)',
-			static function ( WP_REST_Request $request ): array {
-				$order = wc_get_order( (int) $request['id'] );
-				if ( ! $order ) {
-					return array( 'completed' => false );
-				}
-				$order->update_status( 'completed' );
-				einv_e2e_run_queue();
-				return array( 'completed' => true );
-			}
-		);
 
 		// Sets any order status and runs the queue: {status}.
 		$route(
@@ -196,7 +193,7 @@ add_action(
 			}
 		);
 
-		// Edits an order: {billing?:{...}, line_total?: number}; runs the queue (OrderChangeWatcher fires at shutdown).
+		// Edits an order. Body: billing (fields to overwrite) and/or total. OrderChangeWatcher compares at shutdown, as the user in the request.
 		$route(
 			'/edit/(?P<id>\d+)',
 			static function ( WP_REST_Request $request ): array {
@@ -285,6 +282,35 @@ add_action(
 			'GET'
 		);
 
+		// Takes the encryption key away or gives it back: {off: bool}.
+		$route(
+			'/encryption-key',
+			static function ( WP_REST_Request $request ): array {
+				update_option( 'einv_e2e_no_key', $request->get_param( 'off' ) ? '1' : '', false );
+				return array( 'ok' => true );
+			}
+		);
+
+		// Clears every per-product unit override and the users the permission tests created.
+		$route(
+			'/product-units/clear',
+			static function (): array {
+				global $wpdb;
+				require_once ABSPATH . 'wp-admin/includes/user.php';
+				$wpdb->query( "DELETE FROM {$wpdb->postmeta} WHERE meta_key = '_einvoice_matbao_unit'" ); // phpcs:ignore WordPress.DB
+				foreach ( get_users(
+					array(
+						'search'         => 'e2e-*',
+						'search_columns' => array( 'user_login' ),
+					)
+				) as $user ) {
+					wp_delete_user( $user->ID );
+				}
+				wp_cache_flush();
+				return array( 'ok' => true );
+			}
+		);
+
 		// Product ID of a seeded SKU.
 		$route(
 			'/product-id/(?P<sku>[A-Za-z0-9-]+)',
@@ -318,7 +344,7 @@ add_action(
 			'GET'
 		);
 
-		// Number of queued Lark/draft actions (for "nothing repeats" assertions).
+		// Number of queued draft actions (for "nothing is queued any more" assertions).
 		$route(
 			'/queued',
 			static function (): array {

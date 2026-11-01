@@ -39,7 +39,7 @@ describe("invoice admin", { serial: false }, () => {
 		expect((await fake("requests?endpoint=create-invoice")).length).toBe(1);
 	});
 
-	test("the list filters by status and searches by order ID and by MTChieu prefix", async ({ app, screen }) => {
+	test("the list filters by status and searches by order ID and by MTChieu prefix", async ({ app, screen, browser }) => {
 		const good = await completedOrder({ app });
 		await script("create-invoice", [{ http: 400 }]);
 		const bad = await completedOrder({ app });
@@ -51,23 +51,50 @@ describe("invoice admin", { serial: false }, () => {
 		await expect(screen.getByRole("row").filter({ hasText: `#${bad}` })).toBeVisible();
 
 		await screen.getByLabel("Trạng thái").selectOption({ label: "Lỗi / cần xử lý" });
+		await expect(browser.locator("[data-einv-total]")).toHaveAttribute("data-einv-total", "1"); // the reload finished
 		await expect(screen.getByRole("row").filter({ hasText: `#${bad}` })).toBeVisible();
 		await expect(screen.getByRole("row").filter({ hasText: `#${good}` })).toHaveCount(0);
 
 		await screen.getByLabel("Trạng thái").selectOption({ label: "Tất cả trạng thái" });
 		await screen.getByRole("searchbox").fill(String(good));
 		await screen.getByRole("searchbox").press("Enter");
+		await expect(browser.locator("[data-einv-total]")).toHaveAttribute("data-einv-total", "1");
 		await expect(screen.getByRole("row").filter({ hasText: `#${good}` })).toBeVisible();
 		await expect(screen.getByRole("row").filter({ hasText: `#${bad}` })).toHaveCount(0);
 
 		await screen.getByRole("searchbox").fill("E2EWC");
 		await screen.getByRole("searchbox").press("Enter");
+		await expect(browser.locator("[data-einv-total]")).toHaveAttribute("data-einv-total", "2");
 		await expect(screen.getByRole("row").filter({ hasText: `#${bad}` })).toBeVisible();
 		await expect(screen.getByRole("row").filter({ hasText: `#${good}` })).toBeVisible();
 
 		await screen.getByRole("searchbox").fill("WC");
 		await screen.getByRole("searchbox").press("Enter");
 		await expect(screen.getByText("Không có hóa đơn nào khớp.")).toBeVisible(); // prefix match, not substring
+	});
+
+	test("the WooCommerce order list filters orders by invoice status (story 21)", async ({ app, screen, browser }) => {
+		await script("create-invoice", [{ http: 400 }]);
+		const bad = await completedOrder({ app });
+		const good = await completedOrder({ app });
+		await waitForStatus({ app }, bad, "failed");
+		await waitForStatus({ app }, good, "draft_created");
+
+		await app.open("/wp-admin/edit.php?post_type=shop_order&einv_invoice=error");
+		await expect(browser.locator(`#post-${bad}`)).toBeVisible();
+		await expect(browser.locator(`#post-${good}`)).toHaveCount(0);
+		await app.open("/wp-admin/edit.php?post_type=shop_order&einv_invoice=");
+		await expect(browser.locator(`#post-${good}`)).toBeVisible();
+		await expect(browser.locator("select[name='einv_invoice']")).toBeVisible();
+	});
+
+	test("the order screen offers a resend for a failed invoice (story 20)", async ({ app, screen }) => {
+		await script("create-invoice", [{ http: 400 }]);
+		const orderId = await completedOrder({ app });
+		await waitForStatus({ app }, orderId, "failed");
+		await app.open(PAGES.order(orderId));
+		await expect(screen.getByText("Lỗi", { exact: false }).first()).toBeVisible();
+		await expect(screen.getByRole("link", "Danh sách hóa đơn")).toBeVisible();
 	});
 
 	test("the dashboard counts errors, waiting and created drafts and links to the filtered list", async ({ app, screen, browser }) => {

@@ -52,7 +52,12 @@ else
 	wp config delete EINVOICE_MATBAO_BASE_URL --path=/var/www/html >/dev/null 2>&1 || true
 fi
 
-wp user update admin --user_pass="${EINV_E2E_ADMIN_PASS:-e2e-admin-pass}" >/dev/null
+# E2E-only markers: the mu-plugin seams answer only where EINV_E2E is defined, and the plugin honours its
+# encryption-key filter (used by the "no key" test) only in a local/development environment.
+wp config set EINV_E2E true --raw --path=/var/www/html >/dev/null
+wp config set WP_ENVIRONMENT_TYPE local --path=/var/www/html >/dev/null
+
+wp user update admin --user_pass="${EINV_E2E_ADMIN_PASS:?set EINV_E2E_ADMIN_PASS (the runner generates one per run)}" >/dev/null
 wp option update woocommerce_currency VND >/dev/null
 wp option update woocommerce_price_num_decimals 0 >/dev/null
 wp option update woocommerce_default_country VN >/dev/null
