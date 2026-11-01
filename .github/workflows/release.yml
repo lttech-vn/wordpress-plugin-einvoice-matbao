@@ -30,14 +30,24 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
           if [[ "$version" == *-* ]]; then echo "prerelease=true" >> "$GITHUB_OUTPUT"; else echo "prerelease=false" >> "$GITHUB_OUTPUT"; fi
 
-  ci:
-    name: CI and E2E gate
+  assets:
+    name: Assets gate
     needs: verify
-    uses: ./.github/workflows/ci.yml
+    uses: ./.github/workflows/assets.yml
+
+  php:
+    name: PHP gate
+    needs: verify
+    uses: ./.github/workflows/php.yml
+
+  e2e:
+    name: E2E gate
+    needs: verify
+    uses: ./.github/workflows/e2e.yml
 
   package:
     name: Build and smoke-test the zip
-    needs: [verify, ci]
+    needs: [verify, assets, php, e2e]
     runs-on: ubuntu-latest
     permissions:
       contents: read

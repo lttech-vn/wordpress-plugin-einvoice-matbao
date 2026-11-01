@@ -327,7 +327,7 @@ before saving credentials (see above).
 
 1. Bump `Version:` and `EINVOICE_MATBAO_VERSION` in `einvoice-matbao.php` together and merge to `main`.
 2. Tag and push: `git tag vX.Y.Z && git push origin vX.Y.Z` (`vX.Y.Z-rc.N` makes a prerelease).
-3. `release.yml` checks tag = header = constant, runs CI and the E2E gate, builds the zip with
+3. `release.yml` checks tag = header = constant, runs the assets, PHP and E2E workflows as gates, builds the zip with
    `scripts/build-zip.sh`, installs it into a clean WordPress + WooCommerce (`scripts/smoke-zip.sh`),
    attests provenance and publishes the Release with generated notes, the zip and its `.sha256`.
 
@@ -335,9 +335,16 @@ Build locally with `scripts/build-zip.sh` (needs bun, zip and Docker or Composer
 
 ## CI
 
-`.github/workflows/ci.yml` builds the assets with bun and runs PHPCS, PHPStan and both PHPUnit
-suites through the same Docker Compose stack used locally. Pushes to `main` (and releases) also run the browser
-E2E suite from its committed replay cache (`tests/e2e`); pull requests do not.
+One workflow per concern under `.github/workflows/`:
+
+| Workflow      | Trigger                    | Does                                                        |
+|---------------|----------------------------|-------------------------------------------------------------|
+| `assets.yml`  | PR, `main`                 | bun tests, build, CSS scope and no-CDN checks               |
+| `php.yml`     | PR, `main`                 | PHPCS, PHPStan, both PHPUnit suites (Docker Compose stack)  |
+| `e2e.yml`     | `main`                     | browser E2E from the committed replay cache (`tests/e2e`)   |
+| `release.yml` | tag `v*.*.*`               | verify tag, call the three above, package, smoke, publish   |
+
+`assets`, `php` and `e2e` also expose `workflow_call`, so `release.yml` reuses them as gates.
 
 ## Pinned versions and known limits
 
