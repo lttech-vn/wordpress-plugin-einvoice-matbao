@@ -13,17 +13,7 @@ cd "$(dirname "$0")/.."
 slug=einvoice-matbao
 expected="${1:-}"
 
-header_version="$(sed -n 's/^ \* Version:[[:space:]]*//p' "$slug.php" | head -1 | tr -d '[:space:]')"
-const_version="$(sed -n "s/^define( 'EINVOICE_MATBAO_VERSION', '\(.*\)' );.*/\1/p" "$slug.php" | head -1)"
-if [ -z "$header_version" ] || [ "$header_version" != "$const_version" ]; then
-	echo "Version mismatch: header '$header_version' vs EINVOICE_MATBAO_VERSION '$const_version'." >&2
-	exit 1
-fi
-if [ -n "$expected" ] && [ "$expected" != "$header_version" ]; then
-	echo "Requested version '$expected' does not match the plugin version '$header_version'." >&2
-	exit 1
-fi
-version="$header_version"
+version="$(scripts/plugin-version.sh "$expected")"
 
 stage="$(mktemp -d)"
 trap 'rm -rf "$stage"' EXIT

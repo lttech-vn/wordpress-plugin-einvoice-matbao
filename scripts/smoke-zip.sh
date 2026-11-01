@@ -15,19 +15,20 @@ compose=(docker compose -f compose.yaml -f docker/compose.smoke.yaml)
 trap '"${compose[@]}" down -v --remove-orphans >/dev/null 2>&1 || true' EXIT
 
 "${compose[@]}" up -d --build --wait
-wp() { "${compose[@]}" exec -T wordpress wp "$@"; }
+wpx() { "${compose[@]}" exec -T wordpress "$@"; }
+wp() { wpx wp "$@"; }
 
 wp core install --url=http://localhost --title=Smoke --admin_user=admin --admin_password="$(head -c 12 /dev/urandom | base64 | tr -dc 'A-Za-z0-9')" --admin_email=admin@example.test --skip-email
-wp plugin install woocommerce --version="$("${compose[@]}" exec -T wordpress printenv WOOCOMMERCE_VERSION)" --activate
+wp plugin install woocommerce --version="$(wpx printenv WOOCOMMERCE_VERSION)" --activate
 "${compose[@]}" cp "$zip" wordpress:/tmp/plugin.zip
 wp plugin install /tmp/plugin.zip --activate
 
 dir=/var/www/html/wp-content/plugins/einvoice-matbao
 for f in einvoice-matbao.php uninstall.php LICENSE vendor/autoload.php assets/dist/admin.css assets/dist/htmx.min.js assets/dist/checkout.js assets/dist/checkout-blocks.js assets/blocks/invoice-request/block.json; do
-	"${compose[@]}" exec -T wordpress test -s "$dir/$f" || { echo "Missing in installed plugin: $f" >&2; exit 1; }
+	wpx test -s "$dir/$f" || { echo "Missing in installed plugin: $f" >&2; exit 1; }
 done
 for d in tests docs docker scripts node_modules assets/src; do
-	if "${compose[@]}" exec -T wordpress test -e "$dir/$d"; then echo "Dev path installed: $d" >&2; exit 1; fi
+	if wpx test -e "$dir/$d"; then echo "Dev path installed: $d" >&2; exit 1; fi
 done
 
 wp plugin is-active einvoice-matbao
@@ -49,8 +50,8 @@ if [ -n "$(wp option list --search='einvoice_matbao_credentials' --field=option_
 	exit 1
 fi
 # WP_DEBUG_LOG is on (docker/compose.smoke.yaml). The log must exist, or this check would pass vacuously.
-"${compose[@]}" exec -T wordpress test -f /var/www/html/wp-content/debug.log || { echo "debug.log was not written; the PHP error check cannot run." >&2; exit 1; }
-log="$("${compose[@]}" exec -T wordpress cat /var/www/html/wp-content/debug.log)"
+wpx test -f /var/www/html/wp-content/debug.log || { echo "debug.log was not written; the PHP error check cannot run." >&2; exit 1; }
+log="$(wpx cat /var/www/html/wp-content/debug.log)"
 if printf '%s\n' "$log" | grep -E "PHP (Fatal error|Parse error|Warning|Notice)" | grep -F "einvoice-matbao" >/dev/null; then
 	echo "Plugin raised PHP errors:" >&2
 	printf '%s\n' "$log" | grep -F "einvoice-matbao" >&2

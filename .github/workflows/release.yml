@@ -20,18 +20,13 @@ jobs:
       version: ${{ steps.v.outputs.version }}
       prerelease: ${{ steps.v.outputs.prerelease }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - id: v
         run: |
           tag="${GITHUB_REF_NAME}"
           [[ "$tag" =~ ^v([0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?)$ ]] || { echo "Tag '$tag' is not vX.Y.Z[-suffix]" >&2; exit 1; }
           version="${BASH_REMATCH[1]}"
-          header="$(sed -n 's/^ \* Version:[[:space:]]*//p' einvoice-matbao.php | head -1 | tr -d '[:space:]')"
-          const="$(sed -n "s/^define( 'EINVOICE_MATBAO_VERSION', '\(.*\)' );.*/\1/p" einvoice-matbao.php | head -1)"
-          if [ "$version" != "$header" ] || [ "$version" != "$const" ]; then
-            echo "Tag $version, header '$header', constant '$const' must all match." >&2
-            exit 1
-          fi
+          scripts/plugin-version.sh "$version" >/dev/null
           echo "version=$version" >> "$GITHUB_OUTPUT"
           if [[ "$version" == *-* ]]; then echo "prerelease=true" >> "$GITHUB_OUTPUT"; else echo "prerelease=false" >> "$GITHUB_OUTPUT"; fi
 
@@ -49,8 +44,8 @@ jobs:
       id-token: write
       attestations: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
           bun-version: 1.4.4
       - name: Build the zip
@@ -61,10 +56,10 @@ jobs:
         env:
           VERSION: ${{ needs.verify.outputs.version }}
         run: scripts/smoke-zip.sh "dist/einvoice-matbao-$VERSION.zip"
-      - uses: actions/attest-build-provenance@v2
+      - uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2
         with:
           subject-path: dist/einvoice-matbao-${{ needs.verify.outputs.version }}.zip
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: plugin-zip
           path: dist/
@@ -77,7 +72,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: plugin-zip
           path: dist

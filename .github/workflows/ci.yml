@@ -18,8 +18,8 @@ jobs:
     name: Build admin assets
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
           bun-version: 1.4.4
       - run: bun install --frozen-lockfile
@@ -33,7 +33,7 @@ jobs:
           test -s assets/dist/htmx.min.js
           test -s assets/dist/checkout.js
           ! grep -rEl 'https?://(cdn|unpkg|cdnjs|jsdelivr)' assets/dist
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: assets-dist
           path: assets/dist
@@ -45,7 +45,7 @@ jobs:
       COMPOSE_PROJECT_NAME: einv-ci
       EINV_HTTP_PORT: "8080"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Build image
         run: docker compose build
       - name: Start WordPress + WooCommerce
@@ -74,8 +74,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
           bun-version: 1.4.4
       - run: bun install --frozen-lockfile
@@ -86,7 +86,7 @@ jobs:
       - name: Run E2E from the committed cache
         working-directory: tests/e2e
         run: bun run e2e:replay
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
           name: e2e-results
