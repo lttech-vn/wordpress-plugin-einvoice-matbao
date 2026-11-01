@@ -1,0 +1,108 @@
+{
+  "schemaVersion": "trace-1",
+  "createdAt": "2026-11-01T01:31:15.195Z",
+  "payload": {
+    "actions": [
+      {
+        "name": "tap",
+        "summary": "tap button \"Chi tiết\" in \"#59\"",
+        "target": {
+          "role": "button",
+          "name": "Chi tiết",
+          "within": "#59"
+        }
+      }
+    ],
+    "executor": {
+      "name": "decision",
+      "version": "2"
+    },
+    "recordedFor": {
+      "testId": "army/invoices.army.ts::invoice%20admin::a%20deleted%20draft%20is%20never%20recreated%20without%20an%20explicit%20confirmation",
+      "targetId": "chromium",
+      "instructionDigest": "5729a42e0192d0ff24222542f053a1bd8afe85698a494447ac425b548f5f339c",
+      "paramsDigest": "4ebe60bc6a50faf8a94a58f5e6d591e8da3ecc743f1b7ed41813202978ffde0c",
+      "callIndex": 0,
+      "agent": "admin"
+    },
+    "recordedBy": {
+      "provider": "e2e-text.chat",
+      "model": "gpt-6-luna"
+    },
+    "summary": "The screen shows the step is done (p=0.760, confidence 0.640).",
+    "startPath": "/wp-admin/admin.php?page=einvoice-matbao-invoices",
+    "endPath": "/wp-admin/admin.php?page=einvoice-matbao-invoices",
+    "endAnchors": [
+      {
+        "role": "button",
+        "name": "‹ Danh sách"
+      },
+      {
+        "text": "Đơn hàng"
+      },
+      {
+        "text": "#59"
+      },
+      {
+        "text": "MTChieu"
+      },
+      {
+        "text": "Trạng thái"
+      },
+      {
+        "text": "Đã tạo nháp"
+      },
+      {
+        "text": "Mã hóa đơn Mắt Bão"
+      },
+      {
+        "text": "Mẫu số / ký hiệu đã lưu"
+      }
+    ],
+    "goneAnchors": [
+      {
+        "role": "columnheader",
+        "name": "Đơn"
+      },
+      {
+        "role": "columnheader",
+        "name": "MTChieu"
+      },
+      {
+        "role": "columnheader",
+        "name": "Trạng thái"
+      },
+      {
+        "role": "columnheader",
+        "name": "Lỗi"
+      },
+      {
+        "role": "columnheader",
+        "name": "Cập nhật (UTC)"
+      },
+      {
+        "role": "cell",
+        "name": "#59"
+      },
+      {
+        "role": "cell",
+        "name": "Đã tạo nháp"
+      },
+      {
+        "role": "button",
+        "name": "Chi tiết"
+      }
+    ],
+    "endWaitMs": 11317,
+    "keyedBy": {
+      "cacheSchema": "trace-1",
+      "policyVersion": "conservative/6",
+      "project": "2b483fc49e5e740989e492050e28e6fb856764a2ed52d31c600d470a05baba44",
+      "platform": "web",
+      "engineName": "web",
+      "engineSpiVersion": 1,
+      "appIdentity": "2ce612fe684f904f96ec07f53bc449688a65d26e28e9999fd2a1cec1cbd6fc2d",
+      "agentContextDigest": "2d87d669030adec1c5a4b621e02e4f297732729025497e06cd881ec089a136dd"
+    }
+  }
+}

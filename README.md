@@ -379,5 +379,7 @@ suites through the same Docker Compose stack used locally.
 
 ## Browser E2E and Mat Bao demo checks
 
-`tests/e2e/` holds the agentic browser suite (Classic checkout, fake Mat Bao; not run in CI) and the guarded demo-API
-harness. See [tests/e2e/README.md](tests/e2e/README.md) and [docs/research/e2e-demo-results.md](docs/research/e2e-demo-results.md).
+`tests/e2e/` holds the browser suite (checkout, settings, invoices, failures and retries, order changes, units and
+permissions; a fake Mat Bao server; wired as a CI gate by the release pipeline, #32) and the guarded demo-API harness. Set
+`EINVOICE_MATBAO_BASE_URL` in `wp-config.php` to send every environment's requests to another base URL (a sandbox, a proxy
+or a test double); a value that is not an http(s) URL is ignored. See [tests/e2e/README.md](tests/e2e/README.md) and [docs/research/e2e-demo-results.md](docs/research/e2e-demo-results.md).

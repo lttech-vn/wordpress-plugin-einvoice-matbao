@@ -1,0 +1,117 @@
+{
+  "schemaVersion": "trace-1",
+  "createdAt": "2026-11-01T01:31:06.791Z",
+  "payload": {
+    "actions": [
+      {
+        "name": "tap",
+        "summary": "tap button \"Chi tiết\" in \"#57\"",
+        "target": {
+          "role": "button",
+          "name": "Chi tiết",
+          "within": "#57"
+        }
+      },
+      {
+        "name": "tap",
+        "summary": "tap button \"Kiểm tra trạng thái\"",
+        "target": {
+          "role": "button",
+          "name": "Kiểm tra trạng thái"
+        }
+      }
+    ],
+    "executor": {
+      "name": "decision",
+      "version": "2"
+    },
+    "recordedFor": {
+      "testId": "army/invoices.army.ts::invoice%20admin::check%20status%20confirms%20a%20draft%20that%20is%20still%20on%20Mat%20Bao",
+      "targetId": "chromium",
+      "instructionDigest": "8fb5bee5d519080d922d503a99285856f09d53cf83d7543bf591a6013023e6fc",
+      "paramsDigest": "4f199159bef924905f1a98a8bc36a760a45654aec00ea3dc4a878795fe8721f7",
+      "callIndex": 0,
+      "agent": "admin"
+    },
+    "recordedBy": {
+      "provider": "e2e-text.chat",
+      "model": "gpt-6-luna"
+    },
+    "summary": "The screen shows the step is done (p=0.970, confidence 0.960).",
+    "startPath": "/wp-admin/admin.php?page=einvoice-matbao-invoices",
+    "endPath": "/wp-admin/admin.php?page=einvoice-matbao-invoices",
+    "endAnchors": [
+      {
+        "role": "status",
+        "name": "Thành công: Hóa đơn nháp vẫn còn trên Mắt Bão."
+      },
+      {
+        "role": "button",
+        "name": "‹ Danh sách"
+      },
+      {
+        "text": "Đơn hàng"
+      },
+      {
+        "text": "#57"
+      },
+      {
+        "text": "MTChieu"
+      },
+      {
+        "text": "Trạng thái"
+      },
+      {
+        "text": "Đã tạo nháp"
+      },
+      {
+        "text": "Mã hóa đơn Mắt Bão"
+      }
+    ],
+    "goneAnchors": [
+      {
+        "role": "columnheader",
+        "name": "Đơn"
+      },
+      {
+        "role": "columnheader",
+        "name": "MTChieu"
+      },
+      {
+        "role": "columnheader",
+        "name": "Trạng thái"
+      },
+      {
+        "role": "columnheader",
+        "name": "Lỗi"
+      },
+      {
+        "role": "columnheader",
+        "name": "Cập nhật (UTC)"
+      },
+      {
+        "role": "cell",
+        "name": "#57"
+      },
+      {
+        "role": "cell",
+        "name": "Đã tạo nháp"
+      },
+      {
+        "role": "button",
+        "name": "Chi tiết"
+      }
+    ],
+    "endWaitMs": 11264,
+    "keyedBy": {
+      "cacheSchema": "trace-1",
+      "policyVersion": "conservative/6",
+      "project": "2b483fc49e5e740989e492050e28e6fb856764a2ed52d31c600d470a05baba44",
+      "platform": "web",
+      "engineName": "web",
+      "engineSpiVersion": 1,
+      "appIdentity": "2ce612fe684f904f96ec07f53bc449688a65d26e28e9999fd2a1cec1cbd6fc2d",
+      "agentContextDigest": "2d87d669030adec1c5a4b621e02e4f297732729025497e06cd881ec089a136dd"
+    }
+  }
+}

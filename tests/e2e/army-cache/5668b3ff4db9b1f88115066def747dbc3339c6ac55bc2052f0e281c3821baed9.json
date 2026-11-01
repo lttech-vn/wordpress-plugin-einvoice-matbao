@@ -1,6 +1,6 @@
 {
   "schemaVersion": "trace-1",
-  "createdAt": "2026-10-31T17:24:21.432Z",
+  "createdAt": "2026-11-01T01:29:26.825Z",
   "payload": {
     "actions": [
       {
@@ -112,7 +112,7 @@
         "name": "Yêu cầu xuất hóa đơn"
       }
     ],
-    "endWaitMs": 10999,
+    "endWaitMs": 11021,
     "keyedBy": {
       "cacheSchema": "trace-1",
       "policyVersion": "conservative/6",

@@ -1,0 +1,84 @@
+{
+  "schemaVersion": "trace-1",
+  "createdAt": "2026-11-01T01:32:08.120Z",
+  "payload": {
+    "actions": [
+      {
+        "name": "tap",
+        "summary": "tap button \"Tải lại danh sách mẫu\"",
+        "target": {
+          "role": "button",
+          "name": "Tải lại danh sách mẫu"
+        }
+      },
+      {
+        "name": "select",
+        "summary": "select \"1 / C26TKK – Hóa đơn giá trị gia tăng (…\" in combobox \"Mẫu số / ký hiệu\"",
+        "target": {
+          "role": "combobox",
+          "name": "Mẫu số / ký hiệu"
+        },
+        "value": "1 / C26TKK – Hóa đơn giá trị gia tăng (còn 20 số)"
+      },
+      {
+        "name": "tap",
+        "summary": "tap button \"Lưu mẫu mặc định\"",
+        "target": {
+          "role": "button",
+          "name": "Lưu mẫu mặc định"
+        }
+      }
+    ],
+    "executor": {
+      "name": "decision",
+      "version": "2"
+    },
+    "recordedFor": {
+      "testId": "army/settings.army.ts::settings%20page::lists%20the%20VAT%20templates%20and%20saves%20the%20chosen%20one%20as%20the%20default",
+      "targetId": "chromium",
+      "instructionDigest": "f2a701e750cf1144237a1a0c0e77cf2e9a99afdd4e66465ea3a7887dfb7c6197",
+      "paramsDigest": "6c768c0da33093a11955b8dcfb872c6ace307253457862ec6aff7b5c3855a1a8",
+      "callIndex": 0,
+      "agent": "admin"
+    },
+    "recordedBy": {
+      "provider": "e2e-text.chat",
+      "model": "gpt-6-luna"
+    },
+    "summary": "The screen shows the step is done (p=0.730, confidence 0.600).",
+    "startPath": "/wp-admin/admin.php?page=einvoice-matbao-settings",
+    "endPath": "/wp-admin/admin.php?page=einvoice-matbao-settings",
+    "endAnchors": [
+      {
+        "role": "status",
+        "name": "Thành công: Đã chọn mẫu mặc định 1 / C26TKK."
+      },
+      {
+        "role": "combobox",
+        "name": "Mẫu số / ký hiệu",
+        "value": "1|C26TKK"
+      },
+      {
+        "text": "Warning: Cannot modify header information - headers already sent by (output started at /var/www/html/wp-content/plugins/einvoice-matbao/src/Admin/SettingsController.php:120) in /var/www/html/wp-includes/rest-api.php on line 813 Warning: Cannot modify header information - headers already sent by (ou…"
+      }
+    ],
+    "goneAnchors": [
+      {
+        "role": "combobox",
+        "name": "Mẫu số / ký hiệu",
+        "value": "1|C26TAT"
+      }
+    ],
+    "endWaitMs": 11362,
+    "keyedBy": {
+      "cacheSchema": "trace-1",
+      "policyVersion": "conservative/6",
+      "project": "2b483fc49e5e740989e492050e28e6fb856764a2ed52d31c600d470a05baba44",
+      "platform": "web",
+      "engineName": "web",
+      "engineSpiVersion": 1,
+      "appIdentity": "2ce612fe684f904f96ec07f53bc449688a65d26e28e9999fd2a1cec1cbd6fc2d",
+      "agentContextDigest": "2d87d669030adec1c5a4b621e02e4f297732729025497e06cd881ec089a136dd"
+    }
+  }
+}

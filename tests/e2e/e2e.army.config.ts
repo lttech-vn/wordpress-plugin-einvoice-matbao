@@ -31,6 +31,14 @@ export default {
 				"Checkout labels are Vietnamese. 'Yêu cầu xuất hóa đơn' is the invoice request checkbox; 'Cá nhân' is an individual buyer and 'Doanh nghiệp' a business buyer.",
 			maxModelCalls: 25,
 		},
+		// Admin screens of the plugin and WooCommerce (Vietnamese labels). Its own agent, so the checkout recordings
+		// (keyed by agent and context) stay valid.
+		admin: {
+			executor: decisionExecutor({ model: models.decision, textModel: models.text, vision: false }),
+			context:
+				"You are the shop administrator in wp-admin. Plugin pages are under WooCommerce: 'Hóa đơn Mắt Bão' is the settings page, 'Danh sách hóa đơn' the invoice list. 'Lưu kết nối' saves the Mat Bao connection, 'Kiểm tra kết nối' tests it, 'Tải lại danh sách mẫu' reloads invoice templates, 'Lưu mẫu mặc định' saves the chosen template. In the invoice list: the status select and search box filter the table; 'Chi tiết' opens an invoice; 'Kiểm tra trạng thái' checks the draft on Mat Bao; 'Gửi lại' resends. Confirmation dialogs are accepted by the test. IMPORTANT: you only perform the requested actions. Many tests expect the page to answer with an error message (a red 'Lỗi' notice, a refusal, a validation message); that error is the expected outcome, not a failure of your task. Your task is complete as soon as the last requested control has been clicked and the page reacted. Never retry a click to make an error go away.",
+			maxModelCalls: 25,
+		},
 		text: {
 			model: createTextAgentModel(process.env, replay),
 			system: "You are a careful QA agent for a WooCommerce shop. Do only the stated goal, then stop.",
@@ -41,6 +49,11 @@ export default {
 	},
 	credentials: {
 		admin: { username: "admin", password: () => process.env.E2E_USER_ADMIN_PASSWORD ?? "" },
+	},
+	// Synthetic passwords typed by the settings tests; the agent sees only the secret's name.
+	secrets: {
+		"matbao-pass": "s3cret-pass-E2E",
+		"matbao-pass-nokey": "never-stored-E2E",
 	},
 	timeout: 300_000,
 	retries: 0,

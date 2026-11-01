@@ -1,6 +1,6 @@
 {
   "schemaVersion": "trace-1",
-  "createdAt": "2026-10-31T17:24:41.915Z",
+  "createdAt": "2026-11-01T01:29:44.367Z",
   "payload": {
     "actions": [
       {
@@ -119,7 +119,7 @@
         "name": "Loading price…"
       }
     ],
-    "endWaitMs": 11016,
+    "endWaitMs": 11044,
     "keyedBy": {
       "cacheSchema": "trace-1",
       "policyVersion": "conservative/6",

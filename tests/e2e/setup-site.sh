@@ -36,13 +36,37 @@ if ! wp config has EINVOICE_MATBAO_ENCRYPTION_KEY --path=/var/www/html; then
 	wp config set EINVOICE_MATBAO_ENCRYPTION_KEY "e2e-$(head -c 24 /dev/urandom | base64 | tr -dc 'A-Za-z0-9')-key-material" --path=/var/www/html >/dev/null
 fi
 
-wp user update admin --user_pass="${EINV_E2E_ADMIN_PASS:-e2e-admin-pass}" >/dev/null
+# Fake Mat Bao API (tests/e2e/fake-matbao): a PHP built-in server inside the WordPress container, reached
+# through EINVOICE_MATBAO_BASE_URL. Demo mode leaves the constant out so the real demo host is used.
+if [ "$mode" = "fake" ]; then
+	"${compose[@]}" exec -T wordpress sh -c "
+		set -e
+		if ! curl -fsS -o /dev/null -X POST http://127.0.0.1:8099/__control/reset 2>/dev/null; then
+			nohup php -S 127.0.0.1:8099 $plugin/tests/e2e/fake-matbao/router.php >/tmp/einv-fake-matbao.log 2>&1 &
+			for i in 1 2 3 4 5 6 7 8 9 10; do curl -fsS -o /dev/null -X POST http://127.0.0.1:8099/__control/reset 2>/dev/null && break; sleep 0.5; done
+		fi
+		curl -fsS -o /dev/null -X POST http://127.0.0.1:8099/__control/reset
+	"
+	wp config set EINVOICE_MATBAO_BASE_URL "http://127.0.0.1:8099" --path=/var/www/html >/dev/null
+else
+	wp config delete EINVOICE_MATBAO_BASE_URL --path=/var/www/html >/dev/null 2>&1 || true
+fi
+
+# E2E-only markers: the mu-plugin seams answer only where EINV_E2E is defined, and the plugin honours its
+# encryption-key filter (used by the "no key" test) only in a local/development environment.
+wp config set EINV_E2E true --raw --path=/var/www/html >/dev/null
+wp config set WP_ENVIRONMENT_TYPE local --path=/var/www/html >/dev/null
+
+wp user update admin --user_pass="${EINV_E2E_ADMIN_PASS:?set EINV_E2E_ADMIN_PASS (the runner generates one per run)}" >/dev/null
 wp option update woocommerce_currency VND >/dev/null
 wp option update woocommerce_price_num_decimals 0 >/dev/null
 wp option update woocommerce_default_country VN >/dev/null
 wp option update woocommerce_calc_taxes yes >/dev/null
 wp option update woocommerce_prices_include_tax no >/dev/null
 wp option update woocommerce_enable_guest_checkout yes >/dev/null
+# Pin the order storage: HPOS (the default for new shops). The legacy screens are covered by PHPUnit.
+wp option update woocommerce_custom_orders_table_enabled yes >/dev/null
+wp option update woocommerce_custom_orders_table_data_sync_enabled no >/dev/null
 wp option update woocommerce_coming_soon no >/dev/null
 wp option update woocommerce_checkout_phone_field required >/dev/null
 wp option update woocommerce_cod_settings --format=json '{"enabled":"yes","title":"COD","description":"","instructions":"","enable_for_methods":[],"enable_for_virtual":"yes"}' >/dev/null
@@ -60,6 +84,35 @@ wp option update woocommerce_cod_settings --format=json '{"enabled":"yes","title
 		$p->set_virtual( true );
 		$p->set_status( "publish" );
 		$p->save();
+	}
+	// Extra fixtures for the failure scenarios: a tax class per rate (one rate per order line), a tax-exempt
+	// product and a free one. Idempotent; synthetic names and prices.
+	foreach ( array( "vat-7" => array( "VAT 7 (unsupported)", "7" ), "vat-8" => array( "VAT 8", "8" ), "vat-5" => array( "VAT 5", "5" ) ) as $slug => $def ) {
+		if ( ! in_array( $slug, WC_Tax::get_tax_class_slugs(), true ) ) {
+			WC_Tax::create_tax_class( $def[0], $slug );
+		}
+		if ( ! $wpdb->get_var( $wpdb->prepare( "SELECT tax_rate_id FROM {$wpdb->prefix}woocommerce_tax_rates WHERE tax_rate_class = %s", $slug ) ) ) {
+			WC_Tax::_insert_tax_rate( array( "tax_rate_country" => "", "tax_rate_state" => "", "tax_rate" => $def[1], "tax_rate_name" => $def[0], "tax_rate_priority" => 1, "tax_rate_compound" => 0, "tax_rate_shipping" => 0, "tax_rate_order" => 0, "tax_rate_class" => $slug ) );
+		}
+	}
+	foreach ( array(
+		"E2E-VAT7"  => array( "Dịch vụ thuế 7%", "100000", "taxable", "vat-7" ),
+		"E2E-VAT8"  => array( "Dịch vụ thuế 8%", "100000", "taxable", "vat-8" ),
+		"E2E-VAT5"  => array( "Dịch vụ thuế 5%", "100000", "taxable", "vat-5" ),
+		"E2E-NOTAX" => array( "Dịch vụ không chịu thuế", "100000", "none", "" ),
+		"E2E-FREE"  => array( "Dịch vụ miễn phí", "0", "taxable", "" ),
+	) as $sku => $def ) {
+		if ( ! wc_get_product_id_by_sku( $sku ) ) {
+			$q = new WC_Product_Simple();
+			$q->set_name( $def[0] );
+			$q->set_sku( $sku );
+			$q->set_regular_price( $def[1] );
+			$q->set_virtual( true );
+			$q->set_tax_status( $def[2] );
+			$q->set_tax_class( $def[3] );
+			$q->set_status( "publish" );
+			$q->save();
+		}
 	}
 	if ( ! get_page_by_path( "classic-checkout" ) ) {
 		wp_insert_post( array( "post_type" => "page", "post_status" => "publish", "post_name" => "classic-checkout", "post_title" => "Classic checkout", "post_content" => "<!-- wp:shortcode -->[woocommerce_checkout]<!-- /wp:shortcode -->" ) );

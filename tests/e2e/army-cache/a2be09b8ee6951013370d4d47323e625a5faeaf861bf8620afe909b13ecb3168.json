@@ -1,0 +1,106 @@
+{
+  "schemaVersion": "trace-1",
+  "createdAt": "2026-11-01T01:31:45.447Z",
+  "payload": {
+    "actions": [
+      {
+        "name": "type",
+        "summary": "type \"0000000001\" into textbox \"Mã số thuế\"",
+        "target": {
+          "role": "textbox",
+          "name": "Mã số thuế"
+        },
+        "value": "0000000001"
+      },
+      {
+        "name": "type",
+        "summary": "type \"e2e-user\" into textbox \"Tên đăng nhập\"",
+        "target": {
+          "role": "textbox",
+          "name": "Tên đăng nhập"
+        },
+        "value": "e2e-user"
+      },
+      {
+        "name": "typeSecret",
+        "summary": "fill secret \"matbao-pass\" into textbox \"Mật khẩu\"",
+        "target": {
+          "role": "textbox",
+          "name": "Mật khẩu",
+          "placeholder": "Đã lưu, để trống nếu không đổi",
+          "inputPurpose": "password"
+        },
+        "secret": "matbao-pass"
+      },
+      {
+        "name": "tap",
+        "summary": "tap button \"Lưu kết nối\"",
+        "target": {
+          "role": "button",
+          "name": "Lưu kết nối"
+        }
+      }
+    ],
+    "executor": {
+      "name": "decision",
+      "version": "2"
+    },
+    "recordedFor": {
+      "testId": "army/settings.army.ts::settings%20page::saves%20credentials%20encrypted%20and%20never%20renders%20the%20password%20back",
+      "targetId": "chromium",
+      "instructionDigest": "2a89c029ef31999987ecdfdca6adaef10523f5a2529958bc85bc12db057ede0d",
+      "paramsDigest": "bca450f892f00cf5e1f64a22480cbe70117be83368bfc0cd00de7445aec548cb",
+      "callIndex": 0,
+      "agent": "admin"
+    },
+    "recordedBy": {
+      "provider": "e2e-text.chat",
+      "model": "gpt-6-luna"
+    },
+    "summary": "The screen shows the step is done (p=1.000, confidence 1.000).",
+    "startPath": "/wp-admin/admin.php?page=einvoice-matbao-settings",
+    "endPath": "/wp-admin/admin.php?page=einvoice-matbao-settings",
+    "endAnchors": [
+      {
+        "role": "status",
+        "name": "Thành công: Đã lưu thông tin kết nối Mắt Bão (mã hóa)."
+      },
+      {
+        "role": "textbox",
+        "name": "Mã số thuế",
+        "value": "0000000001"
+      },
+      {
+        "role": "textbox",
+        "name": "Tên đăng nhập",
+        "value": "e2e-user"
+      },
+      {
+        "text": "Warning: Cannot modify header information - headers already sent by (output started at /var/www/html/wp-content/plugins/einvoice-matbao/src/Admin/SettingsController.php:120) in /var/www/html/wp-includes/rest-api.php on line 813 Warning: Cannot modify header information - headers already sent by (ou…"
+      }
+    ],
+    "goneAnchors": [
+      {
+        "role": "textbox",
+        "name": "Mã số thuế",
+        "value": "0000000000"
+      },
+      {
+        "role": "textbox",
+        "name": "Tên đăng nhập",
+        "value": "e2e"
+      }
+    ],
+    "endWaitMs": 11506,
+    "keyedBy": {
+      "cacheSchema": "trace-1",
+      "policyVersion": "conservative/6",
+      "project": "2b483fc49e5e740989e492050e28e6fb856764a2ed52d31c600d470a05baba44",
+      "platform": "web",
+      "engineName": "web",
+      "engineSpiVersion": 1,
+      "appIdentity": "2ce612fe684f904f96ec07f53bc449688a65d26e28e9999fd2a1cec1cbd6fc2d",
+      "agentContextDigest": "2d87d669030adec1c5a4b621e02e4f297732729025497e06cd881ec089a136dd"
+    }
+  }
+}

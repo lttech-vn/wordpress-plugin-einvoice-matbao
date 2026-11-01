@@ -1,0 +1,75 @@
+{
+  "schemaVersion": "trace-1",
+  "createdAt": "2026-11-01T01:31:54.579Z",
+  "payload": {
+    "actions": [
+      {
+        "name": "type",
+        "summary": "type \"0000000001\" into textbox \"Mã số thuế\"",
+        "target": {
+          "role": "textbox",
+          "name": "Mã số thuế"
+        },
+        "value": "0000000001"
+      },
+      {
+        "name": "tap",
+        "summary": "tap button \"Lưu kết nối\"",
+        "target": {
+          "role": "button",
+          "name": "Lưu kết nối"
+        }
+      }
+    ],
+    "executor": {
+      "name": "decision",
+      "version": "2"
+    },
+    "recordedFor": {
+      "testId": "army/settings.army.ts::settings%20page::refuses%20incomplete%20credentials%20with%20a%20Vietnamese%20message",
+      "targetId": "chromium",
+      "instructionDigest": "a259fac88fead42dff68ca00d363b62a1e5e7a4774ea622da92dd794d3b49019",
+      "paramsDigest": "5503b8c2f0aa56e3c45f88e2b27eca68e195143852e61bb36e1551846bbb49d2",
+      "callIndex": 0,
+      "agent": "admin"
+    },
+    "recordedBy": {
+      "provider": "e2e-text.chat",
+      "model": "gpt-6-luna"
+    },
+    "summary": "The screen shows the step is done (p=0.690, confidence 0.530).",
+    "startPath": "/wp-admin/admin.php?page=einvoice-matbao-settings",
+    "endPath": "/wp-admin/admin.php?page=einvoice-matbao-settings",
+    "endAnchors": [
+      {
+        "role": "alert",
+        "name": "Lỗi: Cần nhập đủ mã số thuế, tên đăng nhập và mật khẩu."
+      },
+      {
+        "role": "textbox",
+        "name": "Mã số thuế",
+        "value": "0000000001"
+      },
+      {
+        "text": "Warning: Cannot modify header information - headers already sent by (output started at /var/www/html/wp-content/plugins/einvoice-matbao/src/Admin/SettingsController.php:120) in /var/www/html/wp-includes/rest-api.php on line 813 Warning: Cannot modify header information - headers already sent by (ou…"
+      }
+    ],
+    "goneAnchors": [
+      {
+        "role": "textbox",
+        "name": "Mã số thuế"
+      }
+    ],
+    "endWaitMs": 11277,
+    "keyedBy": {
+      "cacheSchema": "trace-1",
+      "policyVersion": "conservative/6",
+      "project": "2b483fc49e5e740989e492050e28e6fb856764a2ed52d31c600d470a05baba44",
+      "platform": "web",
+      "engineName": "web",
+      "engineSpiVersion": 1,
+      "appIdentity": "2ce612fe684f904f96ec07f53bc449688a65d26e28e9999fd2a1cec1cbd6fc2d",
+      "agentContextDigest": "2d87d669030adec1c5a4b621e02e4f297732729025497e06cd881ec089a136dd"
+    }
+  }
+}

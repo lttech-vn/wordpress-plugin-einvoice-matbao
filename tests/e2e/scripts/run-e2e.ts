@@ -82,7 +82,7 @@ try {
 	const childEnv = { ...modelEnv, E2E_MODE: mode,
 		...(process.env.E2E_BROWSER ? { E2E_BROWSER: process.env.E2E_BROWSER } : {}),
 		...(process.env.E2E_BLOCKS_AGENT ? { E2E_BLOCKS_AGENT: process.env.E2E_BLOCKS_AGENT } : {}), E2E_PRODUCT_ID: productId, E2E_USER_ADMIN_PASSWORD: adminPassword, ...(isCI(process.env) ? { CI: "1" } : {}) };
-	run("docker", ["create", "--name", browser, "--network", `container:${wordpress}`, "--shm-size", "1g", ...Object.keys(childEnv).flatMap((n) => ["-e", n]), image, "node", "node_modules/e2e/dist/cli/bin.js", "run", "--config", "e2e.army.config.ts", "--output", ".e2e"], {
+	run("docker", ["create", "--name", browser, "--network", `container:${wordpress}`, "--shm-size", "1g", ...Object.keys(childEnv).flatMap((n) => ["-e", n]), image, "node", "node_modules/e2e/dist/cli/bin.js", "run", "--config", "e2e.army.config.ts", "--output", ".e2e", ...(process.env.E2E_ARGS ? process.env.E2E_ARGS.split(/\s+/).filter(Boolean) : [])], {
 		env: { ...process.env, ...childEnv },
 	});
 	if (mode === "replay" && existsSync(join(e2eDir, "army-cache"))) run("docker", ["cp", join(e2eDir, "army-cache"), `${browser}:/e2e/army-cache`]);
