@@ -25,5 +25,5 @@
 
 ## 5. Tài liệu
 
-- [ ] 5.1 `README.md`: mục yêu cầu hệ thống (PHP 8.2+, WordPress 6.6+, WooCommerce 9.8+), bảng tổ hợp đã test, cách chạy tổ hợp tối thiểu, mô tả CI
-- [ ] 5.2 `docs/discovery.md`: cập nhật dòng target nền tảng
+- [x] 5.1 `README.md`: mục yêu cầu hệ thống (PHP 8.2+, WordPress 6.6+, WooCommerce 9.8+), bảng tổ hợp đã test, cách chạy tổ hợp tối thiểu, mô tả CI
+- [x] 5.2 `docs/discovery.md`: cập nhật dòng target nền tảng
