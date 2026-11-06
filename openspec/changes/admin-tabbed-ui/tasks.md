@@ -12,8 +12,8 @@
 
 ## 3. Tab fragment route
 
-- [ ] 3.1 Register `GET /tabs/(?P<tab>[^/]+)` in `SettingsController::register_routes()` with `check_permission`; handler returns `render_tabs()` or a 404 error notice for unknown keys
-- [ ] 3.2 Integration test `tests/integration/SettingsTabsRestTest.php`: each tab returns its panel and active marker, `foo` and `Lark1` return 404 HTML notice, anonymous 401, shop manager 403, wrong nonce 403
+- [x] 3.1 Register `GET /tabs/(?P<tab>[^/]+)` in `SettingsController::register_routes()` with `check_permission`; handler returns `render_tabs()` or a 404 error notice for unknown keys
+- [x] 3.2 Integration test `tests/integration/SettingsTabsRestTest.php`: each tab returns its panel and active marker, `foo` and `Lark1` return 404 HTML notice, anonymous 401, shop manager 403, wrong nonce 403
 
 ## 4. Menu, redirect and assets
 
