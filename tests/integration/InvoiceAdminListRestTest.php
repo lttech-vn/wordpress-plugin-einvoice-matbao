@@ -106,6 +106,40 @@ final class InvoiceAdminListRestTest extends SettingsRestTestCase {
 		$this->assertStringContainsString( 'WC102', $html );
 	}
 
+	/**
+	 * Status to badge group and label.
+	 *
+	 * @return array<string, array{string, string, string}>
+	 */
+	public static function badge_cases(): array {
+		return array(
+			'failed'          => array( InvoiceStatus::FAILED, 'error', 'Lỗi' ),
+			'needs_attention' => array( InvoiceStatus::NEEDS_ATTENTION, 'error', 'Lỗi cần xử lý' ),
+			'pending'         => array( InvoiceStatus::PENDING, 'waiting', 'Chờ gửi' ),
+			'draft_created'   => array( InvoiceStatus::DRAFT_CREATED, 'created', 'Đã tạo nháp' ),
+			'skipped'         => array( InvoiceStatus::SKIPPED, 'other', 'Bỏ qua' ),
+			'stopped'         => array( 'stopped', 'other', 'Đã dừng' ),
+		);
+	}
+
+	/**
+	 * A status renders as a badge of its group.
+	 *
+	 * @dataProvider badge_cases
+	 *
+	 * @param string $status Invoice status.
+	 * @param string $group  Expected badge group.
+	 * @param string $label  Expected badge label.
+	 */
+	public function test_status_is_shown_as_a_group_badge( string $status, string $group, string $label ): void {
+		$this->login_as( 'administrator' );
+		$this->reserve( 101, 'WC101', $status );
+
+		$html = $this->html( $this->htmx( 'GET', '/invoices' ) );
+
+		$this->assertMatchesRegularExpression( '#data-einv-badge="' . $group . '">' . preg_quote( $label, '#' ) . '</span>#u', $html );
+	}
+
 	public function test_list_filters_by_status_and_by_error_group(): void {
 		$this->login_as( 'administrator' );
 		$this->reserve( 101, 'WC101', InvoiceStatus::DRAFT_CREATED );
