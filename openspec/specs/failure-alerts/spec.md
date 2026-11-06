@@ -109,7 +109,7 @@ Evidence: src/Alert/InvoiceAlerts.php:87-109, src/Alert/AdminAlertNotice.php:116
 
 ### Requirement: Lark retry for temporary failures
 Hệ thống SHALL thử lại tin Lark tối đa 3 lần sau 60, 300 và 900 giây khi gặp lỗi tạm thời (không có phản hồi, HTTP 5xx, 408, 429), và không thử lại các lỗi 4xx khác.
-Evidence: src/Alert/InvoiceAlerts.php:29,103-134, src/Lark/LarkClient.php:65, README.md:159-162, tests/integration/InvoiceAlertTest.php:391-468
+Evidence: src/Alert/InvoiceAlerts.php:29,103-134, src/Lark/LarkClient.php:65, docs/phat-trien.md:171, tests/integration/InvoiceAlertTest.php:391-468
 
 #### Scenario: 503 then success
 - **WHEN** Lark trả 503 hai lần rồi 200
@@ -137,7 +137,7 @@ Evidence: src/Alert/InvoiceAlerts.php:59-66,93-98, src/Alert/AdminAlertNotice.ph
 
 ### Requirement: Alert cleanup and retention
 Hệ thống SHALL trong recovery sweep xóa tối đa 200 alert cũ nhất mỗi lần, gồm alert của hóa đơn không còn tồn tại, không còn cần admin, đã sang chu kỳ alert mới, hoặc đã ẩn hơn 30 ngày; alert chỉ lưu ID, mã lỗi và trạng thái gửi Lark.
-Evidence: src/Alert/AlertStore.php:13-18,27-28,144-181, README.md:165-167,270, tests/integration/InvoiceAlertTest.php:335-379
+Evidence: src/Alert/AlertStore.php:13-18,27-28,144-181, docs/phat-trien.md:173,220, tests/integration/InvoiceAlertTest.php:335-379
 
 #### Scenario: Dismissed over 30 days
 - **WHEN** sweep chạy và alert đã ẩn hơn 30 ngày

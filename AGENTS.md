@@ -1,3 +1,8 @@
+## Ngôn ngữ tài liệu
+
+Plugin chỉ dùng cho website Việt Nam nên tài liệu (README, `docs/`, `tests/e2e/README.md`, description của `composer.json`/`package.json` và GitHub repo) viết tiếng Việt; đây là ngoại lệ của rule "repo public viết tiếng Anh".
+Code comments/docblock, commit, PR và identifier vẫn viết tiếng Anh; chuỗi UI vẫn tiếng Việt qua text domain `einvoice-matbao`.
+
 ## Agent skills
 
 ### Issue tracker

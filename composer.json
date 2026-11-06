@@ -1,6 +1,6 @@
 {
 	"name": "lttech-vn/einvoice-matbao",
-	"description": "Creates Mat Bao VAT draft e-invoices for completed WooCommerce orders.",
+	"description": "Tạo hóa đơn GTGT nháp trên Mắt Bão cho đơn hàng WooCommerce đã hoàn thành.",
 	"type": "wordpress-plugin",
 	"license": "GPL-2.0-or-later",
 	"require": {

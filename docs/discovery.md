@@ -1,6 +1,6 @@
 # Khảo sát plugin hóa đơn Mắt Bão
 
-Ghi nhận quyết định người dùng trong phiên khảo sát. Đây chưa phải spec được duyệt; chưa triển khai code.
+Ghi nhận quyết định người dùng trong phiên khảo sát trước khi triển khai. Tài liệu giữ làm lịch sử quyết định; plugin đã triển khai theo các quyết định này (bản 0.2.0). Hành vi hiện hành nằm trong living specs `openspec/specs/`, hướng dẫn trong [huong-dan-su-dung.md](huong-dan-su-dung.md) và [phat-trien.md](phat-trien.md).
 
 ## Phạm vi đã chốt
 

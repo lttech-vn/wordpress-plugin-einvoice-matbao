@@ -8,7 +8,7 @@ Mã hóa secret bằng key trong wp-config.
 
 ### Requirement: Secrets encrypted with a wp-config key
 Hệ thống SHALL mã hóa secret bằng libsodium với nonce ngẫu nhiên cho mỗi lần mã hóa và khóa lấy từ hằng `EINVOICE_MATBAO_ENCRYPTION_KEY` trong `wp-config.php`.
-Evidence: src/Encryption.php:41-50,99, tests/integration/EncryptionTest.php:28-32, README.md:30-34
+Evidence: src/Encryption.php:41-50,99, tests/integration/EncryptionTest.php:28-32, docs/phat-trien.md:83-87
 
 #### Scenario: Round trip
 - **WHEN** một chuỗi được mã hóa rồi giải mã với cùng khóa
@@ -16,7 +16,7 @@ Evidence: src/Encryption.php:41-50,99, tests/integration/EncryptionTest.php:28-3
 
 ### Requirement: Minimum key length
 Hệ thống SHALL coi khóa mã hóa là chưa cấu hình khi hằng không được định nghĩa, không phải chuỗi, hoặc ngắn hơn 32 ký tự.
-Evidence: src/Encryption.php:21,95-97, README.md:33
+Evidence: src/Encryption.php:21,95-97, docs/phat-trien.md:86
 
 #### Scenario: Key too short
 - **WHEN** hằng `EINVOICE_MATBAO_ENCRYPTION_KEY` có dưới 32 ký tự
@@ -74,7 +74,7 @@ Confidence: inferred
 
 ### Requirement: Secrets are never rendered back
 Hệ thống SHALL không hiển thị lại mật khẩu Mắt Bão, URL webhook Lark hay secret Lark trong phản hồi hoặc trang settings; ô nhập để trống và chỉ hiện trạng thái đã lưu.
-Evidence: src/Admin/SettingsPage.php:129-130,209-214,283, tests/integration/SettingsCredentialsRestTest.php:59-99,160-184, README.md:37
+Evidence: src/Admin/SettingsPage.php:129-130,209-214,283, tests/integration/SettingsCredentialsRestTest.php:59-99,160-184, docs/phat-trien.md:91
 
 #### Scenario: Page after save
 - **WHEN** admin mở trang settings sau khi lưu credential
@@ -82,7 +82,7 @@ Evidence: src/Admin/SettingsPage.php:129-130,209-214,283, tests/integration/Sett
 
 ### Requirement: Undecryptable credentials need re-entry
 Hệ thống SHALL coi credential đã lưu mà không giải mã được (thiếu hoặc đổi khóa) là không dùng được, vẫn cho biết có bản đã lưu, và yêu cầu admin nhập lại.
-Evidence: src/CredentialStore.php:33-45,131-145, src/Admin/SettingsController.php:346,404,446-453, README.md:36-37, tests/integration/SettingsCredentialsRestTest.php:295-303
+Evidence: src/CredentialStore.php:33-45,131-145, src/Admin/SettingsController.php:346,404,446-453, docs/phat-trien.md:89-91, tests/integration/SettingsCredentialsRestTest.php:295-303
 
 #### Scenario: Key changed
 - **WHEN** khóa bị đổi sau khi credential đã được lưu
