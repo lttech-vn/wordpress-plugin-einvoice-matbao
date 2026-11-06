@@ -2,7 +2,7 @@
 	"name": "einvoice-matbao-e2e",
 	"private": true,
 	"type": "module",
-	"description": "Agentic browser E2E (e2e framework) for Classic and Blocks checkout. Not run in CI.",
+	"description": "Browser E2E dùng agent (framework e2e) cho plugin hóa đơn Mắt Bão; CI chạy ở chế độ replay.",
 	"license": "GPL-2.0-or-later",
 	"scripts": {
 		"e2e:list": "e2e list --config e2e.army.config.ts",
