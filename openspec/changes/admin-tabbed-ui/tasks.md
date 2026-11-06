@@ -31,5 +31,5 @@
 
 - [x] 6.1 Update the `admin` agent context in `tests/e2e/e2e.army.config.ts` and `tests/e2e/army/support.ts` `PAGES` (settings → tab URLs, invoices → `tab=invoices`, keep an `oldInvoices` URL) and adjust `settings.army.ts`, `invoices.army.ts`, `failures.army.ts`, `checkout-invoice.army.ts`, `units-permissions.army.ts` for the new headings, tabs and single menu entry
 - [x] 6.2 Add e2e for tab switching without reload (URL contains `tab=`), reload keeps tab, Back returns to previous tab, old `page=einvoice-matbao-invoices` lands on the invoices tab, detail stays inside the invoices tab
-- [ ] 6.3 Re-record the e2e cache (`bun run e2e:record`), review and commit `army-cache/`, confirm `bun run e2e:replay` passes; full verification `scripts/check.sh`, `scripts/check.sh --min`, `bun run test`, `bun run build`, `bun run check:css-scope`
-- [ ] 6.4 Update docs naming the old menu (`README.md`, `tests/e2e/README.md`, `docs/`)
+- [x] 6.3 Re-record the e2e cache (`bun run e2e:record`), review and commit `army-cache/`, confirm `bun run e2e:replay` passes; full verification `scripts/check.sh`, `scripts/check.sh --min`, `bun run test`, `bun run build`, `bun run check:css-scope`
+- [x] 6.4 Update docs naming the old menu (`README.md`, `tests/e2e/README.md`, `docs/`)
