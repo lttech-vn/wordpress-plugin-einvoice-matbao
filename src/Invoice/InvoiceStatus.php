@@ -46,6 +46,35 @@ final class InvoiceStatus {
 	/** Filter value grouping the invoices still on their way: queued or being sent. */
 	public const FILTER_WAITING = 'waiting';
 
+	/** Badge group of the statuses an admin has to look at. */
+	public const GROUP_ERROR = 'error';
+
+	/** Badge group of the invoices still on their way. */
+	public const GROUP_WAITING = 'waiting';
+
+	/** Badge group of invoices with a draft at Mat Bao. */
+	public const GROUP_CREATED = 'created';
+
+	/** Badge group of everything else: skipped, stopped or unknown statuses. */
+	public const GROUP_OTHER = 'other';
+
+	/**
+	 * Badge group of a status: error, waiting, created or other.
+	 *
+	 * @param string $status One of the constants, or an unknown value.
+	 * @return string One of the GROUP_* constants.
+	 */
+	public static function group( string $status ): string {
+		if ( in_array( $status, self::error_statuses(), true ) ) {
+			return self::GROUP_ERROR;
+		}
+		if ( in_array( $status, self::waiting_statuses(), true ) ) {
+			return self::GROUP_WAITING;
+		}
+
+		return self::DRAFT_CREATED === $status ? self::GROUP_CREATED : self::GROUP_OTHER;
+	}
+
 	/**
 	 * Statuses an admin has to look at: not created, and not just waiting.
 	 *
