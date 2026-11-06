@@ -15,8 +15,8 @@
 ## 3. Tương thích tổ hợp tối thiểu
 
 - [x] 3.1 Chạy `composer check` trên tổ hợp mới nhất sau bước 1–2, ghi kết quả
-- [ ] 3.2 Chạy `composer check` trên tổ hợp tối thiểu, ghi mọi lỗi
-- [ ] 3.3 Sửa từng chỗ không tương thích trong `src/` (TDD, giữ hành vi); nếu không giữ được hành vi thì dừng hỏi user trước khi nâng sàn
+- [x] 3.2 Chạy `composer check` trên tổ hợp tối thiểu, ghi mọi lỗi
+- [x] 3.3 Sửa từng chỗ không tương thích trong `src/` (TDD, giữ hành vi); nếu không giữ được hành vi thì dừng hỏi user trước khi nâng sàn
 
 ## 4. CI
 
