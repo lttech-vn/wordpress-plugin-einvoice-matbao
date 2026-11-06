@@ -21,6 +21,9 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile
+      args:
+        WORDPRESS_IMAGE: ${EINV_WORDPRESS_IMAGE:-wordpress:7.1.4-php8.5-apache}
+        WPCLI_IMAGE: ${EINV_WPCLI_IMAGE:-wordpress:cli-2.12.0-php8.5}
     depends_on:
       db:
         condition: service_healthy
@@ -33,7 +36,9 @@ services:
       WORDPRESS_DB_NAME: wordpress
       WORDPRESS_DEBUG: "1"
       EINV_SITE_URL: "http://localhost:${EINV_HTTP_PORT:-8080}"
-      WOOCOMMERCE_VERSION: "11.2.1"
+      WOOCOMMERCE_VERSION: ${EINV_WOOCOMMERCE_VERSION:-11.2.1}
+      EINV_WP_PHPUNIT_VERSION: ${EINV_WP_PHPUNIT_VERSION:-}
+      EINV_WP_PHPUNIT_DIR: ${EINV_WP_PHPUNIT_DIR:-}
       WP_TESTS_DB_HOST: db
       WP_TESTS_DB_NAME: wordpress_test
       WP_TESTS_DB_USER: wordpress

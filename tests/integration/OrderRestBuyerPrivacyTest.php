@@ -80,7 +80,9 @@ final class OrderRestBuyerPrivacyTest extends InvoiceWorkflowTestCase {
 	public function test_experimental_v4_order_response_hides_the_buyer_request_and_snapshot(): void {
 		add_filter( 'woocommerce_admin_features', static fn( array $features ): array => array_merge( $features, array( 'rest-api-v4' ) ) );
 		$GLOBALS['wp_rest_server'] = null; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited, WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- rebuild routes with wc/v4 enabled.
-		rest_get_server();
+		if ( ! in_array( 'wc/v4', rest_get_server()->get_namespaces(), true ) ) {
+			$this->markTestSkipped( 'This WooCommerce version has no experimental wc/v4 REST API.' );
+		}
 		$order = $this->completed_individual_order();
 		$this->login_as( 'administrator' );
 

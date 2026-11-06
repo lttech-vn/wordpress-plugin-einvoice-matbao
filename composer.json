@@ -4,7 +4,7 @@
 	"type": "wordpress-plugin",
 	"license": "GPL-2.0-or-later",
 	"require": {
-		"php": ">=8.5"
+		"php": ">=8.2"
 	},
 	"require-dev": {
 		"dealerdirect/phpcodesniffer-composer-installer": "^1.0",
@@ -34,13 +34,14 @@
 			"phpstan/extension-installer": true
 		},
 		"platform": {
-			"php": "8.5.0"
+			"php": "8.2.0"
 		},
 		"sort-packages": true
 	},
 	"scripts": {
 		"lint": "phpcs",
 		"analyse": "phpstan analyse --memory-limit=1G",
+		"analyse:floor-guard": "out=$(phpstan analyse --memory-limit=1G --no-progress --error-format=raw tests/fixtures/php-floor 2>&1); status=$?; if [ \"$status\" -ne 0 ] && printf '%s' \"$out\" | grep -q json_validate; then echo 'Floor guard OK: json_validate rejected under PHP 8.2.'; else echo \"Floor guard FAILED (phpstan exit $status):\"; echo \"$out\"; exit 1; fi",
 		"test:integration": "phpunit -c phpunit.xml.dist",
 		"test:without-woocommerce": "phpunit -c phpunit-without-woocommerce.xml.dist",
 		"test": [
@@ -50,6 +51,7 @@
 		"check": [
 			"@lint",
 			"@analyse",
+			"@analyse:floor-guard",
 			"@test"
 		]
 	}

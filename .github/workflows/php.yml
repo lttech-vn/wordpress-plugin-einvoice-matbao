@@ -15,13 +15,20 @@ concurrency:
 
 jobs:
   php:
-    name: Lint, static analysis and integration tests (Docker)
+    name: PHP (${{ matrix.platform }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [min, latest]
     env:
-      COMPOSE_PROJECT_NAME: einv-ci
+      COMPOSE_PROJECT_NAME: einv-ci-${{ matrix.platform }}
       EINV_HTTP_PORT: "8080"
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Load minimum platform versions
+        if: matrix.platform == 'min'
+        run: grep -E '^[A-Za-z_][A-Za-z0-9_]*=' docker/min.env >> "$GITHUB_ENV"
       - name: Build image
         run: docker compose build
       - name: Start WordPress + WooCommerce
@@ -30,8 +37,15 @@ jobs:
           docker compose exec -T wordpress einv-setup
       - name: PHPCS
         run: docker compose exec -T -w /var/www/html/wp-content/plugins/einvoice-matbao wordpress composer lint
+      - name: PHP syntax lint (PHP 8.2 floor)
+        if: matrix.platform == 'min'
+        run: |
+          docker compose exec -T -w /var/www/html/wp-content/plugins/einvoice-matbao wordpress sh -c \
+            "find einvoice-matbao.php uninstall.php src tests -name '*.php' -not -path 'tests/fixtures/*' -not -path 'tests/e2e/*' -print0 | xargs -0 -n1 php -l"
       - name: PHPStan
         run: docker compose exec -T -w /var/www/html/wp-content/plugins/einvoice-matbao wordpress composer analyse
+      - name: Floor guard
+        run: docker compose exec -T -w /var/www/html/wp-content/plugins/einvoice-matbao wordpress composer analyse:floor-guard
       - name: PHPUnit (with WooCommerce)
         run: docker compose exec -T -w /var/www/html/wp-content/plugins/einvoice-matbao wordpress composer test:integration
       - name: PHPUnit (without WooCommerce)
