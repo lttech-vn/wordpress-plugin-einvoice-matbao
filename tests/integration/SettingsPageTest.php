@@ -143,6 +143,7 @@ final class SettingsPageTest extends WP_UnitTestCase {
 		$this->assertSame( count( AdminTabs::labels() ) - 1, substr_count( $html, ' !text-einv-ink-mute' ) );
 		$this->assertStringContainsString( 'hover:!text-einv-ink', $html );
 		$this->assertStringContainsString( 'focus:!shadow-none', $html );
+		$this->assertStringContainsString( 'focus-visible:!outline-einv-primary', $html );
 	}
 
 	public function test_encryption_banner_renders_above_the_tab_bar(): void {
