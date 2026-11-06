@@ -1,7 +1,9 @@
-# Target stack: WordPress 7.1.x on PHP 8.5 (official image), plus Composer and WP-CLI for tooling.
+# Dev/CI stack with Composer and WP-CLI on top of an official WordPress image.
+# Defaults are the latest combination (WordPress 7.1.x on PHP 8.5); docker/min.env selects the minimum (6.6 on PHP 8.2).
 ARG WORDPRESS_IMAGE=wordpress:7.1.4-php8.5-apache
+ARG WPCLI_IMAGE=wordpress:cli-2.12.0-php8.5
 FROM composer:2.9.8 AS composer
-FROM wordpress:cli-2.12.0-php8.5 AS wpcli
+FROM ${WPCLI_IMAGE} AS wpcli
 FROM ${WORDPRESS_IMAGE}
 
 RUN apt-get update \
