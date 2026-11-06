@@ -59,11 +59,17 @@ bun run e2e:live                        # model, tắt cache
 bun run e2e:replay                      # cache chỉ đọc + strict, từ chối mọi *_API_KEY trong môi trường
 ```
 
+Shell dev thường export sẵn khóa API (`OPENAI_API_KEY`, …) nên replay bị từ chối. Bỏ chúng chỉ cho lệnh này:
+
+```bash
+env $(env | grep -E '^[A-Z0-9_]*(API_KEY|AUTH_TOKEN|ACCESS_TOKEN)=' | cut -d= -f1 | sed 's/^/-u /') bun run e2e:replay
+```
+
 `scripts/run-e2e.ts` khởi động một compose project cho mỗi lần chạy (không publish cổng, mật khẩu admin ngẫu nhiên), một container trình duyệt dùng chung network namespace với WordPress (`http://localhost`), copy `.e2e/` và `army-cache/` sang `test-results/runs/<id>/`, áp cổng báo cáo (tất cả pass) và xóa mọi thứ đã tạo, kể cả khi nhận SIGINT/SIGTERM.
 
 - Bước agent dùng một chat model thường (agent tích hợp sẵn, tool call) cho mọi agent, như trong [tài liệu model của e2e](https://e2e.tester.army/docs/models); `E2E_SYSTEMONE_*` không còn được đọc.
 - Biến model (`E2E_TEXT_*`) chỉ vào container ở chế độ record/live. URL của text model phải truy cập được từ container.
-- Bước agent replay từ `army-cache/` (11 mục, ghi bằng `gpt-6-luna`). Chi phí ghi xem mục bên dưới; replay không tốn gì.
+- Bước agent replay từ `army-cache/` (8 mục, ghi bằng `gpt-6-luna`). Chi phí ghi xem mục bên dưới; replay không tốn gì.
 - Secret cho test cài đặt được khai báo trong `secrets` của config (giá trị tổng hợp); agent chỉ thấy tên của chúng.
 
 **Review cache:** sau `record`, kiểm tra `test-results/runs/<id>/army-cache/*.json`, xác nhận không có credential hay dữ liệu cá nhân (mật khẩu admin ngẫu nhiên mỗi lần chạy, dữ liệu người mua là tổng hợp), copy vào `army-cache/` và commit. Đổi instruction, màn hình ứng dụng hoặc `params` thì phải ghi lại.

@@ -1,6 +1,6 @@
 import { test, describe } from "@e2e-dev/web";
 import { credentials, expect } from "e2e";
-import { seam } from "./support.ts";
+import { PAGES, seam } from "./support.ts";
 
 // Classic and Blocks checkout with an invoice request; then the admin completes the order in the UI and the
 // admin screens must show the created draft. Mat Bao is answered by the fake mu-plugin unless
@@ -15,8 +15,8 @@ type Buyer = "walk_in" | "individual" | "business";
 
 const BUYER_GOALS: Record<Buyer, string> = {
 	walk_in: "",
-	individual: "tick the invoice request checkbox 'Yêu cầu xuất hóa đơn', choose 'Cá nhân', fill the invoice address {address} and the ID number {id_number}",
-	business: "tick the invoice request checkbox 'Yêu cầu xuất hóa đơn', choose 'Doanh nghiệp', fill the business name {name}, the tax code {tax_code} and the invoice address {address}",
+	individual: "1) tick the checkbox 'Yêu cầu xuất hóa đơn', 2) choose 'Cá nhân', 3) type {address} into the invoice address field, 4) type {id_number} into the ID number field. Check that both fields are filled, then stop.",
+	business: "1) tick the checkbox 'Yêu cầu xuất hóa đơn', 2) choose 'Doanh nghiệp', 3) type {name} into the business name field, 4) type {tax_code} into the tax code field, 5) type {address} into the invoice address field. Check that all three fields are filled, then stop.",
 };
 const BUYER_PARAMS: Record<Buyer, Record<string, string>> = { walk_in: {}, individual: INDIVIDUAL, business: BUSINESS };
 
@@ -65,7 +65,7 @@ describe("checkout invoice request", { serial: false }, () => {
 				}
 				await expect(created.first()).toBeVisible();
 
-				await app.open(`/wp-admin/admin.php?page=einvoice-matbao-invoices`);
+				await app.open(PAGES.invoices);
 				await screen.getByRole("searchbox").fill(String(orderId));
 				await screen.getByRole("searchbox").press("Enter");
 				await expect(screen.getByText("Đã tạo nháp", { exact: false }).first()).toBeVisible();

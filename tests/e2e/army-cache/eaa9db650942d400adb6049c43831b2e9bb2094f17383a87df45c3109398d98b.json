@@ -1,6 +1,6 @@
 {
   "schemaVersion": "trace-1",
-  "createdAt": "2026-11-01T04:03:54.218Z",
+  "createdAt": "2026-11-06T16:19:14.927Z",
   "payload": {
     "actions": [
       {
@@ -65,7 +65,7 @@
       "provider": "e2e-text-agent.chat",
       "model": "gpt-6-luna"
     },
-    "summary": "Checked 'Yêu cầu xuất hóa đơn', selected 'Doanh nghiệp', and filled the business name CÔNG TY TNHH THỬ NGHIỆM E2E, tax code 0000000000, and invoice address 2 Đường Thử Nghiệm, Quận 3, TP HCM. All values are shown in the checkout form.",
+    "summary": "Checked Yêu cầu xuất hóa đơn, selected Doanh nghiệp, and filled business name CÔNG TY TNHH THỬ NGHIỆM E2E, tax code 0000000000, and invoice address 2 Đường Thử Nghiệm, Quận 3, TP HCM.",
     "startPath": "/?pagename=classic-checkout",
     "endPath": "/?pagename=classic-checkout",
     "endAnchors": [
@@ -111,7 +111,7 @@
         "name": "Yêu cầu xuất hóa đơn"
       }
     ],
-    "endWaitMs": 12450,
+    "endWaitMs": 13257,
     "keyedBy": {
       "cacheSchema": "trace-1",
       "policyVersion": "conservative/6",

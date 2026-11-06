@@ -77,9 +77,19 @@ wp eval 'echo wp_generate_password( 64, false );'
 
 ## Bước 2: cấu hình trên trang cài đặt
 
-Mở **WooCommerce → Hóa đơn Mắt Bão**. Chỉ Administrator (quyền `manage_options`) thấy và dùng được trang này. Mỗi phần có nút **Lưu** riêng.
+Mở **WooCommerce → Hóa đơn Mắt Bão**. Chỉ Administrator (quyền `manage_options`) thấy và dùng được trang này. Trang chia thành các tab:
 
-### Kết nối Mắt Bão
+| Tab | Nội dung |
+|---|---|
+| **Hóa đơn** (mở mặc định) | Tổng quan, danh sách hóa đơn, chi tiết, gửi lại |
+| **Kết nối Mắt Bão** | Thông tin đăng nhập API và mẫu hóa đơn mặc định |
+| **Xuất hóa đơn** | Mã tham chiếu, người mua vãng lai, đơn vị tính |
+| **Cảnh báo Lark** | Webhook nhận cảnh báo |
+| **Nâng cao** | Gỡ plugin |
+
+Chuyển tab không tải lại trang; mỗi tab có đường dẫn riêng (`&tab=connection`, …) nên có thể đánh dấu trang. Mỗi phần có nút **Lưu** riêng.
+
+### Kết nối Mắt Bão (tab Kết nối Mắt Bão)
 
 | Trường | Nhập gì |
 |---|---|
@@ -89,24 +99,24 @@ Mở **WooCommerce → Hóa đơn Mắt Bão**. Chỉ Administrator (quyền `ma
 
 Bấm **Lưu kết nối**, rồi **Kiểm tra kết nối**. Mật khẩu đã lưu không hiển thị lại; để trống ô mật khẩu nếu không muốn đổi.
 
-### Mẫu hóa đơn mặc định
+### Mẫu hóa đơn mặc định (tab Kết nối Mắt Bão)
 
 Sau khi kết nối thành công, danh sách mẫu GTGT của năm hiện tại được tải từ Mắt Bão (kèm số hóa đơn còn lại). Chọn một **mẫu số / ký hiệu** rồi bấm **Lưu mẫu mặc định**.
 
 **Qua năm mới:** mẫu của năm cũ không còn dùng được. Đơn hoàn thành sau đó báo lỗi *Mẫu hóa đơn hết hiệu lực* cho đến khi bạn chọn mẫu của năm mới. Hãy chọn mẫu mới ngay đầu năm.
 
-### Mã tham chiếu và người mua vãng lai
+### Mã tham chiếu và người mua vãng lai (tab Xuất hóa đơn)
 
 - **Prefix mã tham chiếu (MTChieu):** chữ cái không dấu hoặc chữ số. Mã tham chiếu của mỗi hóa đơn là `prefix + WC + mã đơn`, tối đa 20 ký tự, ví dụ `SHOPWC1234`. Đặt prefix ngắn để còn chỗ cho mã đơn.
 - **Tên người mua vãng lai (NMua_Ten):** ghi lên hóa đơn của khách không yêu cầu xuất hóa đơn. Để trống thì dùng *Khách hàng không lấy hóa đơn*.
 
-### Đơn vị tính
+### Đơn vị tính (tab Xuất hóa đơn)
 
 **Đơn vị tính mặc định (DVTinh)**, tối đa 50 ký tự, mặc định là *Gói*. Phí và phí vận chuyển luôn dùng đơn vị mặc định.
 
 Muốn đặt riêng cho một sản phẩm, mở trang sửa sản phẩm, điền ô **Đơn vị tính hóa đơn**. Biến thể không đặt riêng thì dùng của sản phẩm cha. Sửa nhanh, sửa hàng loạt và nhập CSV chưa hỗ trợ trường này (giá trị đã có được giữ nguyên).
 
-### Cảnh báo Lark (tùy chọn)
+### Cảnh báo Lark (tab Cảnh báo Lark, tùy chọn)
 
 Tạo **custom bot** trong group Lark nhận cảnh báo, dán **Webhook URL** và **Secret ký** (nếu bot bật ký), bấm **Lưu webhook** rồi **Gửi tin nhắn kiểm tra**. Webhook và secret được lưu mã hóa.
 
@@ -155,7 +165,7 @@ Nội dung hóa đơn:
 
 - **Trên trang đơn hàng:** hộp **Hóa đơn Mắt Bão** hiện trạng thái, mã tham chiếu, mã hóa đơn Mắt Bão, mẫu/ký hiệu, loại lỗi và lý do.
 - **Danh sách đơn hàng:** bộ lọc **Hóa đơn** để lọc đơn theo trạng thái hóa đơn.
-- **WooCommerce → Danh sách hóa đơn:**
+- **WooCommerce → Hóa đơn Mắt Bão, tab Hóa đơn** (đường dẫn cũ *Danh sách hóa đơn* tự chuyển về đây):
   - Ô tổng quan: *Lỗi / cần xử lý*, *Đang chờ gửi*, *Đã tạo nháp* (tổng và hôm nay).
   - Lọc theo trạng thái, tìm theo mã đơn hoặc đầu mã tham chiếu.
   - Trang **Chi tiết**: lịch sử từng lần gửi, kết quả, thông điệp từ Mắt Bão. Số CCCD luôn được che, chỉ hiện 4 số cuối.
@@ -243,7 +253,7 @@ Mỗi lỗi chỉ cảnh báo **một lần** cho mỗi đơn. Sau mỗi lần b
 
 - **Tắt plugin:** hủy mọi tác vụ nền đang chờ; dữ liệu giữ nguyên. Bật lại thì hoạt động tiếp.
 - **Gỡ (xóa) plugin:** luôn xóa thông tin đăng nhập Mắt Bão/Lark, bộ nhớ đệm và cảnh báo. Mặc định **giữ** bảng hóa đơn, lịch sử gửi, thông tin người mua trên đơn và cài đặt.
-- **Xóa toàn bộ dữ liệu:** ở phần **Gỡ plugin** trên trang cài đặt, bật tùy chọn và gõ `XOA HET DU LIEU` để xác nhận. Khi đó, xóa plugin sẽ xóa vĩnh viễn cả bảng hóa đơn, thông tin người mua trên đơn, đơn vị tính sản phẩm và cài đặt. Đơn hàng, sản phẩm WooCommerce và hóa đơn trên Mắt Bão không bị ảnh hưởng.
+- **Xóa toàn bộ dữ liệu:** ở phần **Gỡ plugin** trong tab **Nâng cao**, bật tùy chọn và gõ `XOA HET DU LIEU` để xác nhận. Khi đó, xóa plugin sẽ xóa vĩnh viễn cả bảng hóa đơn, thông tin người mua trên đơn, đơn vị tính sản phẩm và cài đặt. Đơn hàng, sản phẩm WooCommerce và hóa đơn trên Mắt Bão không bị ảnh hưởng.
 
 Nếu WooCommerce bị tắt hoặc gỡ, plugin tự tắt ở lần mở wp-admin tiếp theo và hiện thông báo.
 
@@ -265,4 +275,4 @@ Plugin chỉ cảnh báo. Kế toán sửa trên Mắt Bão.
 Không. Bản hiện tại không hiển thị hay gửi nháp cho khách.
 
 **Ai được thao tác?**
-Chỉ Administrator được xem trang cài đặt, danh sách hóa đơn, gửi lại và kiểm tra trạng thái.
+Chỉ Administrator được xem trang **Hóa đơn Mắt Bão** (cả danh sách hóa đơn lẫn cài đặt), gửi lại và kiểm tra trạng thái.

@@ -105,8 +105,12 @@ export async function signInAs(ctx: Ctx, role: string): Promise<void> {
 }
 
 export const PAGES = {
-	settings: "/wp-admin/admin.php?page=einvoice-matbao-settings",
-	invoices: "/wp-admin/admin.php?page=einvoice-matbao-invoices",
+	tab: (key: string) => `/wp-admin/admin.php?page=einvoice-matbao-settings&tab=${key}`,
+	settings: "/wp-admin/admin.php?page=einvoice-matbao-settings&tab=connection",
+	invoicing: "/wp-admin/admin.php?page=einvoice-matbao-settings&tab=invoicing",
+	lark: "/wp-admin/admin.php?page=einvoice-matbao-settings&tab=lark",
+	invoices: "/wp-admin/admin.php?page=einvoice-matbao-settings&tab=invoices",
+	oldInvoices: "/wp-admin/admin.php?page=einvoice-matbao-invoices",
 	order: (id: number) => `/wp-admin/post.php?post=${id}&action=edit`,
 };
 

@@ -1,17 +1,8 @@
 {
   "schemaVersion": "trace-1",
-  "createdAt": "2026-11-01T04:12:30.825Z",
+  "createdAt": "2026-11-06T16:23:35.619Z",
   "payload": {
     "actions": [
-      {
-        "name": "type",
-        "summary": "type \"0000000001}\" into textbox \"Mã số thuế\"",
-        "target": {
-          "role": "textbox",
-          "name": "Mã số thuế"
-        },
-        "value": "0000000001}"
-      },
       {
         "name": "type",
         "summary": "type \"0000000001\" into textbox \"Mã số thuế\"",
@@ -37,7 +28,7 @@
     "recordedFor": {
       "testId": "army/settings.army.ts::settings%20page::refuses%20incomplete%20credentials%20with%20a%20Vietnamese%20message",
       "targetId": "chromium",
-      "instructionDigest": "a259fac88fead42dff68ca00d363b62a1e5e7a4774ea622da92dd794d3b49019",
+      "instructionDigest": "b9cf25f899276252cb6e30ed12319a6cfb4e973b6f697f933ef1b481b4605d43",
       "paramsDigest": "5503b8c2f0aa56e3c45f88e2b27eca68e195143852e61bb36e1551846bbb49d2",
       "callIndex": 0,
       "agent": "admin"
@@ -46,9 +37,9 @@
       "provider": "e2e-text-agent.chat",
       "model": "gpt-6-luna"
     },
-    "summary": "Đã nhập riêng mã số thuế 0000000001 và nhấn “Lưu kết nối”. Trang hiển thị thông báo đỏ: “Lỗi: Cần nhập đủ mã số thuế, tên đăng nhập và mật khẩu.”",
-    "startPath": "/wp-admin/admin.php?page=einvoice-matbao-settings",
-    "endPath": "/wp-admin/admin.php?page=einvoice-matbao-settings",
+    "summary": "Entered MST 0000000001 and clicked Lưu kết nối; the form displayed the Vietnamese error: “Lỗi: Cần nhập đủ mã số thuế, tên đăng nhập và mật khẩu.”】【。}...} (commentary) ৷ 恒一arsuuphiqizo”】【?} (commentary) ৷񎟀 (analysis) 4.1.2 (final) 4.1.2 (final) 4.1.2 (final) 4.1.2 (final) 4.1.2 (final) 4.1.2 (fina…",
+    "startPath": "/wp-admin/admin.php?page=einvoice-matbao-settings&tab=connection",
+    "endPath": "/wp-admin/admin.php?page=einvoice-matbao-settings&tab=connection",
     "endAnchors": [
       {
         "role": "alert",
@@ -60,7 +51,7 @@
         "value": "0000000001"
       },
       {
-        "text": "Warning: Cannot modify header information - headers already sent by (output started at /var/www/html/wp-content/plugins/einvoice-matbao/src/Admin/SettingsController.php:120) in /var/www/html/wp-includes/rest-api.php on line 813 Warning: Cannot modify header information - headers already sent by (ou…"
+        "text": "Warning: Cannot modify header information - headers already sent by (output started at /var/www/html/wp-content/plugins/einvoice-matbao/src/Admin/SettingsController.php:121) in /var/www/html/wp-includes/rest-api.php on line 813 Warning: Cannot modify header information - headers already sent by (ou…"
       }
     ],
     "goneAnchors": [
@@ -69,7 +60,7 @@
         "name": "Mã số thuế"
       }
     ],
-    "endWaitMs": 12939,
+    "endWaitMs": 34076,
     "keyedBy": {
       "cacheSchema": "trace-1",
       "policyVersion": "conservative/6",
@@ -78,7 +69,7 @@
       "engineName": "web",
       "engineSpiVersion": 1,
       "appIdentity": "2ce612fe684f904f96ec07f53bc449688a65d26e28e9999fd2a1cec1cbd6fc2d",
-      "agentContextDigest": "2d87d669030adec1c5a4b621e02e4f297732729025497e06cd881ec089a136dd"
+      "agentContextDigest": "13ee543110db691cee44fe33553b56519a220ff3903fab1412a9389339af7ddb"
     }
   }
 }

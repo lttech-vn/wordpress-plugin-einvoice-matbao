@@ -226,8 +226,9 @@ final class SettingsInvoicingRestTest extends SettingsRestTestCase {
 			)
 		);
 
-		$page = get_echo( array( \LTTech\EinvoiceMatbao\Admin\SettingsPage::class, 'render' ) );
+		$page = \LTTech\EinvoiceMatbao\Admin\SettingsPage::render_tabs( 'invoicing' );
 
+		$this->assertStringContainsString( 'name="walk_in_buyer_name"', $page );
 		$this->assertStringNotContainsString( '<script>x</script>', $page );
 	}
 }

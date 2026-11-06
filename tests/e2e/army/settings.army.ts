@@ -14,17 +14,25 @@ describe("settings page", { serial: false, agent: "admin" }, () => {
 		await ctx.app.open(PAGES.settings);
 	});
 
-	test("shows the Mat Bao connection, template, MTChieu and Lark sections", async ({ screen }) => {
-		await expect(screen.getByRole("heading", "Cài đặt hóa đơn Mắt Bão")).toBeVisible();
-		for (const title of ["Kết nối Mắt Bão", "Mẫu hóa đơn mặc định", "Mã tham chiếu và người mua vãng lai", "Đơn vị tính", "Cảnh báo Lark"]) {
-			await expect(screen.getByRole("heading", title)).toBeVisible();
+	test("shows the Mat Bao connection, template, MTChieu and Lark sections on their tabs", async ({ screen, app }) => {
+		await expect(screen.getByRole("heading", "Hóa đơn Mắt Bão", { level: 1 })).toBeVisible();
+		const sections: [string, string[]][] = [
+			["connection", ["Kết nối Mắt Bão", "Mẫu hóa đơn mặc định"]],
+			["invoicing", ["Mã tham chiếu và người mua vãng lai", "Đơn vị tính"]],
+			["lark", ["Cảnh báo Lark"]],
+		];
+		for (const [key, titles] of sections) {
+			await app.open(PAGES.tab(key));
+			for (const title of titles) await expect(screen.getByRole("heading", title)).toBeVisible();
 		}
 	});
 
 	test("saves credentials encrypted and never renders the password back", async ({ agent, screen, app }) => {
-		await agent.act("in the Mat Bao connection section fill the tax code {mst}, the login name {user} and the password {pass}, then click the 'Lưu kết nối' button. The task is complete once a green or red notice appears under the connection form; an error notice is an acceptable result.", {
-			params: { mst: "0000000001", user: "e2e-user", pass: secrets.get("matbao-pass") },
-		});
+		// Exact fills (a misplaced agent keystroke is not the point of this test); the agent saves the form.
+		await screen.getByLabel("Mã số thuế").fill("0000000001");
+		await screen.getByLabel("Tên đăng nhập").fill("e2e-user");
+		await screen.getByLabel("Mật khẩu").fill(secrets.get("matbao-pass"));
+		await agent.act("In the 'Kết nối Mắt Bão' card click the button 'Lưu kết nối'. Stop once a notice appears below the form; a red error notice is an acceptable result.");
 		await expect(okNotice(screen)).toContainText("Đã lưu thông tin kết nối Mắt Bão (mã hóa).");
 
 		await app.open(PAGES.settings);
@@ -53,17 +61,17 @@ describe("settings page", { serial: false, agent: "admin" }, () => {
 	test("refuses incomplete credentials with a Vietnamese message", async ({ agent, app, screen }) => {
 		await seam({ app }, "/credentials/clear", {}); // a stored password would be kept, so start with none
 		await app.open(PAGES.settings);
-		await agent.act("in the Mat Bao connection section fill only the tax code {mst} and click the 'Lưu kết nối' button. The task is complete once a green or red notice appears under the connection form; an error notice is an acceptable result.", { params: { mst: "0000000001" } });
+		await agent.act("In the 'Kết nối Mắt Bão' card: 1) type {mst} into 'Mã số thuế', 2) click the button 'Lưu kết nối'. Leave every other field untouched. Stop once a notice appears below the form; a red error notice is an acceptable result.", { params: { mst: "0000000001" } });
 		await expect(errorNotice(screen)).toContainText("Cần nhập đủ mã số thuế, tên đăng nhập và mật khẩu.");
 	});
 
-	test("connection check succeeds against the fake and reports a rejected login", async ({ agent, screen, app }) => {
-		await agent.act("click the 'Kiểm tra kết nối' button once. The task is complete once a green or red notice appears next to the buttons; either colour is an acceptable result.");
+	test("connection check succeeds against the fake and reports a rejected login", async ({ screen, app }) => {
+		await screen.getByRole("button", "Kiểm tra kết nối").tap();
 		await expect(okNotice(screen)).toContainText("Kết nối Mắt Bão thành công.");
 
 		await fake("config", { login_fail: true });
 		await app.open(PAGES.settings); // no notice from the first click may satisfy the second goal
-		await agent.act("click the 'Kiểm tra kết nối' button once. The task is complete once a green or red notice appears next to the buttons; either colour is an acceptable result.");
+		await screen.getByRole("button", "Kiểm tra kết nối").tap();
 		await expect(errorNotice(screen)).toContainText("Mắt Bão từ chối thông tin đăng nhập.");
 	});
 
@@ -73,14 +81,17 @@ describe("settings page", { serial: false, agent: "admin" }, () => {
 		await expect(errorNotice(screen)).toContainText("Mắt Bão trả về lỗi.");
 	});
 
-	test("lists the VAT templates and saves the chosen one as the default", async ({ agent, screen }) => {
+	test("lists the VAT templates and saves the chosen one as the default", async ({ screen }) => {
 		await fake("config", {
 			templates: [
 				{ thDon: "Hóa đơn giá trị gia tăng", khmshDon: "1", khhDon: "C26TAT", sLuong: 1000, cLai: 500 },
 				{ thDon: "Hóa đơn giá trị gia tăng", khmshDon: "1", khhDon: "C26TKK", sLuong: 1000, cLai: 20 },
 			],
 		});
-		await agent.act("reload the template list, pick the template whose series is {series} and save it as the default template", { params: { series: "C26TKK" } });
+		await screen.getByRole("button", "Tải lại danh sách mẫu").tap();
+		await expect(screen.getByLabel("Mẫu số / ký hiệu")).toBeVisible();
+		await screen.getByLabel("Mẫu số / ký hiệu").selectOption({ value: "1|C26TKK" });
+		await screen.getByRole("button", "Lưu mẫu mặc định").tap();
 		await expect(okNotice(screen)).toContainText("Đã chọn mẫu mặc định 1 / C26TKK.");
 	});
 
@@ -94,23 +105,26 @@ describe("settings page", { serial: false, agent: "admin" }, () => {
 	});
 
 	test("rejects a MTChieu prefix with accents and keeps the old one", async ({ screen, app }) => {
+		await app.open(PAGES.invoicing);
 		// Exact steps: three buttons are named "Lưu", so the test pins the first one.
 		await screen.getByLabel("Prefix mã tham chiếu (MTChieu)").fill("QUÁDÀI");
 		await screen.getByRole("button", "Lưu").first().tap();
-		await app.open(PAGES.settings);
+		await app.open(PAGES.invoicing);
 		await expect(screen.getByLabel("Prefix mã tham chiếu (MTChieu)")).toHaveValue("E2E");
 	});
 
 	test("saves the MTChieu prefix and the walk-in buyer name", async ({ screen, app }) => {
+		await app.open(PAGES.invoicing);
 		await screen.getByLabel("Prefix mã tham chiếu (MTChieu)").fill("SHOP");
 		await screen.getByLabel("Tên người mua vãng lai (NMua_Ten)").fill("Khách mua lẻ E2E");
 		await screen.getByRole("button", "Lưu").first().tap();
 		await expect(okNotice(screen)).toContainText("Đã lưu. Ví dụ MTChieu: SHOPWC1234. Tên người mua vãng lai: Khách mua lẻ E2E.");
-		await app.open(PAGES.settings);
+		await app.open(PAGES.invoicing);
 		await expect(screen.getByLabel("Prefix mã tham chiếu (MTChieu)")).toHaveValue("SHOP");
 	});
 
-	test("saves the default unit of measure", async ({ screen }) => {
+	test("saves the default unit of measure", async ({ screen, app }) => {
+		await app.open(PAGES.invoicing);
 		await screen.getByLabel("Đơn vị tính mặc định (DVTinh)").fill("Lượt");
 		await screen.getByRole("button", "Lưu").nth(1).tap();
 		await expect(okNotice(screen)).toContainText("Đã lưu. Đơn vị tính mặc định: Lượt.");

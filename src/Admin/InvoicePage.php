@@ -26,6 +26,19 @@ final class InvoicePage {
 	private const INPUT     = 'rounded-einv-sm border border-einv-hairline-input bg-white px-3 py-2 text-[14px] text-einv-ink';
 	private const CARD      = 'mb-6 rounded-einv-lg border border-einv-hairline bg-white p-6 shadow-einv-card';
 	private const MUTED     = 'text-[13px] text-einv-ink-mute';
+	private const BADGE     = 'inline-flex items-center rounded-full px-2 py-0.5 text-[12px] font-medium';
+
+	/**
+	 * Badge colours per status group.
+	 *
+	 * @var array<string, string>
+	 */
+	private const BADGE_COLORS = array(
+		InvoiceStatus::GROUP_ERROR   => 'bg-einv-error-bg text-einv-error',
+		InvoiceStatus::GROUP_CREATED => 'bg-einv-success-bg text-einv-success',
+		InvoiceStatus::GROUP_WAITING => 'bg-einv-primary/10 text-einv-primary',
+		InvoiceStatus::GROUP_OTHER   => 'bg-einv-canvas-soft text-einv-ink-mute',
+	);
 
 	/**
 	 * Hooks the menu.
@@ -35,47 +48,54 @@ final class InvoicePage {
 	}
 
 	/**
-	 * Adds the submenu under WooCommerce.
+	 * Registers a hidden page so old bookmarks of the invoice list keep working; it only redirects.
 	 */
 	public static function register_menu(): void {
-		add_submenu_page(
-			'woocommerce',
+		$hook = add_submenu_page(
+			'',
 			__( 'Danh sách hóa đơn Mắt Bão', 'einvoice-matbao' ),
 			__( 'Danh sách hóa đơn', 'einvoice-matbao' ),
 			SettingsPage::CAPABILITY,
 			self::SLUG,
-			array( self::class, 'render' )
+			array( self::class, 'redirect_to_tab' )
 		);
+		if ( is_string( $hook ) && '' !== $hook ) {
+			add_action( 'load-' . $hook, array( self::class, 'redirect_to_tab' ) );
+		}
 	}
 
 	/**
-	 * Renders the page shell; the list loads through htmx.
+	 * Sends the old invoice list URL to the invoices tab.
 	 */
-	public static function render(): void {
-		if ( ! current_user_can( SettingsPage::CAPABILITY ) ) {
-			return;
+	public static function redirect_to_tab(): void {
+		if ( wp_safe_redirect( AdminTabs::url( AdminTabs::DEFAULT ), 302 ) ) {
+			exit;
 		}
+	}
 
+	/**
+	 * Dashboard, filter form and the list container.
+	 *
+	 * @return string Escaped HTML.
+	 */
+	public static function render_panel(): string {
 		$list = rest_url( SettingsController::NAMESPACE . '/invoices' );
+		ob_start();
 		?>
-		<div class="wrap">
-			<h1 class="wp-heading-inline"><?php esc_html_e( 'Danh sách hóa đơn Mắt Bão', 'einvoice-matbao' ); ?></h1>
-			<div id="einv-app" class="mt-4 font-einv text-einv-ink" hx-swap="innerHTML">
-				<div id="einv-dashboard" hx-get="<?php echo esc_url( rest_url( SettingsController::NAMESPACE . '/dashboard' ) ); ?>" hx-trigger="load"></div>
-				<form class="mb-4 flex flex-wrap items-end gap-2" hx-get="<?php echo esc_url( $list ); ?>" hx-target="#einv-invoices" hx-trigger="submit, change from:select, keyup changed delay:400ms from:input[name=q]">
-					<select name="status" class="<?php echo esc_attr( self::INPUT ); ?>" aria-label="<?php esc_attr_e( 'Trạng thái', 'einvoice-matbao' ); ?>">
-						<option value=""><?php esc_html_e( 'Tất cả trạng thái', 'einvoice-matbao' ); ?></option>
-						<?php foreach ( InvoiceStatus::filter_labels() as $value => $label ) : ?>
-							<option value="<?php echo esc_attr( $value ); ?>"><?php echo esc_html( $label ); ?></option>
-						<?php endforeach; ?>
-					</select>
-					<input type="search" name="q" maxlength="40" placeholder="<?php esc_attr_e( 'Mã đơn hoặc MTChieu', 'einvoice-matbao' ); ?>" aria-label="<?php esc_attr_e( 'Mã đơn hoặc MTChieu', 'einvoice-matbao' ); ?>" class="<?php echo esc_attr( self::INPUT ); ?>" />
-					<button type="submit" class="<?php echo esc_attr( self::BUTTON ); ?>"><?php esc_html_e( 'Lọc', 'einvoice-matbao' ); ?></button>
-				</form>
-				<div id="einv-invoices" hx-get="<?php echo esc_url( $list ); ?>" hx-trigger="load"><p class="<?php echo esc_attr( self::MUTED ); ?>"><?php esc_html_e( 'Đang tải…', 'einvoice-matbao' ); ?></p></div>
-			</div>
-		</div>
+		<div id="einv-dashboard" hx-get="<?php echo esc_url( rest_url( SettingsController::NAMESPACE . '/dashboard' ) ); ?>" hx-trigger="load"></div>
+		<form class="mb-4 flex flex-wrap items-end gap-2" hx-get="<?php echo esc_url( $list ); ?>" hx-target="#einv-invoices" hx-trigger="submit, change from:select, keyup changed delay:400ms from:input[name=q]">
+			<select name="status" class="<?php echo esc_attr( self::INPUT ); ?>" aria-label="<?php esc_attr_e( 'Trạng thái', 'einvoice-matbao' ); ?>">
+				<option value=""><?php esc_html_e( 'Tất cả trạng thái', 'einvoice-matbao' ); ?></option>
+				<?php foreach ( InvoiceStatus::filter_labels() as $value => $label ) : ?>
+					<option value="<?php echo esc_attr( $value ); ?>"><?php echo esc_html( $label ); ?></option>
+				<?php endforeach; ?>
+			</select>
+			<input type="search" name="q" maxlength="40" placeholder="<?php esc_attr_e( 'Mã đơn hoặc MTChieu', 'einvoice-matbao' ); ?>" aria-label="<?php esc_attr_e( 'Mã đơn hoặc MTChieu', 'einvoice-matbao' ); ?>" class="<?php echo esc_attr( self::INPUT ); ?>" />
+			<button type="submit" class="<?php echo esc_attr( self::BUTTON ); ?>"><?php esc_html_e( 'Lọc', 'einvoice-matbao' ); ?></button>
+		</form>
+		<div id="einv-invoices" hx-get="<?php echo esc_url( $list ); ?>" hx-trigger="load"><p class="<?php echo esc_attr( self::MUTED ); ?>"><?php esc_html_e( 'Đang tải…', 'einvoice-matbao' ); ?></p></div>
 		<?php
+		return (string) ob_get_clean();
 	}
 
 	/**
@@ -140,7 +160,7 @@ final class InvoicePage {
 				'<tr data-einv-invoice-row="%1$d"><td>#%1$d</td><td><code>%2$s</code></td><td>%3$s</td><td>%4$s</td><td>%5$s</td><td><button type="button" class="%6$s" hx-get="%7$s" hx-target="#einv-invoices">%8$s</button></td></tr>',
 				$invoice->order_id,
 				esc_html( $invoice->reference ),
-				esc_html( InvoiceStatus::label( $invoice->status ) ),
+				self::badge( $invoice->status ),
 				esc_html( null === $error ? '' : $error->label() ),
 				esc_html( $invoice->updated_at ),
 				esc_attr( self::SECONDARY ),
@@ -173,6 +193,24 @@ final class InvoicePage {
 	}
 
 	/**
+	 * Status as a coloured badge, coloured by status group.
+	 *
+	 * @param string $status Invoice status.
+	 * @return string Escaped HTML.
+	 */
+	private static function badge( string $status ): string {
+		$group = InvoiceStatus::group( $status );
+
+		return sprintf(
+			'<span class="%1$s %2$s" data-einv-badge="%3$s">%4$s</span>',
+			esc_attr( self::BADGE ),
+			esc_attr( self::BADGE_COLORS[ $group ] ?? self::BADGE_COLORS[ InvoiceStatus::GROUP_OTHER ] ),
+			esc_attr( $group ),
+			esc_html( InvoiceStatus::label( $status ) )
+		);
+	}
+
+	/**
 	 * Detail of one invoice: state, error, template, attempts, and the status check and resend actions.
 	 *
 	 * @param InvoiceRecord              $invoice  Invoice.
@@ -182,10 +220,11 @@ final class InvoicePage {
 		$base  = rest_url( SettingsController::NAMESPACE . '/invoices/' . $invoice->id );
 		$error = $invoice->error();
 
-		$rows = array(
+		$status_label = __( 'Trạng thái', 'einvoice-matbao' );
+		$rows         = array(
 			__( 'Đơn hàng', 'einvoice-matbao' )           => '#' . $invoice->order_id,
 			'MTChieu'                                     => $invoice->reference,
-			__( 'Trạng thái', 'einvoice-matbao' )         => InvoiceStatus::label( $invoice->status ),
+			$status_label                                 => $invoice->status,
 			__( 'Mã hóa đơn Mắt Bão', 'einvoice-matbao' ) => $invoice->matbao_invoice_id ?? '—',
 			__( 'Mẫu số / ký hiệu đã lưu', 'einvoice-matbao' ) => '' === $invoice->template_form ? '—' : $invoice->template_form . ' / ' . $invoice->template_series,
 			__( 'Người mua', 'einvoice-matbao' )          => Redactor::redact( $invoice->buyer_name ),
@@ -201,7 +240,8 @@ final class InvoicePage {
 		$html .= null === $error ? '' : sprintf( ' data-einv-error-code="%s"', esc_attr( $error->value ) );
 		$html .= sprintf( '><button type="button" class="%1$s mb-3" hx-get="%2$s" hx-target="#einv-invoices">%3$s</button><dl class="m-0 grid grid-cols-[200px_1fr] gap-y-2 text-[14px]">', esc_attr( self::SECONDARY ), esc_url( rest_url( SettingsController::NAMESPACE . '/invoices' ) ), esc_html__( '‹ Danh sách', 'einvoice-matbao' ) );
 		foreach ( $rows as $label => $value ) {
-			$html .= sprintf( '<dt class="%1$s">%2$s</dt><dd class="m-0 break-all">%3$s</dd>', esc_attr( self::MUTED ), esc_html( $label ), esc_html( $value ) );
+			$cell  = $label === $status_label ? self::badge( $invoice->status ) : esc_html( $value );
+			$html .= sprintf( '<dt class="%1$s">%2$s</dt><dd class="m-0 break-all">%3$s</dd>', esc_attr( self::MUTED ), esc_html( $label ), $cell );
 		}
 		$html .= '</dl>';
 

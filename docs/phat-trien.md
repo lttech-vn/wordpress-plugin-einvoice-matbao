@@ -80,7 +80,7 @@ bun run test       # test quy tắc checkout phía trình duyệt
 
 ### Cài đặt và credential
 
-Trang cài đặt ở **WooCommerce → Hóa đơn Mắt Bão** (chỉ Administrator). Credential Mắt Bão và webhook Lark được mã hóa (libsodium secretbox) bằng khóa lấy từ hằng trong `wp-config.php`:
+Plugin có một màn hình duy nhất **WooCommerce → Hóa đơn Mắt Bão** (chỉ Administrator), chia 5 tab: **Hóa đơn** (mặc định), **Kết nối Mắt Bão**, **Xuất hóa đơn**, **Cảnh báo Lark**, **Nâng cao**. Registry tab ở `AdminTabs`; chuyển tab bằng htmx qua route `GET tabs/{tab}` (trả tab bar + panel, `hx-push-url` cập nhật `&tab=`), mở trực tiếp URL có `tab` thì server render đúng tab, key lạ quay về tab Hóa đơn. Slug cũ `einvoice-matbao-invoices` là trang ẩn chuyển hướng 302 sang `&tab=invoices`. CSS admin của WordPress không nằm trong `@layer` nên thắng utility Tailwind; link tab dùng utility `!important` (`!text-…`, `focus-visible:!outline-…`) để giữ màu và vòng focus. Credential Mắt Bão và webhook Lark được mã hóa (libsodium secretbox) bằng khóa lấy từ hằng trong `wp-config.php`:
 
 ```php
 define( 'EINVOICE_MATBAO_ENCRYPTION_KEY', '<chuỗi ngẫu nhiên, tối thiểu 32 ký tự>' );
@@ -108,7 +108,7 @@ Trước lần gọi create, action đọc lại đơn và cài đặt, rồi l�
 
 ### Danh sách hóa đơn và gửi lại
 
-Administrator quản lý hóa đơn ở **WooCommerce → Danh sách hóa đơn**: lọc theo trạng thái (gồm nhóm lỗi/cần xử lý), tìm theo order ID hoặc đầu `MTChieu` (prefix match), xem chi tiết với lịch sử attempt (CCCD luôn bị che), kiểm tra nháp trên Mắt Bão và gửi lại. Gửi lại đi qua retry workflow, tra cứu theo `MTChieu` trước khi tạo, nên không bao giờ tạo trùng:
+Administrator quản lý hóa đơn ở tab **Hóa đơn** của màn hình **WooCommerce → Hóa đơn Mắt Bão**: lọc theo trạng thái (gồm nhóm lỗi/cần xử lý), tìm theo order ID hoặc đầu `MTChieu` (prefix match), xem chi tiết với lịch sử attempt (CCCD luôn bị che), kiểm tra nháp trên Mắt Bão và gửi lại. Gửi lại đi qua retry workflow, tra cứu theo `MTChieu` trước khi tạo, nên không bao giờ tạo trùng:
 
 - Nháp biến mất khỏi Mắt Bão không bao giờ được tạo lại tự động; gửi lại cần xác nhận rõ ràng và tra cứu rỗng dưới mẫu đã lưu.
 - Trạng thái dừng `template_changed` chỉ được giải phóng khi admin gõ lại `MTChieu` **và** tra cứu dưới mẫu cũ (đã lưu) trả rỗng. Tìm thấy gì đó hoặc tra cứu lỗi thì từ chối, không đổi gì. Chỉ request thắng lượt restart mới ghi attempt `admin_absent` và xóa mẫu đã lưu.
@@ -174,7 +174,7 @@ Notice hiện cho user `manage_options` (tối đa 10 cảnh báo mở, một qu
 
 ### Đơn vị tính (`DVTinh`)
 
-Mặc định cửa hàng đặt ở trang cài đặt; fee và shipping luôn dùng giá trị này. Sản phẩm hoặc biến thể có thể override; biến thể không có override riêng thì kế thừa sản phẩm cha (meta `_einvoice_matbao_unit`).
+Mặc định cửa hàng đặt ở tab **Xuất hóa đơn**; fee và shipping luôn dùng giá trị này. Sản phẩm hoặc biến thể có thể override; biến thể không có override riêng thì kế thừa sản phẩm cha (meta `_einvoice_matbao_unit`).
 
 Giới hạn: đơn vị theo sản phẩm chỉ sửa được ở màn hình sửa sản phẩm (và panel biến thể). Quick edit, bulk edit và import CSV chưa hỗ trợ; chúng giữ nguyên override đang có.
 
@@ -226,7 +226,7 @@ Deactivate hủy mọi action đang xếp của plugin (group `einvoice-matbao`:
 | Mọi option `einvoice_matbao_*` khác (cài đặt, schema version) | giữ | xóa |
 | Đơn hàng và sản phẩm WooCommerce | giữ | giữ |
 
-Công tắc nằm ở phần **Gỡ plugin** trên trang cài đặt (`POST settings/uninstall`): mặc định tắt, cần Administrator và nonce `wp_rest` như mọi route cài đặt, bật lên phải gõ `XOA HET DU LIEU`. Tắt không cần xác nhận. Hóa đơn trên Mắt Bão không bao giờ bị ảnh hưởng. Xóa meta trên shop rất lớn chạy một câu lệnh mỗi key, không chia batch.
+Công tắc nằm ở phần **Gỡ plugin** trong tab **Nâng cao** (`POST settings/uninstall`): mặc định tắt, cần Administrator và nonce `wp_rest` như mọi route cài đặt, bật lên phải gõ `XOA HET DU LIEU`. Tắt không cần xác nhận. Hóa đơn trên Mắt Bão không bao giờ bị ảnh hưởng. Xóa meta trên shop rất lớn chạy một câu lệnh mỗi key, không chia batch.
 
 ## Quy tắc tạo nháp và giới hạn đã biết
 

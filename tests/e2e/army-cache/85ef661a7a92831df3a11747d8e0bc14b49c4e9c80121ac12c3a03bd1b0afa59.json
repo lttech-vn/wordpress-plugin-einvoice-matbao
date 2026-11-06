@@ -1,6 +1,6 @@
 {
   "schemaVersion": "trace-1",
-  "createdAt": "2026-11-01T04:13:45.324Z",
+  "createdAt": "2026-11-06T16:24:11.706Z",
   "payload": {
     "actions": [
       {
@@ -31,7 +31,7 @@
     "recordedFor": {
       "testId": "army/units-permissions.army.ts::product%20unit%20field::the%20override%20saved%20on%20the%20product%20edit%20screen%20is%20sent%20on%20the%20invoice%20line",
       "targetId": "chromium",
-      "instructionDigest": "33c83e1f09d836f5ce5141bd83ac424d75a1672525ae17604f845ab324e2a176",
+      "instructionDigest": "3e2a3bd52bd10d4dfcd459cc94761a4e39d458f6d24a1c0a06c81f74f0deccd9",
       "paramsDigest": "ead4ae0dd92e684f28590abf5bd4d4ce00cf7d5ea542636f36d04b033a9bafce",
       "callIndex": 0,
       "agent": "admin"
@@ -40,7 +40,7 @@
       "provider": "e2e-text-agent.chat",
       "model": "gpt-6-luna"
     },
-    "summary": "Set “Đơn vị tính hóa đơn” to “Tháng” and updated the product. The page confirms “Product updated” and the field remains saved as “Tháng”.",
+    "summary": "Đơn vị tính hóa đơn was set to “Tháng” and Update completed. The reloaded product edit screen shows “Product updated” and the field value remains “Tháng”.",
     "startPath": "/wp-admin/post.php?post=14&action=edit",
     "endPath": "/wp-admin/post.php?post=14&action=edit",
     "endAnchors": [
@@ -72,7 +72,7 @@
         "placeholder": "Gói"
       }
     ],
-    "endWaitMs": 14691,
+    "endWaitMs": 13279,
     "keyedBy": {
       "cacheSchema": "trace-1",
       "policyVersion": "conservative/6",
@@ -81,7 +81,7 @@
       "engineName": "web",
       "engineSpiVersion": 1,
       "appIdentity": "2ce612fe684f904f96ec07f53bc449688a65d26e28e9999fd2a1cec1cbd6fc2d",
-      "agentContextDigest": "2d87d669030adec1c5a4b621e02e4f297732729025497e06cd881ec089a136dd"
+      "agentContextDigest": "13ee543110db691cee44fe33553b56519a220ff3903fab1412a9389339af7ddb"
     }
   }
 }

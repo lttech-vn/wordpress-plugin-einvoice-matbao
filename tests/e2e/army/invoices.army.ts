@@ -89,13 +89,13 @@ describe("invoice admin", { serial: false, agent: "admin" }, () => {
 		await expect(browser.locator(`#order-${good}`)).toBeVisible();
 	});
 
-	test("the order screen offers a resend for a failed invoice (story 20)", async ({ app, screen }) => {
+	test("the order screen offers a resend for a failed invoice (story 20)", async ({ app, screen, browser }) => {
 		await script("create-invoice", [{ http: 400 }]);
 		const orderId = await completedOrder({ app });
 		await waitForStatus({ app }, orderId, "failed");
 		await app.open(PAGES.order(orderId));
 		await expect(screen.getByText("Lỗi", { exact: false }).first()).toBeVisible();
-		await expect(screen.getByRole("link", "Danh sách hóa đơn")).toBeVisible();
+		await expect(browser.locator('#adminmenu a[href*="page=einvoice-matbao-settings"]')).toBeVisible();
 	});
 
 	test("the dashboard counts errors, waiting and created drafts and links to the filtered list", async ({ app, screen, browser }) => {

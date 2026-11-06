@@ -101,7 +101,7 @@ final class SettingsUninstallRestTest extends SettingsRestTestCase {
 	}
 
 	public function test_settings_page_shows_the_switch_unchecked_by_default(): void {
-		$page = get_echo( array( SettingsPage::class, 'render' ) );
+		$page = SettingsPage::render_tabs( 'advanced' );
 
 		$this->assertStringContainsString( rest_url( 'einvoice-matbao/v1' . self::ROUTE ), $page );
 		$this->assertMatchesRegularExpression( '/<input[^>]*name="delete_data_on_uninstall"(?![^>]*checked)[^>]*>/', $page );
@@ -111,7 +111,7 @@ final class SettingsUninstallRestTest extends SettingsRestTestCase {
 	public function test_settings_page_shows_the_switch_checked_once_enabled(): void {
 		( new Settings() )->save_delete_data_on_uninstall( true );
 
-		$page = get_echo( array( SettingsPage::class, 'render' ) );
+		$page = SettingsPage::render_tabs( 'advanced' );
 
 		$this->assertMatchesRegularExpression( '/<input[^>]*name="delete_data_on_uninstall"[^>]*checked/', $page );
 	}

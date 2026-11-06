@@ -47,6 +47,7 @@ final class SettingsController {
 			'/settings/template'    => array( WP_REST_Server::CREATABLE, 'save_template' ),
 			'/settings/invoicing'   => array( WP_REST_Server::CREATABLE, 'save_invoicing' ),
 			'/settings/unit'        => array( WP_REST_Server::CREATABLE, 'save_unit' ),
+			'/tabs/(?P<tab>[^/]+)'  => array( WP_REST_Server::READABLE, 'show_tab' ),
 		);
 
 		foreach ( $routes as $route => list( $methods, $handler ) ) {
@@ -121,6 +122,23 @@ final class SettingsController {
 		}
 
 		return true;
+	}
+
+	/**
+	 * Serves the tab bar plus one tab panel, for htmx swaps into `#einv-tabs`.
+	 *
+	 * The key check is exact and case-sensitive, matching `AdminTabs::resolve()`.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 */
+	public function show_tab( WP_REST_Request $request ): WP_REST_Response {
+		$key = $request['tab'];
+
+		if ( ! is_string( $key ) || ! array_key_exists( $key, AdminTabs::labels() ) ) {
+			return Fragment::error( __( 'Không tìm thấy tab này.', 'einvoice-matbao' ), 404 );
+		}
+
+		return Fragment::response( SettingsPage::render_tabs( $key ) );
 	}
 
 	/**
