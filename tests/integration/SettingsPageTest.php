@@ -135,6 +135,16 @@ final class SettingsPageTest extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'hx-target="#einv-tabs"', $html );
 	}
 
+	public function test_tab_link_colours_use_important_utilities(): void {
+		$html = SettingsPage::render_tabs( 'invoices' );
+
+		$this->assertSame( 1, substr_count( $html, '!text-einv-primary' ) - substr_count( $html, 'focus:!text-einv-primary' ) );
+		$this->assertSame( 1, substr_count( $html, 'focus:!text-einv-primary' ) );
+		$this->assertSame( count( AdminTabs::labels() ) - 1, substr_count( $html, ' !text-einv-ink-mute' ) );
+		$this->assertStringContainsString( 'hover:!text-einv-ink', $html );
+		$this->assertStringContainsString( 'focus:!shadow-none', $html );
+	}
+
 	public function test_encryption_banner_renders_above_the_tab_bar(): void {
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
 

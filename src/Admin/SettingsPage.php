@@ -34,7 +34,7 @@ final class SettingsPage {
 	private const CARD      = 'mb-6 rounded-einv-lg border border-einv-hairline bg-white p-6 shadow-einv-card';
 	private const TITLE     = 'm-0 mb-1 text-[20px] font-light tracking-[-0.2px] text-einv-ink';
 	private const TAB_BAR   = 'flex gap-6 overflow-x-auto border-b border-einv-hairline';
-	private const TAB_LINK  = '-mb-px whitespace-nowrap border-b-2 px-1 pb-3 pt-1 text-[14px] no-underline focus:shadow-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-einv-primary';
+	private const TAB_LINK  = '-mb-px whitespace-nowrap border-b-2 px-1 pb-3 pt-1 text-[14px] no-underline focus:!shadow-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-einv-primary';
 
 	/**
 	 * Hooks the menu and assets.
@@ -129,7 +129,7 @@ final class SettingsPage {
 				$url,
 				esc_url( rest_url( SettingsController::NAMESPACE . '/tabs/' . $key ) ),
 				esc_attr( $key ),
-				esc_attr( self::TAB_LINK . ( $active ? ' border-einv-primary font-medium text-einv-primary' : ' border-transparent text-einv-ink-mute hover:text-einv-ink' ) ),
+				esc_attr( self::TAB_LINK . ( $active ? ' border-einv-primary font-medium !text-einv-primary focus:!text-einv-primary' : ' border-transparent !text-einv-ink-mute hover:!text-einv-ink focus:!text-einv-ink' ) ),
 				$active ? ' aria-current="page"' : '',
 				esc_html( $text )
 			);
