@@ -1,104 +1,85 @@
-# Browser E2E (e2e framework)
+# Browser E2E (framework e2e)
 
-Browser tests for the plugin's user stories, run with [`e2e`](https://e2e.tester.army/) and modelled on the
-`workvps/manage` setup. `bun run e2e:replay` is meant as a gate: the `e2e` job (added with the release pipeline, #32) runs it on pushes to
-`main` and before every release; pull requests do not. The Mat Bao demo API checks live in
-[`demo-api/`](demo-api) (Python, guarded) and their results in `docs/research/e2e-demo-results.md`.
+Test trình duyệt cho các user story của plugin, chạy bằng [`e2e`](https://e2e.tester.army/), dựng theo mẫu `workvps/manage`. `bun run e2e:replay` là cổng kiểm tra: job `e2e` (thêm cùng pipeline phát hành, #32) chạy nó khi push lên `main` và trước mỗi lần phát hành; pull request không chạy. Kiểm tra API demo Mắt Bão nằm trong [`demo-api/`](demo-api) (Python, có bảo vệ), kết quả ở [`docs/research/e2e-demo-results.md`](../../docs/research/e2e-demo-results.md).
 
-## Suites (hybrid: the agent drives, exact steps pin)
+## Các suite (hybrid: agent điều khiển, bước chính xác để chốt)
 
-The agent (`agent.act`) performs the user-facing flows; every agent step is followed by an exact `expect`. Steps stay
-exact where an agent is the wrong tool: forcing a refusal, choosing one of several identically named buttons
-(three "Lưu" buttons on the settings page), WooCommerce's hidden address editor, and state the screen cannot show.
-Two agents are configured: `default` (checkout) and `admin` (wp-admin; its context names the plugin screens).
+Agent (`agent.act`) thực hiện các luồng người dùng; mọi bước agent đều có một `expect` chính xác theo sau. Các bước giữ dạng chính xác khi agent không phù hợp: ép một lần từ chối, chọn một trong nhiều nút trùng tên (ba nút "Lưu" trên trang cài đặt), trình sửa địa chỉ bị ẩn của WooCommerce, và trạng thái màn hình không hiển thị được. Có hai agent: `default` (checkout) và `admin` (wp-admin; context của nó nêu tên các màn hình plugin).
 
-| File | Stories (spec #1) | Agent steps |
+| File | Story (spec #1) | Bước agent |
 |---|---|---|
-| `checkout-invoice.army.ts` | 13-15, 17, 19: place an order at Classic and Blocks checkout, complete it, see the draft | fill the invoice request |
-| `checkout-validation.army.ts` | 16, 18: browser rules mirror the server rules; Store API refuses bad data; CCCD never stored in the clear | valid business and individual requests |
-| `settings.army.ts` | 28-31, 33: encrypted credentials, connection check, template pick, MTChieu prefix, walk-in name, unit | save and test the connection, pick a template |
-| `invoices.army.ts` | 1, 3, 20-26: list, filters, search, detail, status check, resend, dashboard | open an invoice detail |
-| `failures.army.ts` | 4-7, 8, 10, 12, 38-40: blocked drafts, fee lines (7), 503/lost reply/305/retry count and backoff delays/exhausted retries | open an invoice detail |
-| `order-changes.army.ts` | 11, 12, 27: warnings after the draft, snapshot behaviour | none (exact; see above) |
-| `units-permissions.army.ts` | 32, 34: unit of measure (32), non-admins refused | edit the product unit |
+| `checkout-invoice.army.ts` | 13-15, 17, 19: đặt đơn ở Classic và Blocks checkout, hoàn thành, thấy nháp | điền yêu cầu xuất hóa đơn |
+| `checkout-validation.army.ts` | 16, 18: quy tắc trình duyệt khớp quy tắc server; Store API từ chối dữ liệu sai; CCCD không bao giờ lưu dạng rõ | yêu cầu doanh nghiệp và cá nhân hợp lệ |
+| `settings.army.ts` | 28-31, 33: credential mã hóa, kiểm tra kết nối, chọn mẫu, prefix MTChieu, tên vãng lai, đơn vị tính | lưu và kiểm tra kết nối, chọn mẫu |
+| `invoices.army.ts` | 1, 3, 20-26: danh sách, bộ lọc, tìm kiếm, chi tiết, kiểm tra trạng thái, gửi lại, tổng quan | mở chi tiết hóa đơn |
+| `failures.army.ts` | 4-7, 8, 10, 12, 38-40: chặn nháp, dòng phí (7), 503/mất phản hồi/305/số lần retry và khoảng chờ/hết retry | mở chi tiết hóa đơn |
+| `order-changes.army.ts` | 11, 12, 27: cảnh báo sau khi có nháp, hành vi snapshot | không (chính xác; xem trên) |
+| `units-permissions.army.ts` | 32, 34: đơn vị tính (32), từ chối user không phải admin | sửa đơn vị tính sản phẩm |
 
-Not covered here: Lark alerts, privacy export/erase, uninstall and the missing-WooCommerce path (PHPUnit covers them).
-Orders are HPOS (`setup-site.sh` pins it); the legacy order screens are covered by PHPUnit.
+Không phủ ở đây: cảnh báo Lark, xuất/xóa dữ liệu cá nhân, uninstall và trường hợp thiếu WooCommerce (PHPUnit phủ các phần này). Đơn dùng HPOS (`setup-site.sh` ghim); màn hình đơn legacy do PHPUnit phủ.
 
-## Fake Mat Bao
+## Mắt Bão giả
 
-`fake-matbao/router.php` is a small PHP server started in the WordPress container by `setup-site.sh`; the plugin reaches it
-through `EINVOICE_MATBAO_BASE_URL` (set in `wp-config.php`, fake mode only). Tests script failures per endpoint
-(`script("create-invoice", [{ http: 503, store: true }])`: the draft is stored but the reply is an error, the lost-reply
-case) and read what Mat Bao received. Shapes follow the recorded demo answers, including its non-atomic duplicate check.
-`wordpress/einv-e2e-http.php` (mu-plugin) refuses any Mat Bao host except the fake or the demo API and exposes the
-`einv-e2e/v1` seams (create orders, complete, make retries due, read rows) to arrange state quickly.
+`fake-matbao/router.php` là một server PHP nhỏ, do `setup-site.sh` khởi động trong container WordPress; plugin gọi tới nó qua `EINVOICE_MATBAO_BASE_URL` (đặt trong `wp-config.php`, chỉ ở chế độ fake). Test kịch bản hóa lỗi theo từng endpoint (`script("create-invoice", [{ http: 503, store: true }])`: nháp được lưu nhưng phản hồi là lỗi, tức trường hợp mất phản hồi) và đọc lại những gì Mắt Bão nhận được. Shape phản hồi theo các câu trả lời demo đã ghi, kể cả việc kiểm tra trùng không nguyên tử.
 
-Stack verified: WordPress 7.1.4, WooCommerce 11.2.1, PHP 8.5.12 (the `compose.yaml` stack), Chromium from the
-`@e2e-dev/web` install, Node 26 on Debian trixie in the runner image (bun for installs).
+`wordpress/einv-e2e-http.php` (mu-plugin) từ chối mọi host Mắt Bão trừ fake và API demo, và mở các seam `einv-e2e/v1` (tạo đơn, hoàn thành, làm retry đến hạn, đọc dòng) để dựng trạng thái nhanh.
 
-## What is tested (`army/checkout-invoice.army.ts`)
+Stack đã kiểm chứng: WordPress 7.1.4, WooCommerce 11.2.1, PHP 8.5.12 (stack `compose.yaml`), Chromium từ bản cài `@e2e-dev/web`, Node 26 trên Debian trixie trong image runner (cài đặt bằng bun).
 
-Classic and Checkout Blocks: walk-in (no tick) and business buyer; Classic also individual. Each places an order,
-completes it, then expects the draft in the order meta box ("Đã tạo nháp") and in WooCommerce → invoice list. Mat Bao
-is answered by the fake in `fake-matbao/router.php` (the mu-plugin `wordpress/einv-e2e-http.php` refuses a request to any host other than the fake or the demo API; the
-production host never leaves). Agent steps: the invoice request fields. Exact `screen` actions: billing fields (exact
-labels: `Address` must not match `Email address`), place order, login. Order completion goes through an E2E-only REST
-route of the same mu-plugin.
+## Những gì được test (`army/checkout-invoice.army.ts`)
 
-Real results with the earlier decision-model executor (live mode, same code, one run each):
+Classic và Checkout Blocks: vãng lai (không tick) và doanh nghiệp; Classic có thêm cá nhân. Mỗi test đặt đơn, hoàn thành đơn, rồi kỳ vọng thấy nháp trong hộp hóa đơn trên đơn ("Đã tạo nháp") và trong WooCommerce → danh sách hóa đơn.
 
-| Browser | Classic walk-in | Classic individual | Classic business | Blocks walk-in | Blocks business | Model calls (total) |
+- Mắt Bão do fake trong `fake-matbao/router.php` trả lời; mu-plugin `wordpress/einv-e2e-http.php` từ chối request tới mọi host khác fake hoặc API demo, nên request không bao giờ tới host production.
+- Bước agent: các trường yêu cầu xuất hóa đơn.
+- Hành động `screen` chính xác: trường billing (nhãn chính xác: `Address` không được khớp `Email address`), đặt hàng, đăng nhập. Hoàn thành đơn đi qua một REST route chỉ dành cho E2E của cùng mu-plugin.
+
+Kết quả thật với executor decision-model trước đây (chế độ live, cùng code, mỗi loại một lần):
+
+| Trình duyệt | Classic vãng lai | Classic cá nhân | Classic doanh nghiệp | Blocks vãng lai | Blocks doanh nghiệp | Tổng lần gọi model |
 |---|---|---|---|---|---|---|
-| Chromium (default) | pass 8 s | pass 19 s, 12 calls | pass 12 s, 15 calls | pass 4 s | pass 13 s, 15 calls | 42 |
-| Lightpanda 1.0.2 | pass 7 s | pass 47 s, 12 calls | pass 14 s, 15 calls | pass 4 s | pass 13 s, 15 calls | 42 |
+| Chromium (mặc định) | pass 8 s | pass 19 s, 12 lần | pass 12 s, 15 lần | pass 4 s | pass 13 s, 15 lần | 42 |
+| Lightpanda 1.0.2 | pass 7 s | pass 47 s, 12 lần | pass 14 s, 15 lần | pass 4 s | pass 13 s, 15 lần | 42 |
 
-Both browsers pass everything, so the cheaper and simpler Chromium stays the default (Lightpanda: `E2E_BROWSER=lightpanda`;
-the committed cache is recorded on Chromium). The `text` agent (`E2E_BLOCKS_AGENT=text`) is kept as an option but is not
-needed. Blocks originally failed because Classic and Blocks bundles clobbered each other's minified globals (fixed in
-PR #30: IIFE bundles, Classic script not loaded on Checkout Blocks pages). Lightpanda first failed on the bookworm image
-with `GLIBC_2.38 not found`; the runner now uses `node:26-trixie-slim` (glibc 2.41) and a sha256-pinned binary.
+- Cả hai trình duyệt đều pass, nên Chromium (rẻ và đơn giản hơn) là mặc định. Lightpanda: `E2E_BROWSER=lightpanda`; cache đã commit được ghi trên Chromium.
+- Agent `text` (`E2E_BLOCKS_AGENT=text`) được giữ làm tùy chọn nhưng không cần.
+- Blocks ban đầu lỗi vì bundle Classic và Blocks đè global đã minify của nhau (sửa ở PR #30: bundle IIFE, script Classic không nạp trên trang Checkout Blocks).
+- Lightpanda ban đầu lỗi trên image bookworm với `GLIBC_2.38 not found`; runner giờ dùng `node:26-trixie-slim` (glibc 2.41) và binary ghim sha256.
 
-Setup note: on a Checkout page created by WooCommerce, the invoice block does not appear on the front end by itself
-(`blockHooks` only inserts it when the editor saves the page). `setup-site.sh` therefore inserts the block markup with
-`wp eval`; this is a product observation, not something this test fixes.
+**Ghi chú setup:** trên trang Checkout do WooCommerce tạo, block hóa đơn không tự hiện ở front end (`blockHooks` chỉ chèn khi editor lưu trang). Vì vậy `setup-site.sh` chèn markup block bằng `wp eval`; đây là quan sát về sản phẩm, không phải thứ test này sửa.
 
-## Modes
+## Các chế độ chạy
 
 ```bash
 cd tests/e2e && bun install --frozen-lockfile
-cp .env.e2e.example .env.e2e.local      # fill in the model values; gitignored
-bun run e2e:list                        # lists the tests
-bun run e2e:record                      # model + cache read-write, whole stack in Docker
-bun run e2e:live                        # model, cache off
-bun run e2e:replay                      # cache read-only + strict, any *_API_KEY in the environment is refused
+cp .env.e2e.example .env.e2e.local      # điền giá trị model; đã gitignore
+bun run e2e:list                        # liệt kê test
+bun run e2e:record                      # model + cache đọc-ghi, toàn bộ stack trong Docker
+bun run e2e:live                        # model, tắt cache
+bun run e2e:replay                      # cache chỉ đọc + strict, từ chối mọi *_API_KEY trong môi trường
 ```
 
-`scripts/run-e2e.ts` starts a compose project per run (no published port, random admin password), a browser
-container sharing the WordPress network namespace (`http://localhost`), copies `.e2e/` and `army-cache/` to
-`test-results/runs/<id>/`, applies a report gate (all passed) and removes everything it created, also on SIGINT/SIGTERM.
-Agent steps use one plain chat model (built-in agent, tool calls) for every agent, as in https://e2e.tester.army/docs/models; `E2E_SYSTEMONE_*` is no longer read. The model variables (`E2E_TEXT_*`) reach the container only in record/live. The text model URL must be
-reachable from the container.
+Shell dev thường export sẵn khóa API (`OPENAI_API_KEY`, …) nên replay bị từ chối. Bỏ chúng chỉ cho lệnh này:
 
-Agent steps replay from `army-cache/` (8 entries, recorded with `gpt-6-luna`). Recording costs are under Cost and limits; replay costs none.
-Secrets for the settings tests are declared under `secrets` in the config (synthetic values); the agent sees only
-their names.
+```bash
+env $(env | grep -E '^[A-Z0-9_]*(API_KEY|AUTH_TOKEN|ACCESS_TOKEN)=' | cut -d= -f1 | sed 's/^/-u /') bun run e2e:replay
+```
 
-Cache review: after `record`, inspect `test-results/runs/<id>/army-cache/*.json`, confirm no credentials or personal
-data (admin password is random per run, buyer data is synthetic), copy it to `army-cache/` and commit. A changed
-instruction, app screen or `params` needs a new recording.
+`scripts/run-e2e.ts` khởi động một compose project cho mỗi lần chạy (không publish cổng, mật khẩu admin ngẫu nhiên), một container trình duyệt dùng chung network namespace với WordPress (`http://localhost`), copy `.e2e/` và `army-cache/` sang `test-results/runs/<id>/`, áp cổng báo cáo (tất cả pass) và xóa mọi thứ đã tạo, kể cả khi nhận SIGINT/SIGTERM.
 
-Order IDs and the replay cache (#35): the cache is keyed by an agent step's `params`, so a step that carries a
-WooCommerce order ID only replays while every earlier test creates the same orders. The first release run failed in a
-login (`signInAdmin` submitted before the page was ready), which shifted all later IDs and made six steps miss the cache
-(`MODEL_PROVIDER_FAILED` / `CI_MODEL_CALL_FORBIDDEN`). Two fixes: `signInAdmin` retries the form once, and opening the
-only invoice on the list is an exact locator (`openOnlyInvoice`), not an agent step with an ID in `params`. Keep IDs and
-timestamps out of `params`; read the first failure, not the cascade.
+- Bước agent dùng một chat model thường (agent tích hợp sẵn, tool call) cho mọi agent, như trong [tài liệu model của e2e](https://e2e.tester.army/docs/models); `E2E_SYSTEMONE_*` không còn được đọc.
+- Biến model (`E2E_TEXT_*`) chỉ vào container ở chế độ record/live. URL của text model phải truy cập được từ container.
+- Bước agent replay từ `army-cache/` (8 mục, ghi bằng `gpt-6-luna`). Chi phí ghi xem mục bên dưới; replay không tốn gì.
+- Secret cho test cài đặt được khai báo trong `secrets` của config (giá trị tổng hợp); agent chỉ thấy tên của chúng.
 
-Real demo: `EINV_DEMO_E2E=1 EINV_DEMO_MST=… EINV_DEMO_USER=… EINV_DEMO_PASS=… bun run e2e:live` (drafts only; never replay).
+**Review cache:** sau `record`, kiểm tra `test-results/runs/<id>/army-cache/*.json`, xác nhận không có credential hay dữ liệu cá nhân (mật khẩu admin ngẫu nhiên mỗi lần chạy, dữ liệu người mua là tổng hợp), copy vào `army-cache/` và commit. Đổi instruction, màn hình ứng dụng hoặc `params` thì phải ghi lại.
 
-## Cost and limits
+**Order ID và replay cache (#35):** cache được khóa theo `params` của bước agent, nên bước mang order ID WooCommerce chỉ replay được khi mọi test trước tạo đúng các đơn đó. Lần phát hành đầu lỗi ở một lần đăng nhập (`signInAdmin` submit trước khi trang sẵn sàng), làm lệch mọi ID sau đó và khiến sáu bước miss cache (`MODEL_PROVIDER_FAILED` / `CI_MODEL_CALL_FORBIDDEN`). Hai cách sửa: `signInAdmin` thử lại form một lần, và mở hóa đơn duy nhất trong danh sách dùng locator chính xác (`openOnlyInvoice`), không phải bước agent có ID trong `params`. Giữ ID và timestamp ngoài `params`; đọc lỗi đầu tiên, không phải chuỗi lỗi dây chuyền.
 
-Recording: about 245k tokens for the five checkout tests, about 1.5M for the whole suite. Replay: no model call, about 10 min for 67 tests.
-Limits: walk-in has no agent step (nothing to act on); one browser (Chromium); the cache depends on
-the exact page markup, so WooCommerce updates may require a re-record.
+**API demo thật:** `EINV_DEMO_E2E=1 EINV_DEMO_MST=… EINV_DEMO_USER=… EINV_DEMO_PASS=… bun run e2e:live` (chỉ tạo nháp; không bao giờ replay).
+
+## Chi phí và giới hạn
+
+- Ghi: khoảng 245k token cho năm test checkout, khoảng 1,5M cho toàn bộ suite.
+- Replay: không gọi model, khoảng 10 phút cho 67 test.
+- Giới hạn: vãng lai không có bước agent (không có gì để thao tác); một trình duyệt (Chromium); cache phụ thuộc markup chính xác của trang, nên cập nhật WooCommerce có thể cần ghi lại.

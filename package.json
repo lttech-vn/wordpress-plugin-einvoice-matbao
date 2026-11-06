@@ -1,7 +1,7 @@
 {
 	"name": "einvoice-matbao",
 	"private": true,
-	"description": "Admin UI assets for the Mat Bao e-invoice plugin.",
+	"description": "Asset giao diện admin và checkout của plugin hóa đơn điện tử Mắt Bão.",
 	"license": "GPL-2.0-or-later",
 	"scripts": {
 		"build": "bun run build:css && bun run build:htmx && bun run build:checkout && bun run build:checkout-blocks",

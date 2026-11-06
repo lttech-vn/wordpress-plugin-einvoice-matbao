@@ -8,7 +8,7 @@ Xử lý khi đơn hàng thay đổi sau khi completed hoặc đã có draft.
 
 ### Requirement: Post-draft order change only warns
 Hệ thống SHALL chỉ cảnh báo khi đơn đã có hóa đơn nháp bị đổi dòng hàng, tổng tiền, thuế, phí, giảm giá, người mua hoặc bị hoàn tiền: ghi mã cảnh báo loại `order` và giữ status `draft_created`; hệ thống MUST NOT cập nhật, hủy hay tạo lại nháp trên Mắt Bão.
-Evidence: src/Invoice/OrderChangeWatcher.php:120-121,153-178, tests/integration/PostDraftOrderChangeTest.php:106-129, tests/e2e/army/order-changes.army.ts:16-31, README.md:384-396
+Evidence: src/Invoice/OrderChangeWatcher.php:120-121,153-178, tests/integration/PostDraftOrderChangeTest.php:106-129, tests/e2e/army/order-changes.army.ts:16-31, docs/phat-trien.md:156-158
 
 #### Scenario: Amounts edited after draft
 - **WHEN** admin đổi tổng tiền đơn sau khi hóa đơn đã `draft_created`
@@ -56,7 +56,7 @@ Evidence: src/Invoice/OrderState.php:43-44,136-143, tests/integration/PostDraftO
 
 ### Requirement: Remembered order state is not readable
 Hệ thống SHALL ghi nhớ trạng thái đơn chỉ dưới dạng digest HMAC không đọc ngược được cho số tiền và người mua, cùng tổng số tiền đã hoàn.
-Evidence: src/Invoice/OrderState.php:14-18,67,132-134, README.md:384-394, tests/integration/BuyerPersonalDataPrivacyTest.php:140-160
+Evidence: src/Invoice/OrderState.php:14-18,67,132-134, docs/phat-trien.md:156-158, tests/integration/BuyerPersonalDataPrivacyTest.php:140-160
 
 #### Scenario: Stored state
 - **WHEN** trạng thái đơn được ghi nhớ trên bản ghi hóa đơn

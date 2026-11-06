@@ -65,7 +65,7 @@ Evidence: src/Plugin.php:21,78-86, tests/integration/PluginActivationTest.php:29
 
 ### Requirement: Deactivation cancels plugin actions and keeps data
 Hệ thống SHALL hủy mọi tác vụ nền của plugin khi plugin bị vô hiệu hóa, không đụng tác vụ của plugin khác, và giữ nguyên dữ liệu.
-Evidence: src/Plugin.php:68-70, src/Uninstall/Uninstaller.php:73-94, tests/integration/UninstallTest.php:191, README.md:258-260
+Evidence: src/Plugin.php:68-70, src/Uninstall/Uninstaller.php:73-94, tests/integration/UninstallTest.php:191, docs/phat-trien.md:212
 
 #### Scenario: Deactivate with queued actions
 - **WHEN** quản trị viên vô hiệu hóa plugin khi có tác vụ của plugin và của một plugin khác đang chờ
@@ -73,7 +73,7 @@ Evidence: src/Plugin.php:68-70, src/Uninstall/Uninstaller.php:73-94, tests/integ
 
 ### Requirement: Default uninstall removes secrets and caches
 Hệ thống SHALL khi WordPress xóa plugin mà công tắc xóa dữ liệu đang tắt (xem admin-settings) xóa credential đã lưu, token và cache của plugin, alert, và hủy tác vụ nền của plugin.
-Evidence: src/Uninstall/Uninstaller.php:119-129, README.md:266-277, tests/integration/UninstallTest.php:78-103,130-169
+Evidence: src/Uninstall/Uninstaller.php:119-129, docs/phat-trien.md:214-227, tests/integration/UninstallTest.php:78-103,130-169
 
 #### Scenario: Default uninstall
 - **WHEN** plugin bị xóa với công tắc tắt
@@ -89,7 +89,7 @@ Evidence: src/Uninstall/Uninstaller.php:119-129, README.md:266-277, tests/integr
 
 ### Requirement: Default uninstall keeps invoice data
 Hệ thống SHALL giữ bảng hóa đơn, order meta của người mua, đơn vị tính của sản phẩm, settings và phiên bản schema khi gỡ cài đặt với công tắc xóa dữ liệu đang tắt.
-Evidence: src/Uninstall/Uninstaller.php:119-129, README.md:266-277, tests/integration/UninstallTest.php:78-103
+Evidence: src/Uninstall/Uninstaller.php:119-129, docs/phat-trien.md:214-227, tests/integration/UninstallTest.php:78-103
 
 #### Scenario: Data kept
 - **WHEN** plugin bị xóa với công tắc tắt
@@ -97,7 +97,7 @@ Evidence: src/Uninstall/Uninstaller.php:119-129, README.md:266-277, tests/integr
 
 ### Requirement: Delete-all uninstall removes all plugin data
 Hệ thống SHALL khi công tắc xóa dữ liệu bật xóa toàn bộ dữ liệu của plugin lúc gỡ cài đặt: hai bảng hóa đơn, order meta người mua (cả HPOS lẫn lưu trữ cũ), đơn vị tính của sản phẩm và mọi option của plugin, nhưng không xóa đơn hàng hay sản phẩm.
-Evidence: src/Uninstall/Uninstaller.php:131-189, README.md:266-277, tests/integration/UninstallTest.php:104-129, tests/without-woocommerce/UninstallWithoutWooCommerceTest.php:53
+Evidence: src/Uninstall/Uninstaller.php:131-189, docs/phat-trien.md:214-227, tests/integration/UninstallTest.php:104-129, tests/without-woocommerce/UninstallWithoutWooCommerceTest.php:53
 
 #### Scenario: Switch on
 - **WHEN** plugin bị xóa với công tắc bật
