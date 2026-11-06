@@ -35,34 +35,29 @@ final class InvoicePage {
 	}
 
 	/**
-	 * Adds the submenu under WooCommerce.
+	 * Registers a hidden page so old bookmarks of the invoice list keep working; it only redirects.
 	 */
 	public static function register_menu(): void {
-		add_submenu_page(
-			'woocommerce',
+		$hook = add_submenu_page(
+			'',
 			__( 'Danh sách hóa đơn Mắt Bão', 'einvoice-matbao' ),
 			__( 'Danh sách hóa đơn', 'einvoice-matbao' ),
 			SettingsPage::CAPABILITY,
 			self::SLUG,
-			array( self::class, 'render' )
+			array( self::class, 'redirect_to_tab' )
 		);
+		if ( is_string( $hook ) && '' !== $hook ) {
+			add_action( 'load-' . $hook, array( self::class, 'redirect_to_tab' ) );
+		}
 	}
 
 	/**
-	 * Renders the page shell; the list loads through htmx.
+	 * Sends the old invoice list URL to the invoices tab.
 	 */
-	public static function render(): void {
-		if ( ! current_user_can( SettingsPage::CAPABILITY ) ) {
-			return;
+	public static function redirect_to_tab(): void {
+		if ( wp_safe_redirect( AdminTabs::url( AdminTabs::DEFAULT ), 302 ) ) {
+			exit;
 		}
-		?>
-		<div class="wrap">
-			<h1 class="wp-heading-inline"><?php esc_html_e( 'Danh sách hóa đơn Mắt Bão', 'einvoice-matbao' ); ?></h1>
-			<div id="einv-app" class="mt-4 font-einv text-einv-ink" hx-swap="innerHTML">
-				<?php echo self::render_panel(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- render_panel returns escaped HTML. ?>
-			</div>
-		</div>
-		<?php
 	}
 
 	/**

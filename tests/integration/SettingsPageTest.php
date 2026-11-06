@@ -8,6 +8,7 @@
 namespace LTTech\EinvoiceMatbao\Tests\Integration;
 
 use LTTech\EinvoiceMatbao\Admin\AdminTabs;
+use LTTech\EinvoiceMatbao\Admin\InvoicePage;
 use LTTech\EinvoiceMatbao\Admin\SettingsPage;
 use WP_UnitTestCase;
 
@@ -18,8 +19,11 @@ final class SettingsPageTest extends WP_UnitTestCase {
 
 	public function tear_down(): void {
 		unset( $_GET['tab'] );
-		global $submenu;
-		unset( $submenu['woocommerce'] );
+		global $submenu, $_registered_pages, $_wp_submenu_nopriv;
+		unset( $submenu['woocommerce'], $submenu[''], $_wp_submenu_nopriv[''] );
+		unset( $_registered_pages['admin_page_einvoice-matbao-invoices'] );
+		remove_all_actions( 'load-admin_page_einvoice-matbao-invoices' );
+		remove_all_filters( 'wp_redirect' );
 		wp_dequeue_style( SettingsPage::HANDLE );
 		wp_dequeue_script( SettingsPage::HANDLE );
 		wp_deregister_style( SettingsPage::HANDLE );
@@ -36,6 +40,37 @@ final class SettingsPageTest extends WP_UnitTestCase {
 		$entries = array_column( $submenu['woocommerce'] ?? array(), 1, 2 );
 		$this->assertArrayHasKey( SettingsPage::SLUG, $entries );
 		$this->assertSame( 'manage_options', $entries[ SettingsPage::SLUG ] );
+		$titles = array_column( $submenu['woocommerce'], 0, 2 );
+		$this->assertSame( 'Hóa đơn Mắt Bão', $titles[ SettingsPage::SLUG ] );
+
+		InvoicePage::register_menu();
+		$this->assertArrayNotHasKey( InvoicePage::SLUG, array_column( $submenu['woocommerce'], 1, 2 ) );
+	}
+
+	public function test_old_invoices_page_redirects_to_invoices_tab(): void {
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+		$seen = array();
+		add_filter(
+			'wp_redirect',
+			static function ( $location, $status ) use ( &$seen ) {
+				$seen = array( $location, $status );
+				return false;
+			},
+			10,
+			2
+		);
+
+		InvoicePage::register_menu();
+		InvoicePage::redirect_to_tab();
+
+		$this->assertSame( array( AdminTabs::url( 'invoices' ), 302 ), $seen );
+		$this->assertSame( 0, did_action( 'deprecated_function_run' ) + did_action( 'deprecated_argument_run' ) );
+	}
+
+	public function test_tab_container_owns_history_snapshots(): void {
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+
+		$this->assertStringContainsString( 'id="einv-tabs" hx-history-elt', get_echo( array( SettingsPage::class, 'render' ) ) );
 	}
 
 	public function test_page_is_scoped_inside_einv_app_and_targets_plugin_rest_routes(): void {
@@ -135,6 +170,10 @@ final class SettingsPageTest extends WP_UnitTestCase {
 		SettingsPage::enqueue_assets( 'dashboard' );
 		$this->assertFalse( wp_script_is( SettingsPage::HANDLE, 'enqueued' ) );
 		$this->assertFalse( wp_style_is( SettingsPage::HANDLE, 'enqueued' ) );
+		foreach ( array( 'woocommerce_page_', 'admin_page_' ) as $prefix ) {
+			SettingsPage::enqueue_assets( $prefix . InvoicePage::SLUG );
+			$this->assertFalse( wp_script_is( SettingsPage::HANDLE, 'enqueued' ) );
+		}
 
 		SettingsPage::enqueue_assets( 'woocommerce_page_' . SettingsPage::SLUG );
 		$this->assertTrue( wp_script_is( SettingsPage::HANDLE, 'enqueued' ) );
@@ -143,6 +182,7 @@ final class SettingsPageTest extends WP_UnitTestCase {
 		$inline = implode( "\n", (array) wp_scripts()->get_data( SettingsPage::HANDLE, 'after' ) );
 		$this->assertStringContainsString( 'htmx:configRequest', $inline );
 		$this->assertStringContainsString( 'X-WP-Nonce', $inline );
+		$this->assertStringContainsString( 'refreshOnHistoryMiss', $inline );
 		$this->assertStringContainsString( wp_create_nonce( 'wp_rest' ), $inline );
 		$this->assertStringNotContainsString( '//cdn', (string) wp_scripts()->registered[ SettingsPage::HANDLE ]->src );
 	}

@@ -41,7 +41,7 @@ final class SettingsPage {
 	public static function register_menu(): void {
 		add_submenu_page(
 			'woocommerce',
-			__( 'Cài đặt hóa đơn Mắt Bão', 'einvoice-matbao' ),
+			__( 'Hóa đơn Mắt Bão', 'einvoice-matbao' ),
 			__( 'Hóa đơn Mắt Bão', 'einvoice-matbao' ),
 			self::CAPABILITY,
 			self::SLUG,
@@ -56,7 +56,7 @@ final class SettingsPage {
 	 * @param string $hook_suffix Current admin page hook.
 	 */
 	public static function enqueue_assets( string $hook_suffix ): void {
-		if ( ! in_array( $hook_suffix, array( 'woocommerce_page_' . self::SLUG, 'woocommerce_page_' . InvoicePage::SLUG ), true ) ) {
+		if ( 'woocommerce_page_' . self::SLUG !== $hook_suffix ) {
 			return;
 		}
 
@@ -381,7 +381,7 @@ final class SettingsPage {
 	 */
 	private static function htmx_config_script( string $nonce ): string {
 		return sprintf(
-			'(function(){var nonce=%s;document.addEventListener("htmx:configRequest",function(e){e.detail.headers["X-WP-Nonce"]=nonce;});document.addEventListener("htmx:beforeSwap",function(e){var s=e.detail.xhr.status;if(s>=400&&s<500){e.detail.shouldSwap=true;e.detail.isError=false;}});})();',
+			'(function(){var nonce=%s;document.addEventListener("htmx:configRequest",function(e){e.detail.headers["X-WP-Nonce"]=nonce;});document.addEventListener("htmx:beforeSwap",function(e){var s=e.detail.xhr.status;if(s>=400&&s<500){e.detail.shouldSwap=true;e.detail.isError=false;}});if(window.htmx){htmx.config.refreshOnHistoryMiss=true;}})();',
 			wp_json_encode( $nonce )
 		);
 	}
