@@ -8,10 +8,10 @@
  * License URI:          https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain:          einvoice-matbao
  * Domain Path:          /languages
- * Requires at least:    7.0
- * Requires PHP:         8.5
+ * Requires at least:    6.6
+ * Requires PHP:         8.2
  * Requires Plugins:     woocommerce
- * WC requires at least: 11.0
+ * WC requires at least: 9.8
  * WC tested up to:      11.2
  *
  * @package EinvoiceMatbao
