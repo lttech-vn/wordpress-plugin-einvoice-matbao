@@ -17,9 +17,9 @@
 
 ## 4. Menu, redirect and assets
 
-- [ ] 4.1 Remove the visible "Danh sách hóa đơn" submenu; register hidden page `einvoice-matbao-invoices` whose `load-{hook}` redirects (302) to `AdminTabs::url( 'invoices' )`; verify no deprecation notice on the PHP 8.2 / WP 6.6 floor, else fall back to `remove_submenu_page`
-- [ ] 4.2 `enqueue_assets` loads only on `woocommerce_page_einvoice-matbao-settings`; inline script also sets `htmx.config.refreshOnHistoryMiss = true`; `#einv-tabs` carries `hx-history-elt`
-- [ ] 4.3 Update `tests/integration/SettingsPageTest.php`: single menu entry, no visible invoices entry, default tab render, deep link `tab=lark`, unknown tab fallback, banner present on invoices tab, assets not enqueued on the old hook, redirect target of the hidden page
+- [x] 4.1 Remove the visible "Danh sách hóa đơn" submenu; register hidden page `einvoice-matbao-invoices` whose `load-{hook}` redirects (302) to `AdminTabs::url( 'invoices' )`; verify no deprecation notice on the PHP 8.2 / WP 6.6 floor, else fall back to `remove_submenu_page`
+- [x] 4.2 `enqueue_assets` loads only on `woocommerce_page_einvoice-matbao-settings`; inline script also sets `htmx.config.refreshOnHistoryMiss = true`; `#einv-tabs` carries `hx-history-elt`
+- [x] 4.3 Update `tests/integration/SettingsPageTest.php`: single menu entry, no visible invoices entry, default tab render, deep link `tab=lark`, unknown tab fallback, banner present on invoices tab, assets not enqueued on the old hook, redirect target of the hidden page
 
 ## 5. Visual polish
 
