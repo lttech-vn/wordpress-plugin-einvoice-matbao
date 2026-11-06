@@ -11,7 +11,7 @@
 - **Branch**: `spec/lower-platform-requirements`
 - **Base branch**: `main`
 - **Final state**: `pr-open`
-- **PR URL**: `PENDING`
+- **PR URL**: `https://github.com/lttech-vn/wordpress-plugin-einvoice-matbao/pull/39`
 
 ---
 
@@ -24,7 +24,7 @@
 
 ## PR comment
 
-- **PR comment status**: `PENDING`
+- **PR comment status**: `posted`
 
 ---
 
@@ -53,3 +53,5 @@
 ## Next step
 
 Wait for PR review. After approval, run `/opsx-archive` on this feature branch (commits land here), push the archive commits to update the PR, then merge the PR (`gh pr merge --squash --delete-branch` or GitHub UI) — that single merge lands both the implementation and the archive into main. Update branch protection required checks to `PHP (min)` / `PHP (latest)` if they reference the old job name.
+
+> Push note: SSH remote `origin` authenticates as `ttdua` (no push access). Per the user's instruction the active `gh` account was switched to `naicoi92`, and the branch was pushed once over HTTPS with `gh` credentials; remote URL and git config unchanged. Because of this, the local branch has no upstream tracking set.
