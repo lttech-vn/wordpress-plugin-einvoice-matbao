@@ -169,6 +169,41 @@ final class SettingsPageTest extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'data-einv-section="uninstall"', SettingsPage::render_tabs( 'advanced' ) );
 	}
 
+	/**
+	 * Config tab keys that must render inside the width wrapper.
+	 *
+	 * @return array<string, array{string}>
+	 */
+	public static function config_tabs(): array {
+		return array(
+			'connection' => array( 'connection' ),
+			'invoicing'  => array( 'invoicing' ),
+			'lark'       => array( 'lark' ),
+			'advanced'   => array( 'advanced' ),
+		);
+	}
+
+	/**
+	 * Config tab panels sit inside a max-w-3xl container.
+	 *
+	 * @dataProvider config_tabs
+	 * @param string $tab Tab key.
+	 */
+	public function test_config_tab_panel_is_wrapped_in_max_w_3xl( string $tab ): void {
+		$html = SettingsPage::render_tabs( $tab );
+
+		$this->assertMatchesRegularExpression(
+			'#<div id="einv-tab-panel"[^>]*data-einv-tab="' . $tab . '">\s*<div class="max-w-3xl">#',
+			$html
+		);
+	}
+
+	public function test_invoices_tab_panel_is_full_width(): void {
+		$html = SettingsPage::render_tabs( 'invoices' );
+
+		$this->assertStringNotContainsString( 'class="max-w-3xl"', $html );
+	}
+
 	public function test_page_refuses_users_without_manage_options(): void {
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'shop_manager' ) ) );
 
