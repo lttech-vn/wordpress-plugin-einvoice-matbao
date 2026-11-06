@@ -1,0 +1,55 @@
+{
+  "schemaVersion": "trace-1",
+  "createdAt": "2026-11-06T16:22:59.805Z",
+  "payload": {
+    "actions": [
+      {
+        "name": "tap",
+        "summary": "tap button \"Lưu kết nối\"",
+        "target": {
+          "role": "button",
+          "name": "Lưu kết nối"
+        }
+      }
+    ],
+    "executor": {
+      "name": "e2e-default-agent",
+      "version": "2"
+    },
+    "recordedFor": {
+      "testId": "army/settings.army.ts::settings%20page::saves%20credentials%20encrypted%20and%20never%20renders%20the%20password%20back",
+      "targetId": "chromium",
+      "instructionDigest": "11e372e218ab6df9b3e6bcef7ab0e9454cf6e5bfa9a00b11c3835f42872bbd6b",
+      "paramsDigest": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "callIndex": 0,
+      "agent": "admin"
+    },
+    "recordedBy": {
+      "provider": "e2e-text-agent.chat",
+      "model": "gpt-6-luna"
+    },
+    "summary": "Clicked “Lưu kết nối”. The form displayed the notice: “Thành công: Đã lưu thông tin kết nối Mắt Bão (mã hóa).” The password remained masked as secure in the form.",
+    "startPath": "/wp-admin/admin.php?page=einvoice-matbao-settings&tab=connection",
+    "endPath": "/wp-admin/admin.php?page=einvoice-matbao-settings&tab=connection",
+    "endAnchors": [
+      {
+        "role": "status",
+        "name": "Thành công: Đã lưu thông tin kết nối Mắt Bão (mã hóa)."
+      },
+      {
+        "text": "Warning: Cannot modify header information - headers already sent by (output started at /var/www/html/wp-content/plugins/einvoice-matbao/src/Admin/SettingsController.php:121) in /var/www/html/wp-includes/rest-api.php on line 813 Warning: Cannot modify header information - headers already sent by (ou…"
+      }
+    ],
+    "endWaitMs": 120000,
+    "keyedBy": {
+      "cacheSchema": "trace-1",
+      "policyVersion": "conservative/6",
+      "project": "2b483fc49e5e740989e492050e28e6fb856764a2ed52d31c600d470a05baba44",
+      "platform": "web",
+      "engineName": "web",
+      "engineSpiVersion": 1,
+      "appIdentity": "2ce612fe684f904f96ec07f53bc449688a65d26e28e9999fd2a1cec1cbd6fc2d",
+      "agentContextDigest": "13ee543110db691cee44fe33553b56519a220ff3903fab1412a9389339af7ddb"
+    }
+  }
+}

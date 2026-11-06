@@ -1,6 +1,6 @@
 {
   "schemaVersion": "trace-1",
-  "createdAt": "2026-11-01T04:03:09.547Z",
+  "createdAt": "2026-11-06T16:18:25.060Z",
   "payload": {
     "actions": [
       {
@@ -56,7 +56,7 @@
     "recordedFor": {
       "testId": "army/checkout-invoice.army.ts::checkout%20invoice%20request::classic%20checkout%2C%20business%20buyer%3A%20completed%20order%20gets%20a%20draft",
       "targetId": "chromium",
-      "instructionDigest": "59a100274f15f214b70bf61b160d406f0fedc275a9db801c2a2ad8cbad42ed00",
+      "instructionDigest": "640260540f852a790ebd09a4fec7439a111cbd9dfb55d1121f7a2be79164102e",
       "paramsDigest": "d7b22ba18bb730a293bd6b43c0693a31d085e203f5ae8d805dc9afbc80d4f002",
       "callIndex": 0,
       "agent": "default"
@@ -65,7 +65,7 @@
       "provider": "e2e-text-agent.chat",
       "model": "gpt-6-luna"
     },
-    "summary": "Checked 'Yêu cầu xuất hóa đơn', selected 'Doanh nghiệp', and filled business name CÔNG TY TNHH THỬ NGHIỆM E2E, tax code 0000000000, and invoice address 2 Đường Thử Nghiệm, Quận 3, TP HCM. The checkout form shows all entered values.",
+    "summary": "Checked “Yêu cầu xuất hóa đơn,” selected “Doanh nghiệp,” and verified the business name, tax code, and invoice address fields are filled with the provided values.",
     "startPath": "/?pagename=classic-checkout",
     "endPath": "/?pagename=classic-checkout",
     "endAnchors": [
@@ -111,7 +111,7 @@
         "name": "Yêu cầu xuất hóa đơn"
       }
     ],
-    "endWaitMs": 12624,
+    "endWaitMs": 12901,
     "keyedBy": {
       "cacheSchema": "trace-1",
       "policyVersion": "conservative/6",

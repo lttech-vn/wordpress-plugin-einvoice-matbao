@@ -1,24 +1,26 @@
 {
   "schemaVersion": "trace-1",
-  "createdAt": "2026-11-01T04:17:35.779Z",
+  "createdAt": "2026-11-06T16:18:05.517Z",
   "payload": {
     "actions": [
       {
-        "name": "tap",
-        "summary": "tap checkbox \"Yêu cầu xuất hóa đơn\"",
+        "name": "check",
+        "summary": "check checkbox \"Yêu cầu xuất hóa đơn\"",
         "target": {
           "role": "checkbox",
           "name": "Yêu cầu xuất hóa đơn"
-        }
+        },
+        "checked": true
       },
       {
-        "name": "tap",
-        "summary": "tap radio \"Cá nhân\" in \"Xuất hóa đơn cho\"",
+        "name": "check",
+        "summary": "check radio \"Cá nhân\" in \"Xuất hóa đơn cho\"",
         "target": {
           "role": "radio",
           "name": "Cá nhân",
           "within": "Xuất hóa đơn cho"
-        }
+        },
+        "checked": true
       },
       {
         "name": "type",
@@ -31,12 +33,12 @@
       },
       {
         "name": "type",
-        "summary": "type \"000000000042\" into textbox \"Số CCCD\"",
+        "summary": "type \"000000000000\" into textbox \"Số CCCD\"",
         "target": {
           "role": "textbox",
           "name": "Số CCCD"
         },
-        "value": "000000000042"
+        "value": "000000000000"
       }
     ],
     "executor": {
@@ -44,10 +46,10 @@
       "version": "2"
     },
     "recordedFor": {
-      "testId": "army/checkout-validation.army.ts::classic%20checkout%20validation::a%20valid%20individual%20request%20sends%20the%20CCCD%20to%20Mat%20Bao%20but%20never%20stores%20it%20in%20the%20clear",
+      "testId": "army/checkout-invoice.army.ts::checkout%20invoice%20request::classic%20checkout%2C%20individual%20buyer%3A%20completed%20order%20gets%20a%20draft",
       "targetId": "chromium",
-      "instructionDigest": "5381bba33c9c509e226406a5efc1790dec67c8a737f6da44687bda5a625fd564",
-      "paramsDigest": "0e22a4840d6d536455e08ec71b6af3b1b3fe7254bbfe149c812eb8d6a07f7204",
+      "instructionDigest": "8ddf5900891c334b4ad80cd3c4d40d9594d2c58a612e3bc5a20fc35db4ef8865",
+      "paramsDigest": "5b3abef9010f167096d701f08e4dacece34d94a72ae36fb513a3c7618c908fc4",
       "callIndex": 0,
       "agent": "default"
     },
@@ -55,7 +57,7 @@
       "provider": "e2e-text-agent.chat",
       "model": "gpt-6-luna"
     },
-    "summary": "Checked “Yêu cầu xuất hóa đơn,” selected “Cá nhân,” and filled invoice address “1 Đường Thử Nghiệm, Quận 1, TP HCM” and CCCD “000000000042.” The checkout form shows the requested values.",
+    "summary": "Ticked Yêu cầu xuất hóa đơn, selected Cá nhân, and filled the invoice address with “1 Đường Thử Nghiệm, Quận 1, TP HCM” and Số CCCD with “000000000000”. Both fields are visibly filled; stopped without placing the order.",
     "startPath": "/?pagename=classic-checkout",
     "endPath": "/?pagename=classic-checkout",
     "endAnchors": [
@@ -101,7 +103,7 @@
         "name": "Yêu cầu xuất hóa đơn"
       }
     ],
-    "endWaitMs": 13384,
+    "endWaitMs": 15488,
     "keyedBy": {
       "cacheSchema": "trace-1",
       "policyVersion": "conservative/6",

@@ -1,6 +1,6 @@
 {
   "schemaVersion": "trace-1",
-  "createdAt": "2026-11-01T04:02:52.820Z",
+  "createdAt": "2026-11-06T16:19:29.885Z",
   "payload": {
     "actions": [
       {
@@ -13,14 +13,13 @@
         "checked": true
       },
       {
-        "name": "check",
-        "summary": "check radio \"Cá nhân\" in \"Xuất hóa đơn cho\"",
+        "name": "tap",
+        "summary": "tap radio \"Cá nhân\" in \"Xuất hóa đơn cho\"",
         "target": {
           "role": "radio",
           "name": "Cá nhân",
           "within": "Xuất hóa đơn cho"
-        },
-        "checked": true
+        }
       },
       {
         "name": "type",
@@ -33,12 +32,12 @@
       },
       {
         "name": "type",
-        "summary": "type \"000000000000\" into textbox \"Số CCCD\"",
+        "summary": "type \"000000000042\" into textbox \"Số CCCD\"",
         "target": {
           "role": "textbox",
           "name": "Số CCCD"
         },
-        "value": "000000000000"
+        "value": "000000000042"
       }
     ],
     "executor": {
@@ -46,10 +45,10 @@
       "version": "2"
     },
     "recordedFor": {
-      "testId": "army/checkout-invoice.army.ts::checkout%20invoice%20request::classic%20checkout%2C%20individual%20buyer%3A%20completed%20order%20gets%20a%20draft",
+      "testId": "army/checkout-validation.army.ts::classic%20checkout%20validation::a%20valid%20individual%20request%20sends%20the%20CCCD%20to%20Mat%20Bao%20but%20never%20stores%20it%20in%20the%20clear",
       "targetId": "chromium",
-      "instructionDigest": "5381bba33c9c509e226406a5efc1790dec67c8a737f6da44687bda5a625fd564",
-      "paramsDigest": "5b3abef9010f167096d701f08e4dacece34d94a72ae36fb513a3c7618c908fc4",
+      "instructionDigest": "53e8a45a32a2217b11c216af93827e75a5d55a5279d85e419a11ea13c9e99ff8",
+      "paramsDigest": "0e22a4840d6d536455e08ec71b6af3b1b3fe7254bbfe149c812eb8d6a07f7204",
       "callIndex": 0,
       "agent": "default"
     },
@@ -57,7 +56,7 @@
       "provider": "e2e-text-agent.chat",
       "model": "gpt-6-luna"
     },
-    "summary": "Checked 'Yêu cầu xuất hóa đơn', selected 'Cá nhân', and filled the invoice address and CCCD with the requested values.",
+    "summary": "Enabled invoice request, selected Cá nhân, and entered the exact invoice address and CCCD. The checkout screen shows both values in their fields; no order was submitted.",
     "startPath": "/?pagename=classic-checkout",
     "endPath": "/?pagename=classic-checkout",
     "endAnchors": [
@@ -103,7 +102,7 @@
         "name": "Yêu cầu xuất hóa đơn"
       }
     ],
-    "endWaitMs": 12430,
+    "endWaitMs": 13108,
     "keyedBy": {
       "cacheSchema": "trace-1",
       "policyVersion": "conservative/6",

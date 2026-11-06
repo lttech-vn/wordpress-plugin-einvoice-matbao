@@ -27,7 +27,7 @@ describe("product unit field", { serial: false, agent: "admin" }, () => {
 	test("the override saved on the product edit screen is sent on the invoice line", async ({ app, screen, agent }) => {
 		const productId = (await seam({ app }, "/product-id/E2E-VAT5")).id as number;
 		await app.open(`/wp-admin/post.php?post=${productId}&action=edit`);
-		await agent.act("set the field 'Đơn vị tính hóa đơn' to {unit} and update the product", { params: { unit: "Tháng" } });
+		await agent.act("On the product edit screen: 1) type {unit} into the field 'Đơn vị tính hóa đơn', 2) click the blue 'Cập nhật' button. Stop once the page has reloaded with the product updated.", { params: { unit: "Tháng" } });
 		await expect(screen.getByLabel("Đơn vị tính hóa đơn")).toHaveValue("Tháng");
 
 		const orderId = await completedOrder({ app }, { lines: [{ sku: "E2E-VAT5", qty: 1 }] });
@@ -60,7 +60,7 @@ describe("permissions", { serial: false }, () => {
 
 	test("a shop manager cannot open the settings or the invoice list", async (ctx) => {
 		await signInAs(ctx, "shop_manager");
-		for (const path of [PAGES.settings, PAGES.invoices]) {
+		for (const path of [PAGES.tab("connection"), PAGES.invoices, PAGES.oldInvoices]) {
 			await ctx.app.open(path);
 			await expect(ctx.screen.getByText("Sorry, you are not allowed to access this page.", { exact: false })).toBeVisible();
 		}
@@ -69,8 +69,7 @@ describe("permissions", { serial: false }, () => {
 	test("a shop manager does not see the plugin menu entries", async (ctx) => {
 		await signInAs(ctx, "shop_manager");
 		await ctx.app.open("/wp-admin/admin.php?page=wc-admin");
-		await expect(ctx.screen.getByRole("link", "Danh sách hóa đơn")).toHaveCount(0);
-		await expect(ctx.screen.getByRole("link", "Hóa đơn Mắt Bão")).toHaveCount(0);
+				await expect(ctx.screen.getByRole("link", "Hóa đơn Mắt Bão")).toHaveCount(0);
 	});
 
 	test("the plugin REST routes refuse an anonymous visitor", async ({ app }) => {
@@ -104,9 +103,9 @@ describe("permissions", { serial: false }, () => {
 
 	test("an administrator reaches both pages", async (ctx) => {
 		await signInAdmin(ctx);
-		await ctx.app.open(PAGES.settings);
-		await expect(ctx.screen.getByRole("heading", "Cài đặt hóa đơn Mắt Bão")).toBeVisible();
-		await ctx.app.open(PAGES.invoices);
-		await expect(ctx.screen.getByRole("heading", "Danh sách hóa đơn Mắt Bão")).toBeVisible();
+		for (const path of [PAGES.settings, PAGES.invoices]) {
+			await ctx.app.open(path);
+			await expect(ctx.screen.getByRole("heading", "Hóa đơn Mắt Bão", { level: 1 })).toBeVisible();
+		}
 	});
 });

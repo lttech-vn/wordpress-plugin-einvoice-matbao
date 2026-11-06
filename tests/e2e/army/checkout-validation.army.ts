@@ -118,7 +118,7 @@ describe("classic checkout validation", { serial: false, agent: "default" }, () 
 
 	test("a valid individual request sends the CCCD to Mat Bao but never stores it in the clear", async ({ app, screen, browser, agent }) => {
 		await fillClassicBilling({ app, screen });
-		await agent.act("tick the invoice request checkbox 'Yêu cầu xuất hóa đơn', choose 'Cá nhân', fill the invoice address {address} and the ID number {id_number}", {
+		await agent.act("tick the invoice request checkbox 'Yêu cầu xuất hóa đơn', choose 'Cá nhân', fill the invoice address {address} exactly as given, without adding any punctuation, and the ID number {id_number}", {
 			params: { address: "1 Đường Thử Nghiệm, Quận 1, TP HCM", id_number: "000000000042" },
 		});
 		await expect(browser.locator("#einv_address")).toHaveValue("1 Đường Thử Nghiệm, Quận 1, TP HCM");
