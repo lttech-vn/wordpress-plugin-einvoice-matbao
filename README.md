@@ -30,7 +30,10 @@ Stop with `docker compose down` (add `-v` to wipe the database and WordPress vol
 
 ## Settings and credentials
 
-Settings live under **WooCommerce → Hóa đơn Mắt Bão** (Administrators only). Mat Bao credentials and
+The plugin has one screen, **WooCommerce → Hóa đơn Mắt Bão** (Administrators only), split into tabs:
+**Hóa đơn** (invoice list, the default), **Kết nối Mắt Bão**, **Xuất hóa đơn**, **Cảnh báo Lark** and
+**Nâng cao**. Tabs switch without a page reload and each has its own URL (`&tab=connection`, …); the
+old `page=einvoice-matbao-invoices` address redirects to the invoices tab. Mat Bao credentials and
 the Lark webhook are stored encrypted (libsodium) with key material from a `wp-config.php` constant:
 
 ```php
@@ -54,7 +57,7 @@ fixed `MTChieu` = prefix + `WC` + order ID) and queues one Action Scheduler acti
 is logged in `{prefix}einvoice_matbao_attempt`. Status, `MTChieu`, Mat Bao invoice ID and errors
 show in the **Hóa đơn Mắt Bão** box on the order screen (HPOS and legacy).
 
-Administrators manage invoices under **WooCommerce → Danh sách hóa đơn**: filter by status (including an
+Administrators manage invoices in the **Hóa đơn** tab: filter by status (including an
 error/needs-attention group), search by order ID or the start of `MTChieu` (prefix match), open a detail
 view with attempt history (national ID numbers always masked), check the draft on Mat Bao, and resend.
 Resend goes through the retry workflow, which looks the invoice up by `MTChieu` before creating, so it
@@ -171,7 +174,7 @@ removed, and alerts dismissed more than 30 days ago.
 
 ## Unit of measure (`DVTinh`)
 
-The store default is set on the settings page; fees and shipping always use it. A product or
+The store default is set in the **Xuất hóa đơn** tab; fees and shipping always use it. A product or
 variation can override it, and a variation without its own override inherits its parent's.
 
 Limits: the per-product unit can only be edited on the product edit screen (and in its variation
@@ -280,7 +283,7 @@ in the Action Scheduler tables directly). On multisite it runs on every site.
 | Every other `einvoice_matbao_*` option (settings, schema version) | kept | deleted |
 | WooCommerce orders and products | kept | kept |
 
-The switch is in the **Gỡ plugin** section of the settings page (`POST settings/uninstall`): off by
+The switch is in the **Gỡ plugin** section of the **Nâng cao** tab (`POST settings/uninstall`): off by
 default, Administrator and `wp_rest` nonce like every settings route, and turning it on requires
 typing `XOA HET DU LIEU`. Turning it off needs no confirmation. Invoices on Mat Bao are never
 affected. Deleting the meta on a very large shop runs one statement per key without batching.
