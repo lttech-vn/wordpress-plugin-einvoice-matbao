@@ -55,27 +55,39 @@ final class InvoicePage {
 		if ( ! current_user_can( SettingsPage::CAPABILITY ) ) {
 			return;
 		}
-
-		$list = rest_url( SettingsController::NAMESPACE . '/invoices' );
 		?>
 		<div class="wrap">
 			<h1 class="wp-heading-inline"><?php esc_html_e( 'Danh sách hóa đơn Mắt Bão', 'einvoice-matbao' ); ?></h1>
 			<div id="einv-app" class="mt-4 font-einv text-einv-ink" hx-swap="innerHTML">
-				<div id="einv-dashboard" hx-get="<?php echo esc_url( rest_url( SettingsController::NAMESPACE . '/dashboard' ) ); ?>" hx-trigger="load"></div>
-				<form class="mb-4 flex flex-wrap items-end gap-2" hx-get="<?php echo esc_url( $list ); ?>" hx-target="#einv-invoices" hx-trigger="submit, change from:select, keyup changed delay:400ms from:input[name=q]">
-					<select name="status" class="<?php echo esc_attr( self::INPUT ); ?>" aria-label="<?php esc_attr_e( 'Trạng thái', 'einvoice-matbao' ); ?>">
-						<option value=""><?php esc_html_e( 'Tất cả trạng thái', 'einvoice-matbao' ); ?></option>
-						<?php foreach ( InvoiceStatus::filter_labels() as $value => $label ) : ?>
-							<option value="<?php echo esc_attr( $value ); ?>"><?php echo esc_html( $label ); ?></option>
-						<?php endforeach; ?>
-					</select>
-					<input type="search" name="q" maxlength="40" placeholder="<?php esc_attr_e( 'Mã đơn hoặc MTChieu', 'einvoice-matbao' ); ?>" aria-label="<?php esc_attr_e( 'Mã đơn hoặc MTChieu', 'einvoice-matbao' ); ?>" class="<?php echo esc_attr( self::INPUT ); ?>" />
-					<button type="submit" class="<?php echo esc_attr( self::BUTTON ); ?>"><?php esc_html_e( 'Lọc', 'einvoice-matbao' ); ?></button>
-				</form>
-				<div id="einv-invoices" hx-get="<?php echo esc_url( $list ); ?>" hx-trigger="load"><p class="<?php echo esc_attr( self::MUTED ); ?>"><?php esc_html_e( 'Đang tải…', 'einvoice-matbao' ); ?></p></div>
+				<?php echo self::render_panel(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- render_panel returns escaped HTML. ?>
 			</div>
 		</div>
 		<?php
+	}
+
+	/**
+	 * Dashboard, filter form and the list container.
+	 *
+	 * @return string Escaped HTML.
+	 */
+	public static function render_panel(): string {
+		$list = rest_url( SettingsController::NAMESPACE . '/invoices' );
+		ob_start();
+		?>
+		<div id="einv-dashboard" hx-get="<?php echo esc_url( rest_url( SettingsController::NAMESPACE . '/dashboard' ) ); ?>" hx-trigger="load"></div>
+		<form class="mb-4 flex flex-wrap items-end gap-2" hx-get="<?php echo esc_url( $list ); ?>" hx-target="#einv-invoices" hx-trigger="submit, change from:select, keyup changed delay:400ms from:input[name=q]">
+			<select name="status" class="<?php echo esc_attr( self::INPUT ); ?>" aria-label="<?php esc_attr_e( 'Trạng thái', 'einvoice-matbao' ); ?>">
+				<option value=""><?php esc_html_e( 'Tất cả trạng thái', 'einvoice-matbao' ); ?></option>
+				<?php foreach ( InvoiceStatus::filter_labels() as $value => $label ) : ?>
+					<option value="<?php echo esc_attr( $value ); ?>"><?php echo esc_html( $label ); ?></option>
+				<?php endforeach; ?>
+			</select>
+			<input type="search" name="q" maxlength="40" placeholder="<?php esc_attr_e( 'Mã đơn hoặc MTChieu', 'einvoice-matbao' ); ?>" aria-label="<?php esc_attr_e( 'Mã đơn hoặc MTChieu', 'einvoice-matbao' ); ?>" class="<?php echo esc_attr( self::INPUT ); ?>" />
+			<button type="submit" class="<?php echo esc_attr( self::BUTTON ); ?>"><?php esc_html_e( 'Lọc', 'einvoice-matbao' ); ?></button>
+		</form>
+		<div id="einv-invoices" hx-get="<?php echo esc_url( $list ); ?>" hx-trigger="load"><p class="<?php echo esc_attr( self::MUTED ); ?>"><?php esc_html_e( 'Đang tải…', 'einvoice-matbao' ); ?></p></div>
+		<?php
+		return (string) ob_get_clean();
 	}
 
 	/**

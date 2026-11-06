@@ -92,8 +92,9 @@ final class SettingsCredentialsRestTest extends SettingsRestTestCase {
 		$this->with_encryption_key();
 		$this->save_matbao_credentials();
 
-		$page = $this->render_settings_page();
+		$page = $this->render_settings_page( 'connection' );
 
+		$this->assertStringContainsString( 'name="password"', $page );
 		$this->assertStringNotContainsString( self::PASSWORD, $page );
 		$this->assertStringContainsString( 'Đã lưu', $page );
 	}
@@ -175,7 +176,9 @@ final class SettingsCredentialsRestTest extends SettingsRestTestCase {
 		$this->assertStringNotContainsString( self::LARK_SECRET, $html );
 		$this->assertStringNotContainsString( 'fake-hook', $this->stored_plugin_options() );
 		$this->assertStringNotContainsString( self::LARK_SECRET, $this->stored_plugin_options() );
-		$this->assertStringNotContainsString( 'fake-hook', $this->render_settings_page() );
+		$lark_tab = $this->render_settings_page( 'lark' );
+		$this->assertStringContainsString( 'name="webhook_url"', $lark_tab );
+		$this->assertStringNotContainsString( 'fake-hook', $lark_tab );
 
 		$lark = ( new CredentialStore() )->lark();
 		$this->assertNotNull( $lark );
@@ -303,9 +306,11 @@ final class SettingsCredentialsRestTest extends SettingsRestTestCase {
 	}
 
 	/**
-	 * Renders the admin settings page body as an Administrator would see it.
+	 * Renders one tab of the admin settings page.
+	 *
+	 * @param string $tab Resolved tab key.
 	 */
-	private function render_settings_page(): string {
-		return get_echo( array( \LTTech\EinvoiceMatbao\Admin\SettingsPage::class, 'render' ) );
+	private function render_settings_page( string $tab ): string {
+		return \LTTech\EinvoiceMatbao\Admin\SettingsPage::render_tabs( $tab );
 	}
 }

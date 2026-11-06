@@ -7,6 +7,7 @@
 
 namespace LTTech\EinvoiceMatbao\Tests\Integration;
 
+use LTTech\EinvoiceMatbao\Admin\AdminTabs;
 use LTTech\EinvoiceMatbao\Admin\SettingsPage;
 use WP_UnitTestCase;
 
@@ -16,6 +17,7 @@ use WP_UnitTestCase;
 final class SettingsPageTest extends WP_UnitTestCase {
 
 	public function tear_down(): void {
+		unset( $_GET['tab'] );
 		global $submenu;
 		unset( $submenu['woocommerce'] );
 		wp_dequeue_style( SettingsPage::HANDLE );
@@ -40,13 +42,85 @@ final class SettingsPageTest extends WP_UnitTestCase {
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
 
 		$page = get_echo( array( SettingsPage::class, 'render' ) );
-
 		$this->assertStringContainsString( 'id="einv-app"', $page );
-		$this->assertStringContainsString( 'hx-post="' . esc_url( rest_url( 'einvoice-matbao/v1/settings/matbao' ) ) . '"', $page );
-		$this->assertStringContainsString( 'hx-post="' . esc_url( rest_url( 'einvoice-matbao/v1/settings/matbao/test' ) ) . '"', $page );
-		$this->assertStringContainsString( 'hx-post="' . esc_url( rest_url( 'einvoice-matbao/v1/settings/lark/test' ) ) . '"', $page );
-		$this->assertStringContainsString( 'Khách hàng không lấy hóa đơn', $page );
 		$this->assertStringContainsString( 'EINVOICE_MATBAO_ENCRYPTION_KEY', $page );
+		$this->assertStringContainsString( 'Hóa đơn Mắt Bão', $page );
+
+		$connection = SettingsPage::render_tabs( 'connection' );
+		$this->assertStringContainsString( 'hx-post="' . esc_url( rest_url( 'einvoice-matbao/v1/settings/matbao' ) ) . '"', $connection );
+		$this->assertStringContainsString( 'hx-post="' . esc_url( rest_url( 'einvoice-matbao/v1/settings/matbao/test' ) ) . '"', $connection );
+
+		$lark = SettingsPage::render_tabs( 'lark' );
+		$this->assertStringContainsString( 'hx-post="' . esc_url( rest_url( 'einvoice-matbao/v1/settings/lark/test' ) ) . '"', $lark );
+
+		$this->assertStringContainsString( 'Khách hàng không lấy hóa đơn', SettingsPage::render_tabs( 'invoicing' ) );
+	}
+
+	public function test_default_tab_is_invoices(): void {
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+
+		$page = get_echo( array( SettingsPage::class, 'render' ) );
+
+		$this->assertStringContainsString( 'data-einv-tab="invoices"', $page );
+		$this->assertMatchesRegularExpression( '/<a [^>]*data-einv-tab-link="invoices"[^>]*aria-current="page"|<a [^>]*aria-current="page"[^>]*data-einv-tab-link="invoices"/', $page );
+		$this->assertStringContainsString( 'id="einv-invoices"', $page );
+		$this->assertStringNotContainsString( 'id="einv-mst"', $page );
+	}
+
+	public function test_deep_link_renders_the_lark_tab(): void {
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+		$_GET['tab'] = 'lark';
+
+		$page = get_echo( array( SettingsPage::class, 'render' ) );
+
+		$this->assertStringContainsString( 'data-einv-tab="lark"', $page );
+		$this->assertStringContainsString( 'id="einv-lark-webhook"', $page );
+		$this->assertStringNotContainsString( 'id="einv-invoices"', $page );
+	}
+
+	public function test_unknown_tab_falls_back_to_invoices(): void {
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+
+		foreach ( array( 'foo', 'LARK', array( 'lark' ) ) as $value ) {
+			$_GET['tab'] = $value;
+			$page        = get_echo( array( SettingsPage::class, 'render' ) );
+			$this->assertStringContainsString( 'data-einv-tab="invoices"', $page );
+		}
+	}
+
+	public function test_tab_links_have_real_hrefs_and_push_url(): void {
+		$html = SettingsPage::render_tabs( 'invoices' );
+
+		foreach ( array_keys( AdminTabs::labels() ) as $key ) {
+			$url = esc_url( AdminTabs::url( $key ) );
+			$this->assertStringContainsString( 'href="' . $url . '"', $html );
+			$this->assertStringContainsString( 'hx-push-url="' . $url . '"', $html );
+			$this->assertStringContainsString( 'hx-get="' . esc_url( rest_url( 'einvoice-matbao/v1/tabs/' . $key ) ) . '"', $html );
+		}
+		$this->assertStringContainsString( 'hx-target="#einv-tabs"', $html );
+	}
+
+	public function test_encryption_banner_renders_above_the_tab_bar(): void {
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+
+		$page = get_echo( array( SettingsPage::class, 'render' ) );
+
+		$this->assertNotFalse( strpos( $page, 'EINVOICE_MATBAO_ENCRYPTION_KEY' ) );
+		$this->assertLessThan( strpos( $page, 'id="einv-tabs"' ), strpos( $page, 'EINVOICE_MATBAO_ENCRYPTION_KEY' ) );
+	}
+
+	public function test_tabs_group_the_existing_forms(): void {
+		$connection = SettingsPage::render_tabs( 'connection' );
+		$this->assertStringContainsString( 'settings/matbao', $connection );
+		$this->assertStringContainsString( 'einv-reload-templates', $connection );
+		$this->assertStringContainsString( 'einv-matbao-saved from:body', $connection );
+
+		$invoicing = SettingsPage::render_tabs( 'invoicing' );
+		$this->assertStringContainsString( 'settings/invoicing', $invoicing );
+		$this->assertStringContainsString( 'settings/unit', $invoicing );
+		$this->assertStringNotContainsString( 'settings/lark', $invoicing );
+
+		$this->assertStringContainsString( 'data-einv-section="uninstall"', SettingsPage::render_tabs( 'advanced' ) );
 	}
 
 	public function test_page_refuses_users_without_manage_options(): void {

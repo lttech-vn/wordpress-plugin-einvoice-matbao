@@ -71,7 +71,7 @@ final class SettingsUnitRestTest extends SettingsRestTestCase {
 	public function test_markup_in_the_unit_is_stripped_and_the_page_escapes_the_value(): void {
 		$this->htmx( 'POST', '/settings/unit', array( 'default_unit' => '<script>x</script>"onfocus="y' ) );
 
-		$page = get_echo( array( SettingsPage::class, 'render' ) );
+		$page = SettingsPage::render_tabs( 'invoicing' );
 
 		$this->assertStringNotContainsString( '<script>x</script>', $page );
 		$this->assertStringNotContainsString( 'value=""onfocus', $page );

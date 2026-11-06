@@ -71,8 +71,9 @@ final class UninstallSettingsController {
 	/**
 	 * The settings page section. Off by default; the checkbox reflects the stored value.
 	 */
-	public static function render_section(): void {
+	public static function render_section(): string {
 		$enabled = ( new Settings() )->delete_data_on_uninstall();
+		ob_start();
 		?>
 		<section class="mb-6 max-w-3xl rounded-einv-lg border border-einv-error/30 bg-white p-6 shadow-einv-card" data-einv-section="uninstall">
 			<h2 class="m-0 mb-1 text-[20px] font-light tracking-[-0.2px] text-einv-ink"><?php esc_html_e( 'Gỡ plugin', 'einvoice-matbao' ); ?></h2>
@@ -99,5 +100,6 @@ final class UninstallSettingsController {
 			<div class="einv-result" aria-live="polite"></div>
 		</section>
 		<?php
+		return (string) ob_get_clean();
 	}
 }

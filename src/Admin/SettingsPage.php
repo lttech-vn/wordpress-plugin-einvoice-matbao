@@ -74,23 +74,12 @@ final class SettingsPage {
 			return;
 		}
 
-		$store       = new CredentialStore();
-		$settings    = new Settings();
-		$has_key     = ( new Encryption() )->is_available();
-		$credentials = $store->matbao();
-		$template    = $settings->default_template();
-		$environment = null !== $credentials ? $credentials->environment : 'demo';
-
-		$input  = 'mt-1 block w-full max-w-md rounded-einv-sm border border-einv-hairline-input bg-white px-3 py-2 text-[15px] text-einv-ink shadow-none focus:border-einv-primary focus:outline-none';
-		$label  = 'block text-[13px] font-medium text-einv-ink-secondary';
-		$help   = 'mt-1 text-[13px] text-einv-ink-mute';
-		$button = 'inline-flex cursor-pointer items-center rounded-full border-0 bg-einv-primary px-4 py-2 text-[14px] font-normal text-white hover:bg-einv-primary-deep active:bg-einv-primary-press';
-		$second = 'inline-flex cursor-pointer items-center rounded-full border border-einv-hairline bg-white px-4 py-2 text-[14px] font-normal text-einv-primary hover:border-einv-primary';
-		$card   = 'mb-6 max-w-3xl rounded-einv-lg border border-einv-hairline bg-white p-6 shadow-einv-card';
-		$title  = 'm-0 mb-1 text-[20px] font-light tracking-[-0.2px] text-einv-ink';
+		$has_key = ( new Encryption() )->is_available();
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- read-only view switch, whitelisted by AdminTabs::resolve.
+		$tab = AdminTabs::resolve( isset( $_GET['tab'] ) ? wp_unslash( $_GET['tab'] ) : '' );
 		?>
 		<div class="wrap">
-			<h1 class="wp-heading-inline"><?php esc_html_e( 'Cài đặt hóa đơn Mắt Bão', 'einvoice-matbao' ); ?></h1>
+			<h1 class="wp-heading-inline"><?php esc_html_e( 'Hóa đơn Mắt Bão', 'einvoice-matbao' ); ?></h1>
 			<div id="einv-app" class="mt-4 font-einv text-einv-ink" hx-swap="innerHTML">
 
 				<?php if ( ! $has_key ) : ?>
@@ -106,6 +95,72 @@ final class SettingsPage {
 					</div>
 				<?php endif; ?>
 
+				<div id="einv-tabs" hx-history-elt>
+					<?php echo self::render_tabs( $tab ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- render_tabs returns escaped HTML. ?>
+				</div>
+			</div>
+		</div>
+		<?php
+	}
+
+	/**
+	 * The tab bar and the panel of one tab; shared by the page and the tab fragment route.
+	 *
+	 * @param string $tab Tab key, already resolved through AdminTabs::resolve().
+	 * @return string Escaped HTML.
+	 */
+	public static function render_tabs( string $tab ): string {
+		$links = '';
+		foreach ( AdminTabs::labels() as $key => $text ) {
+			$url    = esc_url( AdminTabs::url( $key ) );
+			$active = $key === $tab;
+			$links .= sprintf(
+				'<a href="%1$s" hx-get="%2$s" hx-target="#einv-tabs" hx-push-url="%1$s" data-einv-tab-link="%3$s" class="%4$s"%5$s>%6$s</a>',
+				$url,
+				esc_url( rest_url( SettingsController::NAMESPACE . '/tabs/' . $key ) ),
+				esc_attr( $key ),
+				esc_attr( 'no-underline px-3 py-2 text-[14px] ' . ( $active ? 'font-medium text-einv-primary' : 'text-einv-ink-secondary' ) ),
+				$active ? ' aria-current="page"' : '',
+				esc_html( $text )
+			);
+		}
+
+		$panel = match ( $tab ) {
+			'connection' => self::render_connection_panel(),
+			'invoicing'  => self::render_invoicing_panel(),
+			'lark'       => self::render_lark_panel(),
+			'advanced'   => UninstallSettingsController::render_section(),
+			default      => InvoicePage::render_panel(),
+		};
+
+		return sprintf(
+			'<nav class="mb-4 flex flex-wrap gap-1 border-b border-einv-hairline" aria-label="%1$s">%2$s</nav><div id="einv-tab-panel" data-einv-tab="%3$s">%4$s</div>',
+			esc_attr__( 'Hóa đơn Mắt Bão', 'einvoice-matbao' ),
+			$links,
+			esc_attr( $tab ),
+			$panel
+		);
+	}
+
+	/**
+	 * Connection and default template cards.
+	 */
+	private static function render_connection_panel(): string {
+		$store       = new CredentialStore();
+		$settings    = new Settings();
+		$credentials = $store->matbao();
+		$template    = $settings->default_template();
+		$environment = null !== $credentials ? $credentials->environment : 'demo';
+		$input       = 'mt-1 block w-full max-w-md rounded-einv-sm border border-einv-hairline-input bg-white px-3 py-2 text-[15px] text-einv-ink shadow-none focus:border-einv-primary focus:outline-none';
+		$label       = 'block text-[13px] font-medium text-einv-ink-secondary';
+		$help        = 'mt-1 text-[13px] text-einv-ink-mute';
+		$button      = 'inline-flex cursor-pointer items-center rounded-full border-0 bg-einv-primary px-4 py-2 text-[14px] font-normal text-white hover:bg-einv-primary-deep active:bg-einv-primary-press';
+		$second      = 'inline-flex cursor-pointer items-center rounded-full border border-einv-hairline bg-white px-4 py-2 text-[14px] font-normal text-einv-primary hover:border-einv-primary';
+		$card        = 'mb-6 max-w-3xl rounded-einv-lg border border-einv-hairline bg-white p-6 shadow-einv-card';
+		$title       = 'm-0 mb-1 text-[20px] font-light tracking-[-0.2px] text-einv-ink';
+
+		ob_start();
+		?>
 				<section class="<?php echo esc_attr( $card ); ?>">
 					<h2 class="<?php echo esc_attr( $title ); ?>"><?php esc_html_e( 'Kết nối Mắt Bão', 'einvoice-matbao' ); ?></h2>
 					<p class="<?php echo esc_attr( $help ); ?> mb-4"><?php esc_html_e( 'Thông tin đăng nhập API lấy trong mục cấu hình API của trang quản lý hóa đơn Mắt Bão. Mật khẩu được lưu mã hóa và không hiển thị lại.', 'einvoice-matbao' ); ?></p>
@@ -160,6 +215,24 @@ final class SettingsPage {
 					<button type="button" id="einv-reload-templates" class="<?php echo esc_attr( $second ); ?> mt-3"><?php esc_html_e( 'Tải lại danh sách mẫu', 'einvoice-matbao' ); ?></button>
 				</section>
 
+		<?php
+		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Reference prefix, walk-in buyer and unit cards.
+	 */
+	private static function render_invoicing_panel(): string {
+		$settings = new Settings();
+		$input    = 'mt-1 block w-full max-w-md rounded-einv-sm border border-einv-hairline-input bg-white px-3 py-2 text-[15px] text-einv-ink shadow-none focus:border-einv-primary focus:outline-none';
+		$label    = 'block text-[13px] font-medium text-einv-ink-secondary';
+		$help     = 'mt-1 text-[13px] text-einv-ink-mute';
+		$button   = 'inline-flex cursor-pointer items-center rounded-full border-0 bg-einv-primary px-4 py-2 text-[14px] font-normal text-white hover:bg-einv-primary-deep active:bg-einv-primary-press';
+		$card     = 'mb-6 max-w-3xl rounded-einv-lg border border-einv-hairline bg-white p-6 shadow-einv-card';
+		$title    = 'm-0 mb-1 text-[20px] font-light tracking-[-0.2px] text-einv-ink';
+
+		ob_start();
+		?>
 				<section class="<?php echo esc_attr( $card ); ?>">
 					<h2 class="<?php echo esc_attr( $title ); ?>"><?php esc_html_e( 'Mã tham chiếu và người mua vãng lai', 'einvoice-matbao' ); ?></h2>
 					<form hx-post="<?php echo esc_url( rest_url( SettingsController::NAMESPACE . '/settings/invoicing' ) ); ?>" hx-target="next .einv-result" class="mt-4 space-y-4">
@@ -200,6 +273,25 @@ final class SettingsPage {
 					<div class="einv-result" aria-live="polite"></div>
 				</section>
 
+		<?php
+		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Lark alert card.
+	 */
+	private static function render_lark_panel(): string {
+		$store  = new CredentialStore();
+		$input  = 'mt-1 block w-full max-w-md rounded-einv-sm border border-einv-hairline-input bg-white px-3 py-2 text-[15px] text-einv-ink shadow-none focus:border-einv-primary focus:outline-none';
+		$label  = 'block text-[13px] font-medium text-einv-ink-secondary';
+		$help   = 'mt-1 text-[13px] text-einv-ink-mute';
+		$button = 'inline-flex cursor-pointer items-center rounded-full border-0 bg-einv-primary px-4 py-2 text-[14px] font-normal text-white hover:bg-einv-primary-deep active:bg-einv-primary-press';
+		$second = 'inline-flex cursor-pointer items-center rounded-full border border-einv-hairline bg-white px-4 py-2 text-[14px] font-normal text-einv-primary hover:border-einv-primary';
+		$card   = 'mb-6 max-w-3xl rounded-einv-lg border border-einv-hairline bg-white p-6 shadow-einv-card';
+		$title  = 'm-0 mb-1 text-[20px] font-light tracking-[-0.2px] text-einv-ink';
+
+		ob_start();
+		?>
 				<section class="<?php echo esc_attr( $card ); ?>">
 					<h2 class="<?php echo esc_attr( $title ); ?>"><?php esc_html_e( 'Cảnh báo Lark', 'einvoice-matbao' ); ?></h2>
 					<p class="<?php echo esc_attr( $help ); ?> mb-4"><?php esc_html_e( 'Webhook của custom bot Lark trong group nhận cảnh báo. Webhook và secret được lưu mã hóa và không hiển thị lại.', 'einvoice-matbao' ); ?></p>
@@ -222,10 +314,8 @@ final class SettingsPage {
 					<div class="einv-result" aria-live="polite"></div>
 				</section>
 
-				<?php UninstallSettingsController::render_section(); ?>
-			</div>
-		</div>
 		<?php
+		return (string) ob_get_clean();
 	}
 
 	/**

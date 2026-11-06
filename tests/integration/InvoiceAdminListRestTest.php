@@ -164,9 +164,7 @@ final class InvoiceAdminListRestTest extends SettingsRestTestCase {
 	public function test_search_box_has_an_accessible_name(): void {
 		$this->login_as( 'administrator' );
 
-		ob_start();
-		InvoicePage::render();
-		$html = (string) ob_get_clean();
+		$html = InvoicePage::render_panel();
 
 		$this->assertMatchesRegularExpression( '/<input type="search" name="q"[^>]*aria-label="Mã đơn hoặc MTChieu"/', $html );
 	}
