@@ -1,9 +1,9 @@
 ## 1. Khai báo sàn và cấu hình công cụ
 
-- [ ] 1.1 Cập nhật header `einvoice-matbao.php`: `Requires at least: 6.6`, `Requires PHP: 8.2`, `WC requires at least: 9.8` (giữ `WC tested up to: 11.2`)
-- [ ] 1.2 `composer.json`: `require.php` `>=8.2`, `config.platform.php` `8.2.0`; cập nhật `composer.lock` để mọi dependency tương thích PHP 8.2 (vd `doctrine/instantiator` 2.0.x)
+- [x] 1.1 Cập nhật header `einvoice-matbao.php`: `Requires at least: 6.6`, `Requires PHP: 8.2`, `WC requires at least: 9.8` (giữ `WC tested up to: 11.2`)
+- [x] 1.2 `composer.json`: `require.php` `>=8.2`, `config.platform.php` `8.2.0`; cập nhật `composer.lock` để mọi dependency tương thích PHP 8.2 (vd `doctrine/instantiator` 2.0.x)
 - [ ] 1.3 `phpcs.xml.dist`: `testVersion` `8.2-`, `minimum_wp_version` `6.6`; `phpstan.neon`: `phpVersion` `80200`; fixture `tests/fixtures/php-floor/Php83Only.php` chứng minh PHPStan báo hàm PHP 8.3+ (loại khỏi path PHPCS/PHPStan thường)
-- [ ] 1.4 Thêm test integration kiểm header plugin và `composer.json` khai báo đúng sàn (scenario "Header and Composer agree")
+- [x] 1.4 Thêm test integration kiểm header plugin và `composer.json` khai báo đúng sàn (scenario "Header and Composer agree")
 
 ## 2. Stack Docker chọn được tổ hợp
 
