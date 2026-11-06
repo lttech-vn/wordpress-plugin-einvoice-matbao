@@ -1,7 +1,7 @@
 ## 1. Tab registry and status groups
 
 - [x] 1.1 Add `src/Admin/AdminTabs.php` (keys `invoices`, `connection`, `invoicing`, `lark`, `advanced` in order, Vietnamese labels, `DEFAULT`, `resolve()`, `url()`) with integration test `tests/integration/AdminTabsTest.php` (order, default, unknown/empty/uppercase key fallback, URL shape)
-- [ ] 1.2 Add `InvoiceStatus::group()` (`error` / `waiting` / `created` / `other`) with tests covering every status constant and an unknown value
+- [x] 1.2 Add `InvoiceStatus::group()` (`error` / `waiting` / `created` / `other`) with tests covering every status constant and an unknown value
 
 ## 2. Panel rendering split
 
