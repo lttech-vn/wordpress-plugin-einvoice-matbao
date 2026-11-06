@@ -4,7 +4,7 @@ Ghi nhận quyết định người dùng trong phiên khảo sát. Đây chưa 
 
 ## Phạm vi đã chốt
 
-- Target: WordPress 7, WooCommerce 11, PHP 8.5. Chưa xác minh release cụ thể hoặc chạy compatibility test.
+- Supported: WordPress 6.6+, WooCommerce 9.8+, PHP 8.2+; tested on minimum and latest combinations.
 - Một đơn vị xuất hóa đơn.
 - Mọi đơn chuyển sang `completed` sau khi bật plugin thuộc phạm vi; không tự động quét đơn cũ.
 - Chỉ tạo nháp hóa đơn GTGT. Kế toán kiểm tra và ký/phát hành trên Mắt Bão.
@@ -110,7 +110,7 @@ Chỉ lập spec triển khai sau khi giải quyết các quyết định còn m
 - Lưu trữ: bảng riêng `invoice` và `attempt` liên kết order; Action Scheduler dùng bản kèm WooCommerce.
 - Uninstall: giữ dữ liệu hóa đơn mặc định; credential luôn xóa; có tùy chọn xóa hết cần xác nhận.
 - UI tiếng Việt mặc định, có text domain.
-- Verify: khai báo HPOS và Cart/Checkout Blocks, chỉ dùng WC CRUD; E2E Classic và Blocks với API demo trên WP 7 / WC 11 / PHP 8.5.
+- Verify: khai báo HPOS và Cart/Checkout Blocks, chỉ dùng WC CRUD; E2E Classic và Blocks với API demo trên tổ hợp latest (WP 7.1 / WC 11.2 / PHP 8.5); PHPUnit chạy cả tổ hợp minimum (WP 6.6 / WC 9.8 / PHP 8.2).
 
 ### Còn mở
 - Chặn trùng nguyên tử phía Mắt Bão.

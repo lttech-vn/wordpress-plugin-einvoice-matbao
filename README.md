@@ -5,6 +5,10 @@ Product scope and decisions: `docs/discovery.md`, `GLOSSARY.md`, `docs/adr/`.
 
 ## Requirements
 
+Plugin requirements (site owners): PHP 8.2+, WordPress 6.6+, WooCommerce 9.8+.
+
+Development requirements:
+
 - Docker with Compose v2 (PHP, Composer, WP-CLI, WordPress and WooCommerce all run in containers).
 - [bun](https://bun.sh) for the admin CSS/JS build.
 
@@ -340,24 +344,41 @@ One workflow per concern under `.github/workflows/`:
 | Workflow      | Trigger                    | Does                                                        |
 |---------------|----------------------------|-------------------------------------------------------------|
 | `assets.yml`  | PR, `main`                 | bun tests, build, CSS scope and no-CDN checks               |
-| `php.yml`     | PR, `main`                 | PHPCS, PHPStan, both PHPUnit suites (Docker Compose stack)  |
+| `php.yml`     | PR, `main`                 | matrix `PHP (min)` / `PHP (latest)`: PHPCS, PHPStan, both PHPUnit suites, floor guard |
 | `e2e.yml`     | `main`                     | browser E2E from the committed replay cache (`tests/e2e`)   |
 | `release.yml` | tag `v*.*.*`               | verify tag, call the three above, package, smoke, publish   |
+
+`PHP (min)` also runs `php -l` on PHP 8.2; both jobs run `composer analyse:floor-guard`. Browser E2E and the
+release zip smoke run on the latest stack only.
 
 `assets`, `php` and `e2e` also expose `workflow_call`, so `release.yml` reuses them as gates.
 
 ## Pinned versions and known limits
 
-| Component   | Version                                   |
-|-------------|-------------------------------------------|
-| WordPress   | 7.1.4 (`wordpress:7.1.4-php8.5-apache`)   |
-| PHP         | 8.5 (from the WordPress image)            |
-| WooCommerce | 11.2.1 (`WOOCOMMERCE_VERSION` in compose) |
-| MariaDB     | 11.8                                      |
-| wp-phpunit  | ~7.1.0                                    |
+Two combinations are tested: the minimum supported and the latest.
 
-- WordPress, WooCommerce and PHP 8.5 are recent releases; only the versions above are tested.
-  Bump them together in `docker/Dockerfile`, `compose.yaml` and `composer.json`.
+| Component   | Minimum (`docker/min.env`)                  | Latest (`compose.yaml` defaults)          |
+|-------------|---------------------------------------------|-------------------------------------------|
+| WordPress   | 6.6.2 (`wordpress:6.6.2-php8.2-apache`)     | 7.1.4 (`wordpress:7.1.4-php8.5-apache`)   |
+| PHP         | 8.2 (from the WordPress image)              | 8.5 (from the WordPress image)            |
+| WP-CLI      | `wordpress:cli-2.12.0-php8.2`               | `wordpress:cli-2.12.0-php8.5`             |
+| WooCommerce | 9.8.7                                       | 11.2.1                                    |
+| MariaDB     | 11.8                                        | 11.8                                      |
+| wp-phpunit  | ~6.6.0 (installed by `einv-setup` into `/opt/wp-phpunit`) | ~7.1.0 (`composer.lock`)  |
+
+- Run the latest stack with `scripts/check.sh`, the minimum with `scripts/check.sh --min`. The minimum run
+  uses project `<COMPOSE_PROJECT_NAME>-min` on port `EINV_HTTP_PORT`+1 (default 8081). Do not run both in the
+  same worktree at once: they share the `vendor/` bind mount.
+- Presets can be overridden with `EINV_WORDPRESS_IMAGE`, `EINV_WPCLI_IMAGE`, `EINV_WOOCOMMERCE_VERSION`,
+  `EINV_WP_PHPUNIT_VERSION` and `EINV_WP_PHPUNIT_DIR`.
+- Bump versions together: `docker/Dockerfile`, `compose.yaml`, `docker/min.env` and `composer.json`.
+- Intermediate versions (PHP 8.3/8.4, WordPress 6.7–7.0, WooCommerce 9.9–11.1) are not tested directly.
+- WooCommerce 9.8 core bug: Store API checkout returns 500 ("Undefined array key") when no payment gateway
+  is enabled. It is not a plugin issue; the integration fixture enables `bacs`.
+- WooCommerce 9.8 has no `wc/v4` REST API, so the v4 order privacy test is skipped on the minimum stack
+  (feature-detected).
+- PHPCS `testVersion` has no effect (PHPCompatibility is not installed); the PHP floor is enforced by
+  PHPStan (`phpVersion` 80200) and `php -l` on PHP 8.2.
 - WP-CLI 2.12 prints PHP 8.5 deprecation notices during `einv-setup`; they are harmless.
 - Activation without WooCommerce is refused by WordPress core through the `Requires Plugins`
   header. If WooCommerce is later deactivated or removed, the plugin deactivates itself on the
