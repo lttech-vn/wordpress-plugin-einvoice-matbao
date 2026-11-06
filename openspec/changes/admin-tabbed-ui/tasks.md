@@ -23,9 +23,9 @@
 
 ## 5. Visual polish
 
-- [ ] 5.1 Status badges in `InvoicePage::render_list()` (`span[data-einv-badge]`, colours from existing `einv-*` tokens per design D8) with list tests in `tests/integration/InvoiceAdminListRestTest.php` for `failed`, `needs_attention`, `pending`, `draft_created`, `skipped`, `stopped`
-- [ ] 5.2 Tab bar styling and panel spacing per design D9 (active underline, hover, focus-visible, horizontal scroll on narrow screens, config panels `max-w-3xl`, invoices panel full width); rebuild `assets/dist/admin.css` and pass `bun run check:css-scope`
-- [ ] 5.3 Run the Impeccable detector on changed UI files and fix findings; visual check of all 5 tabs at desktop and narrow width
+- [x] 5.1 Status badges in `InvoicePage::render_list()` (`span[data-einv-badge]`, colours from existing `einv-*` tokens per design D8) with list tests in `tests/integration/InvoiceAdminListRestTest.php` for `failed`, `needs_attention`, `pending`, `draft_created`, `skipped`, `stopped`
+- [x] 5.2 Tab bar styling and panel spacing per design D9 (active underline, hover, focus-visible, horizontal scroll on narrow screens, config panels `max-w-3xl`, invoices panel full width); rebuild `assets/dist/admin.css` and pass `bun run check:css-scope`
+- [x] 5.3 Run the Impeccable detector on changed UI files and fix findings; visual check of all 5 tabs at desktop and narrow width
 
 ## 6. End-to-end tests
 
