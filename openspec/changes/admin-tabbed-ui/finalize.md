@@ -11,7 +11,7 @@
 - **Branch**: `feat/admin-tabbed-ui`
 - **Base branch**: `main`
 - **Final state**: `pr-open` (worktree branch `admin-tabbed-ui` fast-forwarded into `feat/admin-tabbed-ui` at `25f62b9`, `origin/main` merged in, branch pushed)
-- **PR URL**: `<filled after gh pr create>`
+- **PR URL**: `https://github.com/lttech-vn/wordpress-plugin-einvoice-matbao/pull/42`
 
 ---
 
@@ -24,7 +24,7 @@
 
 ## PR comment
 
-- **PR comment status**: `skipped (no PR)`
+- **PR comment status**: `posted` (https://github.com/lttech-vn/wordpress-plugin-einvoice-matbao/pull/42#issuecomment-6691062997)
 
 ---
 
