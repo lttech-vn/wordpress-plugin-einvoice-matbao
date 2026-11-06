@@ -5,10 +5,10 @@
 
 ## 2. Panel rendering split
 
-- [ ] 2.1 Refactor `SettingsPage::render()` sections into string-returning panel methods for `connection`, `invoicing`, `lark` (markup, ids, `hx-*` unchanged); make `UninstallSettingsController::render_section()` usable as the `advanced` panel
-- [ ] 2.2 Move the invoice shell (dashboard, filter form, `#einv-invoices`) from `InvoicePage::render()` into `InvoicePage::render_panel()`
-- [ ] 2.3 Add shared `render_tabs( string $tab ): string` (tab bar `nav` with `href` + `hx-get` + `hx-target="#einv-tabs"` + `hx-push-url`, `aria-current="page"` on the active tab, `#einv-tab-panel[data-einv-tab]`) and render it from `SettingsPage::render()` using unslashed `$_GET['tab']` resolved by `AdminTabs::resolve()` (exact whitelist, no lowercasing); encryption-key banner stays above `#einv-tabs`; page title "Hóa đơn Mắt Bão"
-- [ ] 2.4 Retarget existing page-render assertions in `SettingsUninstallRestTest`, `SettingsUnitRestTest`, `SettingsCredentialsRestTest`, `SettingsInvoicingRestTest`, `InvoiceAdminListRestTest` to the tab that now holds each form
+- [x] 2.1 Refactor `SettingsPage::render()` sections into string-returning panel methods for `connection`, `invoicing`, `lark` (markup, ids, `hx-*` unchanged); make `UninstallSettingsController::render_section()` usable as the `advanced` panel
+- [x] 2.2 Move the invoice shell (dashboard, filter form, `#einv-invoices`) from `InvoicePage::render()` into `InvoicePage::render_panel()`
+- [x] 2.3 Add shared `render_tabs( string $tab ): string` (tab bar `nav` with `href` + `hx-get` + `hx-target="#einv-tabs"` + `hx-push-url`, `aria-current="page"` on the active tab, `#einv-tab-panel[data-einv-tab]`) and render it from `SettingsPage::render()` using unslashed `$_GET['tab']` resolved by `AdminTabs::resolve()` (exact whitelist, no lowercasing); encryption-key banner stays above `#einv-tabs`; page title "Hóa đơn Mắt Bão"
+- [x] 2.4 Retarget existing page-render assertions in `SettingsUninstallRestTest`, `SettingsUnitRestTest`, `SettingsCredentialsRestTest`, `SettingsInvoicingRestTest`, `InvoiceAdminListRestTest` to the tab that now holds each form
 
 ## 3. Tab fragment route
 
