@@ -20,8 +20,8 @@
 
 ## 4. CI
 
-- [ ] 4.1 `.github/workflows/php.yml`: matrix `min`/`latest`, `fail-fast: false`, `COMPOSE_PROJECT_NAME` riêng; job `min` thêm `php -l` trên PHP 8.2; bước khẳng định PHPStan báo lỗi trên fixture; release gate dùng lại qua `workflow_call`
-- [ ] 4.2 Kiểm tra `e2e.yml`, `release.yml`, `scripts/smoke-zip.sh` vẫn dùng tổ hợp mới nhất mặc định
+- [x] 4.1 `.github/workflows/php.yml`: matrix `min`/`latest`, `fail-fast: false`, `COMPOSE_PROJECT_NAME` riêng; job `min` thêm `php -l` trên PHP 8.2; bước khẳng định PHPStan báo lỗi trên fixture; release gate dùng lại qua `workflow_call`
+- [x] 4.2 Kiểm tra `e2e.yml`, `release.yml`, `scripts/smoke-zip.sh` vẫn dùng tổ hợp mới nhất mặc định
 
 ## 5. Tài liệu
 
