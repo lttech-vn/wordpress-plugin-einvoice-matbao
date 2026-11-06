@@ -28,6 +28,10 @@ final class BlocksCheckoutBuyerTest extends InvoiceWorkflowTestCase {
 		parent::set_up();
 
 		add_filter( 'woocommerce_store_api_disable_nonce_check', '__return_true' );
+		// A real store has at least one enabled gateway. WooCommerce 9.8 Store API reads the first
+		// enabled gateway without an empty check, so a site with none raises a PHP warning.
+		update_option( 'woocommerce_bacs_settings', array( 'enabled' => 'yes' ) );
+		WC()->payment_gateways()->init();
 		wp_set_current_user( 0 );
 		wc_load_cart();
 		WC()->cart->empty_cart();
@@ -42,6 +46,8 @@ final class BlocksCheckoutBuyerTest extends InvoiceWorkflowTestCase {
 	public function tear_down(): void {
 		WC()->cart->empty_cart();
 		remove_filter( 'woocommerce_store_api_disable_nonce_check', '__return_true' );
+		delete_option( 'woocommerce_bacs_settings' );
+		WC()->payment_gateways()->init();
 
 		parent::tear_down();
 	}
@@ -219,8 +225,6 @@ final class BlocksCheckoutBuyerTest extends InvoiceWorkflowTestCase {
 
 	public function test_a_failed_payment_retry_with_a_failed_order_in_session_can_still_place_the_order(): void {
 		$this->with_encryption_key();
-		update_option( 'woocommerce_bacs_settings', array( 'enabled' => 'yes' ) );
-		WC()->payment_gateways()->init();
 		$order = $this->pending_order_in_session();
 		$order->update_status( 'failed' );
 		$this->assertSame( $order->get_id(), (int) WC()->session->get( 'store_api_draft_order' ) );
