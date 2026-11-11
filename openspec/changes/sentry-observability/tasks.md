@@ -36,8 +36,8 @@
 
 ## 6. Đóng gói scope
 
-- [ ] 6.1 `scripts/build-zip.sh`: tải phar PHP-Scoper ghim version + sha256, thêm `scoper.inc.php` (prefix `LTTech\EinvoiceMatbao\Vendor`, loại trừ namespace plugin và symbol WordPress/WooCommerce/Action Scheduler), scope `vendor/` + `src/`, dump autoload lại
-- [ ] 6.2 `scripts/smoke-zip.sh`: kiểm tra không còn `namespace Sentry;` chưa prefix; cài mu-plugin giả nạp `\Sentry\SentrySdk` và `\GuzzleHttp\Psr7\Request`, rồi kích hoạt plugin, bật giám sát với DSN tới sink giả và gửi event thử thành công
+- [x] 6.1 `scripts/build-zip.sh`: tải phar PHP-Scoper ghim version + sha256, thêm `scoper.inc.php` (prefix `LTTech\EinvoiceMatbao\Vendor`, loại trừ namespace plugin và symbol WordPress/WooCommerce/Action Scheduler), scope `vendor/` + `src/`, dump autoload lại
+- [x] 6.2 `scripts/smoke-zip.sh`: kiểm tra không còn `namespace Sentry;` chưa prefix; cài mu-plugin giả nạp `\Sentry\SentrySdk` và `\GuzzleHttp\Psr7\Request`, rồi kích hoạt plugin, bật giám sát với DSN tới sink giả và gửi event thử thành công
 
 ## 7. Tài liệu và xác minh
 
