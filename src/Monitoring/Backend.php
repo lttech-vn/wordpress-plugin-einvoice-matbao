@@ -52,6 +52,13 @@ interface Backend {
 	public function finish_transaction( string $status ): void;
 
 	/**
+	 * Like finish_transaction(), with the status derived from an HTTP response code.
+	 *
+	 * @param int $code HTTP response code of the traced request.
+	 */
+	public function finish_transaction_for_http_status( int $code ): void;
+
+	/**
 	 * Runs $callback inside a child span of the open transaction and returns its result. An exception
 	 * of $callback closes the span with `internal_error` and is rethrown unchanged.
 	 *

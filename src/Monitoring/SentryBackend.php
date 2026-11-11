@@ -234,13 +234,31 @@ final class SentryBackend implements Backend {
 	 * @param string $status Span status.
 	 */
 	public function finish_transaction( string $status ): void {
+		$this->close_transaction( self::span_status( $status ) );
+	}
+
+	/**
+	 * Closes the open transaction with the SDK status of an HTTP response code.
+	 *
+	 * @param int $code HTTP response code.
+	 */
+	public function finish_transaction_for_http_status( int $code ): void {
+		$this->close_transaction( SpanStatus::createFromHttpStatusCode( $code ) );
+	}
+
+	/**
+	 * Flushes buffered logs, then closes the transaction with $status.
+	 *
+	 * @param SpanStatus $status Transaction status.
+	 */
+	private function close_transaction( SpanStatus $status ): void {
 		// Logs first, while the transaction is still on the scope: their envelope header then
 		// carries the transaction's trace ID, matching the trace ID of each log item.
 		$this->flush();
 
 		$transaction = $this->transaction;
 		if ( null !== $transaction ) {
-			$transaction->setStatus( self::span_status( $status ) );
+			$transaction->setStatus( $status );
 			try {
 				// Still on the scope while finishing, so the envelope keeps the transaction's own
 				// dynamic sampling context (and trace ID) rather than the scope's fallback.

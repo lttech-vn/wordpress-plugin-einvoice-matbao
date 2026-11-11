@@ -194,6 +194,29 @@ final class Monitor {
 	}
 
 	/**
+	 * Closes the open transaction like finish_transaction(), with the status of an HTTP response
+	 * code. The mapping lives in the backend so that only it touches the Sentry SDK.
+	 *
+	 * @param int $code HTTP response code of the traced request.
+	 */
+	public static function finish_transaction_for_http_status( int $code ): void {
+		if ( 0 === self::$transaction_depth ) {
+			return;
+		}
+
+		--self::$transaction_depth;
+		if ( self::$transaction_depth > 0 ) {
+			return;
+		}
+
+		self::capture(
+			static function ( Backend $backend ) use ( $code ): void {
+				$backend->finish_transaction_for_http_status( $code );
+			}
+		);
+	}
+
+	/**
 	 * Measures $callback as a child span of the open transaction.
 	 *
 	 * @param string        $op             Operation, for example `http.client`.
@@ -293,6 +316,8 @@ final class Monitor {
 
 	/**
 	 * Forgets the backend so the next call reads the configuration again, or injects one.
+	 *
+	 * @internal Test seam; production code never calls it.
 	 *
 	 * @param Backend|null $b Backend to use, or null to resolve it from the configuration.
 	 */

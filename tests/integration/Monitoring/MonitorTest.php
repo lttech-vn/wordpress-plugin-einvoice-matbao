@@ -558,6 +558,9 @@ final class MonitorTest extends WP_UnitTestCase {
 			public function finish_transaction( string $status ): void {
 			}
 
+			public function finish_transaction_for_http_status( int $code ): void {
+			}
+
 			public function span( string $op, string $description, callable $callback, callable $data_of_result, array $known ): mixed {
 				try {
 					return $callback();
@@ -596,6 +599,10 @@ final class MonitorTest extends WP_UnitTestCase {
 			}
 
 			public function finish_transaction( string $status ): void {
+				throw new RuntimeException( 'backend down' );
+			}
+
+			public function finish_transaction_for_http_status( int $code ): void {
 				throw new RuntimeException( 'backend down' );
 			}
 

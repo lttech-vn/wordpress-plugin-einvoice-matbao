@@ -202,6 +202,26 @@ final class TracingTest extends InvoiceWorkflowTestCase {
 		$this->assert_transaction_depth_is_zero();
 	}
 
+	public function test_route_error_without_status_is_internal_error(): void {
+		$this->enable_monitoring();
+		register_rest_route(
+			SettingsController::NAMESPACE,
+			'/broken',
+			array(
+				'methods'             => 'GET',
+				'callback'            => static fn(): \WP_Error => new \WP_Error( 'einv_broken', 'broken' ),
+				'permission_callback' => '__return_true',
+			)
+		);
+
+		$response = $this->htmx( 'GET', '/broken' );
+
+		$this->assertSame( 500, $response->get_status() );
+		$transactions = $this->sink->transactions();
+		$this->assertCount( 1, $transactions );
+		$this->assertSame( 'internal_error', $transactions[0]['contexts']['trace']['status'] );
+	}
+
 	public function test_sampling_zero_still_reports_errors(): void {
 		$this->configure_matbao();
 		$this->enable_monitoring( 0.0 );

@@ -8,7 +8,6 @@
 namespace LTTech\EinvoiceMatbao\Monitoring;
 
 use LTTech\EinvoiceMatbao\Admin\SettingsController;
-use Sentry\Tracing\SpanStatus;
 use WP_Error;
 use WP_HTTP_Response;
 use WP_REST_Request;
@@ -104,7 +103,7 @@ final class RestTracing {
 			}
 
 			unset( $this->open[ $request ] );
-			Monitor::finish_transaction( (string) SpanStatus::createFromHttpStatusCode( self::status_code( $response ) ) );
+			Monitor::finish_transaction_for_http_status( self::status_code( $response ) );
 		} catch ( \Throwable $failure ) {
 			InternalFailure::report( $failure );
 		}
