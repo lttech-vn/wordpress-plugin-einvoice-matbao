@@ -64,7 +64,7 @@ final class Scrubber implements Redactor {
 	 *
 	 * @param array<int, string> $values Known sensitive values.
 	 */
-	public function with_known_values( array $values ): self {
+	public function with_known_values( array $values ): static { // phpcs:ignore Universal.CodeAnalysis.StaticInFinalClass.ReturnType -- Redactor declares `static`; PHP 8.2 rejects `self` as an override.
 		return new self( $values );
 	}
 
