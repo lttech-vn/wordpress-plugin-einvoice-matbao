@@ -12,6 +12,7 @@ use Sentry\Breadcrumb;
 use Sentry\CheckInStatus;
 use Sentry\ClientBuilder;
 use Sentry\Event;
+use Sentry\EventType;
 use Sentry\HttpClient\HttpClientInterface;
 use Sentry\Logs\Log;
 use Sentry\Logs\LogLevel;
@@ -107,6 +108,28 @@ final class SentryBackend implements Backend {
 	private array $logs = array();
 
 	/**
+	 * Known values seen while the open transaction was open. Its name and op travel in the trace
+	 * context and dynamic sampling context of every later payload, so all of them apply.
+	 *
+	 * @var list<string>
+	 */
+	private array $trace_known = array();
+
+	/**
+	 * Known values of the buffered logs, applied to the trace metadata of the log envelope.
+	 *
+	 * @var list<string>
+	 */
+	private array $log_known = array();
+
+	/**
+	 * Identifier-preserving redaction of trace contexts and the dynamic sampling context.
+	 *
+	 * @var TraceRedaction
+	 */
+	private TraceRedaction $trace_redaction;
+
+	/**
 	 * Builds the isolated client and hub.
 	 *
 	 * @param MonitoringConfig         $config   Active configuration.
@@ -127,9 +150,22 @@ final class SentryBackend implements Backend {
 		$client       = ( new ClientBuilder( new Options( $this->options( $config->dsn, $http ?? new WpHttpClient() ) ) ) )->getClient();
 		$this->hub    = new Hub( $client );
 		$site         = $config->site;
+
+		$this->trace_redaction = new TraceRedaction(
+			array(
+				'release'     => $config->release,
+				'environment' => $config->environment,
+				'public_key'  => (string) $client->getOptions()->getDsn()?->getPublicKey(),
+			)
+		);
+
+		// Log envelopes skip every before_send* callback, but their trace header (dynamic sampling
+		// context, with the open transaction's name) is set by the scope; this processor masks it.
+		$scrub_logs = fn( Event $event ): ?Event => EventType::logs() === $event->getType() ? $this->scrub_logs_event( $event ) : $event;
 		$this->hub->configureScope(
-			static function ( Scope $scope ) use ( $site ): void {
+			static function ( Scope $scope ) use ( $site, $scrub_logs ): void {
 				$scope->setTag( 'site', $site );
+				$scope->addEventProcessor( $scrub_logs );
 			}
 		);
 	}
@@ -175,28 +211,38 @@ final class SentryBackend implements Backend {
 			$this->finish_transaction( 'ok' );
 		}
 
-		$redactor = $this->redactor->with_known_values( $known );
-		$context  = TransactionContext::make()->setName( $redactor->text( $name ) );
+		$this->trace_known = array_values( $known );
+		$redactor          = $this->redactor->with_known_values( $known );
+		$context           = TransactionContext::make()->setName( $redactor->text( $name ) );
 		$context->setOp( $redactor->text( $op ) );
 		$this->transaction = $this->hub->startTransaction( $context );
 		$this->hub->setSpan( $this->transaction );
 	}
 
 	/**
-	 * Closes the open transaction (sent when sampled) and flushes buffered logs.
+	 * Flushes buffered logs, then closes the open transaction (sent when sampled).
 	 *
 	 * @param string $status Span status.
 	 */
 	public function finish_transaction( string $status ): void {
+		// Logs first, while the transaction is still on the scope: their envelope header then
+		// carries the transaction's trace ID, matching the trace ID of each log item.
+		$this->flush();
+
 		$transaction = $this->transaction;
 		if ( null !== $transaction ) {
-			$this->transaction = null;
-			$this->hub->setSpan( null );
 			$transaction->setStatus( self::span_status( $status ) );
-			$this->with_redactor( array(), static fn(): ?\Sentry\EventId => $transaction->finish() );
+			try {
+				// Still on the scope while finishing, so the envelope keeps the transaction's own
+				// dynamic sampling context (and trace ID) rather than the scope's fallback.
+				$this->with_redactor( array(), static fn(): ?\Sentry\EventId => $transaction->finish() );
+			} finally {
+				$this->transaction = null;
+				$this->hub->setSpan( null );
+			}
 		}
 
-		$this->flush();
+		$this->trace_known = array();
 	}
 
 	/**
@@ -217,6 +263,7 @@ final class SentryBackend implements Backend {
 		}
 
 		// Masked now: the transaction is sent later, possibly after the order context is gone.
+		$this->remember( $known );
 		$redactor = $this->redactor->with_known_values( $known );
 		$context  = SpanContext::make()->setOp( $redactor->text( $op ) )->setDescription( $redactor->text( $description ) );
 		$span     = $parent->startChild( $context );
@@ -251,8 +298,10 @@ final class SentryBackend implements Backend {
 			throw new InvalidArgumentException( 'Unknown log level.' );
 		}
 
-		$redactor = $this->redactor->with_known_values( $known );
-		$log      = new Log( microtime( true ), $this->trace_id(), LogLevel::{self::LOG_LEVELS[ $level ]}(), $redactor->text( $msg ) );
+		$this->remember( $known );
+		$this->log_known = self::union( $this->log_known, $known );
+		$redactor        = $this->redactor->with_known_values( $known );
+		$log             = new Log( microtime( true ), $this->trace_id(), LogLevel::{self::LOG_LEVELS[ $level ]}(), $redactor->text( $msg ) );
 		$log->setAttribute( 'sentry.release', $this->config->release );
 		$log->setAttribute( 'sentry.environment', $this->config->environment );
 		$log->setAttribute( 'site', $this->config->site );
@@ -295,9 +344,11 @@ final class SentryBackend implements Backend {
 			return;
 		}
 
-		$logs       = $this->logs;
-		$this->logs = array();
-		$this->hub->captureEvent( Event::createLogs()->setLogs( $logs ) );
+		$logs            = $this->logs;
+		$known           = $this->log_known;
+		$this->logs      = array();
+		$this->log_known = array();
+		$this->with_redactor( $known, fn(): ?\Sentry\EventId => $this->hub->captureEvent( Event::createLogs()->setLogs( $logs ) ) );
 	}
 
 	/**
@@ -364,7 +415,8 @@ final class SentryBackend implements Backend {
 	 * @throws \Throwable The redaction failure.
 	 */
 	private function with_redactor( array $known, callable $send ): mixed {
-		$this->active        = $this->redactor->with_known_values( $known );
+		$this->remember( $known );
+		$this->active        = $this->redactor->with_known_values( self::union( $known, $this->trace_known ) );
 		$this->scrub_failure = null;
 		try {
 			$result = $send();
@@ -481,16 +533,69 @@ final class SentryBackend implements Backend {
 		}
 
 		foreach ( $event->getContexts() as $name => $context ) {
-			$event->setContext( $name, (array) $this->active->value( $context ) );
+			$masked = 'trace' === $name
+				? $this->trace_redaction->trace_context( $context, $this->active )
+				: (array) $this->active->value( $context );
+			$event->setContext( $name, $masked );
 		}
 
+		$this->scrub_dsc( $event );
+	}
+
+	/**
+	 * Masks the free-text entries of the dynamic sampling context (envelope `trace` header).
+	 *
+	 * @param Event $event Event.
+	 */
+	private function scrub_dsc( Event $event ): void {
 		$dsc = $event->getSdkMetadata( 'dynamic_sampling_context' );
-		if ( $dsc instanceof DynamicSamplingContext ) {
-			foreach ( $dsc->getEntries() as $key => $value ) {
-				// The DSC is frozen once built; overwriting is the only way to mask it.
-				$dsc->set( $key, $this->active->text( $value ), true );
-			}
+		if ( ! $dsc instanceof DynamicSamplingContext ) {
+			return;
 		}
+
+		foreach ( $dsc->getEntries() as $key => $value ) {
+			// The DSC is frozen once built; overwriting is the only way to mask it.
+			$dsc->set( $key, $this->trace_redaction->dsc_entry( $key, $value, $this->active ), true );
+		}
+	}
+
+	/**
+	 * Scope processor for log envelopes: masks their trace header; a failure drops the envelope.
+	 *
+	 * @param Event $event Logs event.
+	 */
+	private function scrub_logs_event( Event $event ): ?Event {
+		try {
+			$this->scrub_dsc( $event );
+
+			return $event;
+		} catch ( \Throwable $failure ) {
+			$this->scrub_failure = $failure;
+
+			return null;
+		}
+	}
+
+	/**
+	 * Adds known values to the open transaction's set.
+	 *
+	 * @param array<int, string> $known Known personal values.
+	 */
+	private function remember( array $known ): void {
+		if ( null !== $this->transaction ) {
+			$this->trace_known = self::union( $this->trace_known, $known );
+		}
+	}
+
+	/**
+	 * Union of two value lists.
+	 *
+	 * @param array<int, string> $a First list.
+	 * @param array<int, string> $b Second list.
+	 * @return list<string>
+	 */
+	private static function union( array $a, array $b ): array {
+		return array_values( array_unique( array_merge( $a, $b ) ) );
 	}
 
 	/**

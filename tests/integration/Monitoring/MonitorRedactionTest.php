@@ -199,6 +199,75 @@ final class MonitorRedactionTest extends WP_UnitTestCase {
 		Monitor::finish_transaction();
 	}
 
+	public function test_log_in_order_context_masks_open_transaction_in_raw_envelope(): void {
+		$order = self::order();
+		// Opened outside the order context, so the name is only known to be personal later.
+		Monitor::start_transaction( 'sync ' . self::NAME, 'queue.task ' . self::NAME );
+
+		Monitor::with_order_context(
+			$order->get_id(),
+			static fn() => Monitor::log( 'info', 'inside' )
+		);
+		Monitor::flush();
+
+		$this->assertCount( 1, $this->sink->logs() );
+		$this->assert_not_sent( array( self::NAME ) );
+		Monitor::finish_transaction();
+		$this->assert_not_sent( array( self::NAME ) );
+	}
+
+	public function test_transaction_sent_after_context_masks_values_seen_while_open(): void {
+		$order = self::order();
+		Monitor::start_transaction( 'sync ' . self::NAME, 'queue.task' );
+
+		// The span inside the context is where the buyer values are seen by the open transaction.
+		Monitor::with_order_context(
+			$order->get_id(),
+			static fn() => Monitor::span( 'http.client', 'POST /api/x', static fn(): int => 1 )
+		);
+		Monitor::finish_transaction();
+
+		$this->assertCount( 1, $this->sink->transactions() );
+		$this->assert_not_sent( array( self::NAME ) );
+	}
+
+	public function test_trace_identifiers_survive_scrubbing_and_link_up(): void {
+		$order = self::order();
+		Monitor::start_transaction( 'sync ' . self::NAME, 'queue.task' );
+		Monitor::with_order_context(
+			$order->get_id(),
+			static function (): void {
+				Monitor::capture_exception( new RuntimeException( 'x' ) );
+				Monitor::log( 'info', 'inside' );
+			}
+		);
+		Monitor::span( 'http.client', 'POST /api/x', static fn(): int => 1 );
+		Monitor::finish_transaction();
+
+		$hex32 = '/^[0-9a-f]{32}$/';
+		$hex16 = '/^[0-9a-f]{16}$/';
+		$event = $this->sink->events()[0];
+		$trace = $this->sink->transactions()[0]['contexts']['trace'];
+		$this->assertMatchesRegularExpression( $hex32, $trace['trace_id'] );
+		$this->assertMatchesRegularExpression( $hex16, $trace['span_id'] );
+		$this->assertSame( $trace['trace_id'], $event['contexts']['trace']['trace_id'] );
+		$this->assertMatchesRegularExpression( $hex16, $event['contexts']['trace']['span_id'] );
+		$this->assertSame( $trace['trace_id'], $this->sink->logs()[0]['trace_id'] );
+		$span = $this->sink->transactions()[0]['spans'][0];
+		$this->assertSame( $trace['trace_id'], $span['trace_id'] );
+		$this->assertSame( $trace['span_id'], $span['parent_span_id'] );
+		$this->assertMatchesRegularExpression( $hex16, $span['span_id'] );
+
+		foreach ( $this->sink->envelope_headers() as $header ) {
+			$this->assertSame( $trace['trace_id'], $header['trace']['trace_id'] );
+			$this->assertSame( 'k', $header['trace']['public_key'] );
+			$this->assertSame( 'einvoice-matbao@' . EINVOICE_MATBAO_VERSION, $header['trace']['release'] );
+			$this->assertNotSame( '[filtered]', $header['trace']['sample_rand'] ?? '' );
+			$this->assertStringNotContainsString( self::NAME, (string) ( $header['trace']['transaction'] ?? '' ) );
+		}
+		$this->assert_not_sent( array( self::NAME ) );
+	}
+
 	public function test_transaction_name_snapshots_order_context(): void {
 		$order = self::order();
 		Monitor::with_order_context(
