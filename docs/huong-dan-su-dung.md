@@ -261,7 +261,7 @@ Nếu WooCommerce bị tắt hoặc gỡ, plugin tự tắt ở lần mở wp-ad
 
 Tính năng này là tùy chọn, **mặc định tắt**. Khi bật, plugin gửi tới máy chủ **Sentry** do bạn chọn (tự host hoặc dịch vụ Sentry):
 
-- **Lỗi (issues):** lỗi PHP và lỗi nội bộ của plugin, cùng cảnh báo "hóa đơn cần xử lý" (mức warning, mỗi đơn và mã lỗi một lần mỗi chu kỳ).
+- **Lỗi (issues):** các exception mà plugin tự bắt được (plugin không cài trình xử lý warning/fatal PHP của site nên không gửi lỗi PHP khác), cùng cảnh báo "hóa đơn cần xử lý" (mức warning, mỗi đơn và mã lỗi một lần mỗi chu kỳ).
 - **Hiệu năng (performance):** thời gian tạo nháp, gọi API Mắt Bão và tác vụ nền.
 - **Log:** ví dụ mỗi lần đổi trạng thái hóa đơn.
 - **Cron monitor:** báo khi tác vụ phục hồi hóa đơn kẹt không chạy đúng lịch.

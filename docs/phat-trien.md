@@ -250,8 +250,8 @@ Code nằm trong `src/Monitoring/`. Tính năng mặc định tắt; cấu hình
 
 ### Điểm đo và vì sao chọn các hook đó
 
-- **Action Scheduler** (`ActionSchedulerTracing`): `action_scheduler_before_execute`/`after_execute`/`failed_execution` mở transaction `queue.task` chỉ cho group `einvoice-matbao`, và gửi check-in cho hook `einvoice_matbao_recover_stuck_invoices`. Đây là hook duy nhất cần cron monitor; không sửa `DraftInvoiceWorkflow::sweep()`.
-- **REST** (`RestTracing`): `rest_pre_dispatch`/`rest_post_dispatch` cho route `einvoice-matbao/v1/*`, op `http.server`, tên là route pattern (không có query). Dùng hook chuẩn của WP để không phải đụng từng controller.
+- **Action Scheduler** (`ActionSchedulerTracing`): `action_scheduler_begin_execute`/`after_execute`/`failed_execution` mở transaction `queue.task` chỉ cho group `einvoice-matbao`, và gửi check-in cho hook `einvoice_matbao_recover_stuck_invoices`. Dùng `begin_execute` thay vì `before_execute` vì hook sau chạy trước khi Action Scheduler kiểm tra trạng thái pending. Đây là hook duy nhất cần cron monitor; không sửa `DraftInvoiceWorkflow::sweep()`.
+- **REST** (`RestTracing`): `rest_request_before_callbacks`/`rest_request_after_callbacks` cho route `einvoice-matbao/v1/*`, op `http.server`, tên là route pattern (không có query). Dùng cặp `rest_request_*_callbacks` vì `rest_post_dispatch` không chạy với `rest_do_request()` nội bộ. Dùng hook chuẩn của WP để không phải đụng từng controller.
 - **HTTP ra ngoài:** `MatbaoClient::request()` bọc span `http.client`; `LarkClient` dùng span mô tả `POST lark-webhook` không có URL, vì path webhook chứa token.
 - **Logs:** `InvoiceRepository` log `invoice status changed` sau mỗi lần đổi trạng thái thành công; `from` lấy từ trạng thái caller đang giữ, không SELECT lại.
 - **Issues:** `InvoiceAlerts::on_needs_attention` gọi `capture_needs_attention` sau dedup của `AlertStore`, nên mỗi (đơn, lỗi, chu kỳ) gửi một lần.
@@ -340,6 +340,7 @@ Build local bằng `scripts/build-zip.sh` (cần bun, zip, curl và Docker hoặ
 - Dev/test dùng `vendor/` chưa scope; chỉ zip phát hành được scope. `scripts/smoke-zip.sh` kiểm tra zip không còn namespace thư viện chưa prefix, kích hoạt được khi một mu-plugin đã nạp `Sentry\SentrySdk` và `GuzzleHttp\Psr7\Request` chưa scope, và gửi event, transaction, log, check-in thật tới một Sentry giả trong container.
 - Thứ tự build: `scripts/build-zip.sh` chạy `scope-vendor.sh` (phar PHP-Scoper ghim sha256, không thêm vào `composer.json`), dump lại autoload, và fail nếu registry rename lỗi. Chạy `scripts/smoke-zip.sh dist/einvoice-matbao-X.Y.Z.zip` để kiểm tra lại kết quả.
 - **Giới hạn đã biết:** cài từ source checkout (chưa scope) có thể xung đột nếu site đã nạp một bản Sentry SDK khác. Đây là giới hạn của bản source, không phải của zip phát hành.
+- **Giới hạn đã biết:** cài từ source checkout (chưa scope) trên site đã chạy Sentry: số lượng event bị plugin loại bỏ (client report) có thể được cộng vào client report của site. Chỉ là con số đếm, không chứa dữ liệu cá nhân; zip phát hành không bị ảnh hưởng.
 - Đổi DSN, cờ bật hoặc sample rate không cần build lại; mọi thứ chạy từ cấu hình lưu trong DB và hằng wp-config.
 
 ## Browser E2E và kiểm tra API demo Mắt Bão
