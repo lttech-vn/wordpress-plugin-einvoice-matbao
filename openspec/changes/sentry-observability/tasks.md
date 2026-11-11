@@ -7,9 +7,9 @@
 
 ## 2. Cấu hình và lưu trữ
 
-- [ ] 2.1 `CredentialStore`: thêm `sentry_dsn()`, `has_sentry_dsn()`, `save_sentry_dsn()` (mã hóa như Lark; DSN chỉ bị xóa cùng option credential khi gỡ cài đặt, không có thao tác xóa riêng trong UI); xác nhận uninstall mặc định đã xóa nó (option credential) bằng test
-- [ ] 2.2 `Settings`: thêm `monitoring_enabled()`, `traces_sample_rate()` và `save_monitoring()`; mặc định tắt và 1.0
-- [ ] 2.3 Tạo `src/Monitoring/MonitoringConfig.php`: gộp settings, credential và hai hằng `EINVOICE_MATBAO_SENTRY_DSN`/`EINVOICE_MATBAO_SENTRY_ENABLED`, `ext-mbstring` check, environment/release/site host, monitor slug
+- [x] 2.1 `CredentialStore`: thêm `sentry_dsn()`, `has_sentry_dsn()`, `save_sentry_dsn()` (mã hóa như Lark; DSN chỉ bị xóa cùng option credential khi gỡ cài đặt, không có thao tác xóa riêng trong UI); xác nhận uninstall mặc định đã xóa nó (option credential) bằng test
+- [x] 2.2 `Settings`: thêm `monitoring_enabled()`, `traces_sample_rate()` và `save_monitoring()`; mặc định tắt và 1.0
+- [x] 2.3 Tạo `src/Monitoring/MonitoringConfig.php`: gộp settings, credential và hai hằng `EINVOICE_MATBAO_SENTRY_DSN`/`EINVOICE_MATBAO_SENTRY_ENABLED`, `ext-mbstring` check, environment/release/site host, monitor slug
 
 ## 3. Backend Sentry và facade
 
