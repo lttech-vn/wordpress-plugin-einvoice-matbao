@@ -226,7 +226,7 @@ final class OrderChangeWatcher {
 		}
 
 		$code = InvoiceErrorCode::BUYER_INVALID;
-		$repository->record_error( $invoice->id, $code, DraftInvoiceWorkflow::invalid_buyer_reason( array_keys( $errors ) ) );
+		$repository->record_error( $invoice->id, $code, DraftInvoiceWorkflow::invalid_buyer_reason( array_keys( $errors ) ), null, $invoice->status );
 		$updated = $repository->find_by_order( $invoice->order_id );
 		if ( null !== $updated ) {
 			self::notify( $updated, $code );

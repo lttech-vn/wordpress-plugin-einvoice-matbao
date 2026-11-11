@@ -10,6 +10,8 @@ namespace LTTech\EinvoiceMatbao\Tests\Integration\Monitoring;
 use ActionScheduler;
 use LTTech\EinvoiceMatbao\Alert\InvoiceAlerts;
 use LTTech\EinvoiceMatbao\CredentialStore;
+use LTTech\EinvoiceMatbao\Invoice\InvoiceErrorCode;
+use LTTech\EinvoiceMatbao\Invoice\InvoiceRepository;
 use LTTech\EinvoiceMatbao\Invoice\InvoiceStatus;
 use LTTech\EinvoiceMatbao\Invoice\OrderChangeWatcher;
 use LTTech\EinvoiceMatbao\Lark\LarkWebhook;
@@ -285,13 +287,54 @@ final class WorkflowMonitoringTest extends InvoiceWorkflowTestCase {
 		$this->http->respond_json( self::CREATE_ROUTE, 503, array( 'message' => 'busy' ) );
 		$order = $this->new_order();
 
+		// The transaction forces an envelope send, so the failing transport is really hit.
+		Monitor::start_transaction( 't', 'queue.task' );
 		$this->complete_and_run( $order );
+		Monitor::finish_transaction();
+		Monitor::flush();
 
 		$invoice = $this->invoice_of( $order );
 		$this->assertSame( InvoiceStatus::PENDING, $invoice?->status );
 		$this->assertSame( 'matbao_http_temporary', $invoice->error_code );
 		$this->assertEqualsWithDelta( 60, (int) $this->seconds_until_next_draft_action(), 5 );
-		$this->assertLessThanOrEqual( 1, $this->sink->request_count() );
+		$this->assertSame( 1, $this->sink->request_count(), 'One attempt; the backoff drops the rest.' );
+	}
+
+	public function test_status_write_adds_no_query_when_monitoring_is_off(): void {
+		global $wpdb;
+		Monitor::reset_for_tests();
+		Monitor::log( 'info', 'resolves the (disabled) backend before counting' );
+		$repository = new InvoiceRepository();
+		$repository->reserve( 9001, 'REF9001', 'Buyer', InvoiceStatus::PENDING );
+		$invoice = $repository->find_by_order( 9001 );
+		$this->assertNotNull( $invoice );
+
+		$before = $wpdb->num_queries;
+		$repository->update_status( $invoice->id, InvoiceStatus::FAILED, 'x' );
+
+		$this->assertSame( 1, $wpdb->num_queries - $before, 'Only the UPDATE runs.' );
+	}
+
+	public function test_status_log_uses_the_caller_known_from_when_another_writer_interleaves(): void {
+		global $wpdb;
+		$this->enable_monitoring();
+		$repository = new InvoiceRepository();
+		$repository->reserve( 9002, 'REF9002', 'Buyer', InvoiceStatus::PENDING );
+		$invoice = $repository->find_by_order( 9002 );
+		$this->assertNotNull( $invoice );
+		$this->assertTrue( $repository->claim( $invoice->id, InvoiceStatus::PENDING, InvoiceStatus::SENDING ) );
+		// Another writer moves the row before this runner records its outcome.
+		$wpdb->update( $wpdb->prefix . 'einvoice_matbao_invoice', array( 'status' => InvoiceStatus::DRAFT_CREATED ), array( 'id' => $invoice->id ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- simulates a concurrent writer.
+
+		$repository->update_status( $invoice->id, InvoiceStatus::DRAFT_CREATED, '', array(), InvoiceStatus::SENDING );
+		$repository->record_error( $invoice->id, InvoiceErrorCode::UNEXPECTED, 'x' );
+		Monitor::flush();
+
+		$changes = array_map(
+			static fn( array $log ): string => $log['attributes']['from']['value'] . '→' . $log['attributes']['to']['value'],
+			array_values( array_filter( $this->sink->logs(), static fn( array $log ): bool => 'invoice status changed' === $log['body'] ) )
+		);
+		$this->assertSame( array( 'pending→sending', 'sending→draft_created', 'unknown→failed' ), $changes );
 	}
 
 	public function test_slow_sink_success_keeps_invoice_flow(): void {

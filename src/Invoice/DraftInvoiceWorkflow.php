@@ -128,7 +128,7 @@ final class DraftInvoiceWorkflow {
 			$code = InvoiceErrorCode::REFERENCE_TOO_LONG;
 			if ( $repository->reserve( $order_id, substr( $reference, 0, Settings::MAX_REFERENCE_LENGTH ), $buyer_name, $code->kind()->status() ) ) {
 				/* translators: %s: reference (MTChieu). */
-				self::record_error( $repository, $order_id, $code, sprintf( __( 'Mã tham chiếu %s dài hơn 20 ký tự.', 'einvoice-matbao' ), $reference ) );
+				self::record_error( $repository, $order_id, $code, sprintf( __( 'Mã tham chiếu %s dài hơn 20 ký tự.', 'einvoice-matbao' ), $reference ), null, $code->kind()->status() );
 			}
 			return;
 		}
@@ -144,7 +144,7 @@ final class DraftInvoiceWorkflow {
 			$snapshot->payload_fields();
 		} catch ( InvoiceDataError $error ) {
 			if ( $repository->reserve( $order_id, $reference, $buyer_name, $error->error_code->kind()->status() ) ) {
-				self::record_error( $repository, $order_id, $error->error_code, $error->getMessage() );
+				self::record_error( $repository, $order_id, $error->error_code, $error->getMessage(), null, $error->error_code->kind()->status() );
 			}
 			return;
 		}
@@ -153,7 +153,7 @@ final class DraftInvoiceWorkflow {
 		if ( array() !== $buyer_errors ) {
 			$code = InvoiceErrorCode::BUYER_INVALID;
 			if ( $repository->reserve( $order_id, $reference, $buyer_name, $code->kind()->status() ) ) {
-				self::record_error( $repository, $order_id, $code, self::invalid_buyer_reason( array_keys( $buyer_errors ) ) );
+				self::record_error( $repository, $order_id, $code, self::invalid_buyer_reason( array_keys( $buyer_errors ) ), null, $code->kind()->status() );
 			}
 			return;
 		}
@@ -218,9 +218,9 @@ final class DraftInvoiceWorkflow {
 		}
 
 		if ( $from_sweep ) {
-			self::record_error( $repository, $order_id, InvoiceErrorCode::QUEUE_FAILED, __( 'Không xếp được tác vụ tạo hóa đơn nháp vào hàng đợi, kể cả khi quét lại; cần admin gửi lại.', 'einvoice-matbao' ) );
+			self::record_error( $repository, $order_id, InvoiceErrorCode::QUEUE_FAILED, __( 'Không xếp được tác vụ tạo hóa đơn nháp vào hàng đợi, kể cả khi quét lại; cần admin gửi lại.', 'einvoice-matbao' ), null, InvoiceStatus::PENDING );
 		} else {
-			self::record_error( $repository, $order_id, InvoiceErrorCode::QUEUE_FAILED, __( 'Không xếp được tác vụ tạo hóa đơn nháp vào hàng đợi; tác vụ quét sẽ thử lại.', 'einvoice-matbao' ), InvoiceStatus::PENDING );
+			self::record_error( $repository, $order_id, InvoiceErrorCode::QUEUE_FAILED, __( 'Không xếp được tác vụ tạo hóa đơn nháp vào hàng đợi; tác vụ quét sẽ thử lại.', 'einvoice-matbao' ), InvoiceStatus::PENDING, InvoiceStatus::PENDING );
 		}
 
 		return false;
@@ -319,7 +319,7 @@ final class DraftInvoiceWorkflow {
 			// Details may carry URLs or tokens, so the stored reason stays generic; monitoring
 			// gets them masked.
 			CaughtFailure::report( $failure, self::MONITORING_COMPONENT, 'draft send failed unexpectedly', $order_id );
-			self::record_error( $this->repository, $order_id, InvoiceErrorCode::UNEXPECTED, __( 'Lỗi không xác định khi gửi hóa đơn nháp; cần admin kiểm tra.', 'einvoice-matbao' ) );
+			self::record_error( $this->repository, $order_id, InvoiceErrorCode::UNEXPECTED, __( 'Lỗi không xác định khi gửi hóa đơn nháp; cần admin kiểm tra.', 'einvoice-matbao' ), null, InvoiceStatus::SENDING );
 		}
 	}
 
@@ -359,7 +359,7 @@ final class DraftInvoiceWorkflow {
 				$this->repository->finish_attempt( (int) $attempt['id'], 'abandoned', null, null, null, $reason );
 			}
 		}
-		$this->repository->update_status( $invoice->id, InvoiceStatus::PENDING, $reason );
+		$this->repository->update_status( $invoice->id, InvoiceStatus::PENDING, $reason, array(), InvoiceStatus::PENDING );
 	}
 
 	/**
@@ -407,28 +407,28 @@ final class DraftInvoiceWorkflow {
 	private function send_claimed( InvoiceRecord $invoice, int $order_id ): void {
 		$order = wc_get_order( $order_id );
 		if ( ! $order instanceof WC_Order || 'completed' !== $order->get_status() ) {
-			self::record_error( $this->repository, $order_id, InvoiceErrorCode::ORDER_NOT_COMPLETED, __( 'Đơn hàng không còn ở trạng thái hoàn thành khi gửi.', 'einvoice-matbao' ) );
+			self::record_error( $this->repository, $order_id, InvoiceErrorCode::ORDER_NOT_COMPLETED, __( 'Đơn hàng không còn ở trạng thái hoàn thành khi gửi.', 'einvoice-matbao' ), null, InvoiceStatus::SENDING );
 			return;
 		}
 		if ( (float) $order->get_total_refunded() > 0 ) {
-			self::record_error( $this->repository, $order_id, InvoiceErrorCode::ORDER_REFUNDED, __( 'Đơn hàng đã hoàn tiền trước khi gửi.', 'einvoice-matbao' ) );
+			self::record_error( $this->repository, $order_id, InvoiceErrorCode::ORDER_REFUNDED, __( 'Đơn hàng đã hoàn tiền trước khi gửi.', 'einvoice-matbao' ), null, InvoiceStatus::SENDING );
 			return;
 		}
 
 		$credentials = $this->store->matbao();
 		if ( null === $credentials ) {
-			self::record_error( $this->repository, $order_id, InvoiceErrorCode::CREDENTIALS_MISSING, __( 'Chưa cấu hình kết nối Mắt Bão.', 'einvoice-matbao' ) );
+			self::record_error( $this->repository, $order_id, InvoiceErrorCode::CREDENTIALS_MISSING, __( 'Chưa cấu hình kết nối Mắt Bão.', 'einvoice-matbao' ), null, InvoiceStatus::SENDING );
 			return;
 		}
 		$template = $this->settings->default_template();
 		if ( null === $template ) {
-			self::record_error( $this->repository, $order_id, InvoiceErrorCode::TEMPLATE_MISSING, __( 'Chưa chọn mẫu hóa đơn mặc định.', 'einvoice-matbao' ) );
+			self::record_error( $this->repository, $order_id, InvoiceErrorCode::TEMPLATE_MISSING, __( 'Chưa chọn mẫu hóa đơn mặc định.', 'einvoice-matbao' ), null, InvoiceStatus::SENDING );
 			return;
 		}
 
 		$snapshot = $this->snapshotter->load( $order );
 		if ( null === $snapshot ) {
-			self::record_error( $this->repository, $order_id, InvoiceErrorCode::BUYER_SNAPSHOT_INVALID, __( 'Đơn hàng chưa có thông tin người mua đã chụp khi hoàn thành.', 'einvoice-matbao' ) );
+			self::record_error( $this->repository, $order_id, InvoiceErrorCode::BUYER_SNAPSHOT_INVALID, __( 'Đơn hàng chưa có thông tin người mua đã chụp khi hoàn thành.', 'einvoice-matbao' ), null, InvoiceStatus::SENDING );
 			return;
 		}
 
@@ -436,7 +436,7 @@ final class DraftInvoiceWorkflow {
 		try {
 			$payload = $this->builder->build( $order, $invoice->reference, $snapshot->payload_fields(), $template, $issued_on );
 		} catch ( InvoiceDataError $error ) {
-			self::record_error( $this->repository, $order_id, $error->error_code, $error->getMessage() );
+			self::record_error( $this->repository, $order_id, $error->error_code, $error->getMessage(), null, InvoiceStatus::SENDING );
 			return;
 		}
 
@@ -460,7 +460,9 @@ final class DraftInvoiceWorkflow {
 					$template['form'],
 					$template['series'],
 					$issued_on->format( 'Y' )
-				)
+				),
+				null,
+				InvoiceStatus::SENDING
 			);
 			return;
 		}
@@ -549,7 +551,7 @@ final class DraftInvoiceWorkflow {
 			$current['series']
 		);
 		$this->repository->finish_attempt( $attempt, 'not_sent', null, null, null, $reason );
-		self::record_error( $this->repository, $invoice->order_id, InvoiceErrorCode::TEMPLATE_CHANGED, $reason );
+		self::record_error( $this->repository, $invoice->order_id, InvoiceErrorCode::TEMPLATE_CHANGED, $reason, null, InvoiceStatus::SENDING );
 	}
 
 	/**
@@ -576,7 +578,7 @@ final class DraftInvoiceWorkflow {
 		$mismatch = $this->lookup_mismatch( $invoice, $found, $order_total, $snapshot );
 		if ( null !== $mismatch ) {
 			$this->repository->finish_attempt( $attempt, 'lookup_mismatch', null, null, null, $mismatch );
-			self::record_error( $this->repository, $invoice->order_id, InvoiceErrorCode::MATBAO_LOOKUP_MISMATCH, $mismatch, InvoiceStatus::NEEDS_ATTENTION );
+			self::record_error( $this->repository, $invoice->order_id, InvoiceErrorCode::MATBAO_LOOKUP_MISMATCH, $mismatch, InvoiceStatus::NEEDS_ATTENTION, InvoiceStatus::SENDING );
 			return true;
 		}
 
@@ -680,7 +682,8 @@ final class DraftInvoiceWorkflow {
 				'issued_on'         => $issued_on,
 				'template_form'     => $template['form'],
 				'template_series'   => $template['series'],
-			)
+			),
+			InvoiceStatus::SENDING
 		);
 
 		// Changes made while the create call was in flight, or since an adopted draft was built, are
@@ -743,7 +746,7 @@ final class DraftInvoiceWorkflow {
 		}
 
 		if ( ! $code->is_auto_retryable() ) {
-			self::record_error( $this->repository, $invoice->order_id, $code, $reason );
+			self::record_error( $this->repository, $invoice->order_id, $code, $reason, null, InvoiceStatus::SENDING );
 			return;
 		}
 
@@ -755,7 +758,8 @@ final class DraftInvoiceWorkflow {
 				$code,
 				/* translators: %s: last Mat Bao error. */
 				sprintf( __( 'Đã thử lại tối đa nhưng chưa tạo được hóa đơn nháp. Lỗi gần nhất: %s', 'einvoice-matbao' ), $reason ),
-				InvoiceStatus::NEEDS_ATTENTION
+				InvoiceStatus::NEEDS_ATTENTION,
+				InvoiceStatus::SENDING
 			);
 			try {
 				do_action( 'einvoice_matbao_retries_exhausted', $invoice->order_id, $invoice->reference );
@@ -774,12 +778,13 @@ final class DraftInvoiceWorkflow {
 			$code,
 			/* translators: 1: seconds until the retry, 2: last Mat Bao error. */
 			sprintf( __( 'Lỗi tạm thời, sẽ thử lại sau %1$d giây. Lỗi: %2$s', 'einvoice-matbao' ), $delay, $reason ),
-			InvoiceStatus::PENDING
+			InvoiceStatus::PENDING,
+			InvoiceStatus::SENDING
 		);
 		// Not unique: this runs inside the order's own action, which Action Scheduler still counts as
 		// running, so a unique retry would never be queued. The claim prevents a double send.
 		if ( 0 === as_schedule_single_action( time() + $delay, self::ACTION, array( $invoice->order_id ), self::GROUP ) ) {
-			self::record_error( $this->repository, $invoice->order_id, InvoiceErrorCode::QUEUE_FAILED, __( 'Không xếp được lần thử lại vào hàng đợi; tác vụ quét sẽ thử lại.', 'einvoice-matbao' ), InvoiceStatus::PENDING );
+			self::record_error( $this->repository, $invoice->order_id, InvoiceErrorCode::QUEUE_FAILED, __( 'Không xếp được lần thử lại vào hàng đợi; tác vụ quét sẽ thử lại.', 'einvoice-matbao' ), InvoiceStatus::PENDING, InvoiceStatus::PENDING );
 		}
 	}
 
@@ -792,14 +797,15 @@ final class DraftInvoiceWorkflow {
 	 * @param InvoiceErrorCode  $code       Error code.
 	 * @param string            $reason     Vietnamese reason.
 	 * @param string|null       $status     InvoiceStatus to set instead of the one of the code's kind.
+	 * @param string|null       $from       Status this run holds the row in, for the status log only.
 	 */
-	private static function record_error( InvoiceRepository $repository, int $order_id, InvoiceErrorCode $code, string $reason, ?string $status = null ): void {
+	private static function record_error( InvoiceRepository $repository, int $order_id, InvoiceErrorCode $code, string $reason, ?string $status = null, ?string $from = null ): void {
 		$invoice = $repository->find_by_order( $order_id );
 		if ( null === $invoice ) {
 			return;
 		}
 
-		$repository->record_error( $invoice->id, $code, $reason, $status );
+		$repository->record_error( $invoice->id, $code, $reason, $status, $from );
 		$invoice = $repository->find_by_order( $order_id );
 		if ( null !== $invoice && InvoiceStatus::PENDING !== $invoice->status && $code->needs_attention() ) {
 			try {

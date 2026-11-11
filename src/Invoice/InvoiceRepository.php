@@ -18,6 +18,9 @@ use LTTech\EinvoiceMatbao\Monitoring\Monitor;
  */
 final class InvoiceRepository {
 
+	/** `from` of a status log when the caller does not know the previous status. */
+	private const UNKNOWN_STATUS = 'unknown';
+
 	/**
 	 * Inserts the invoice row of an order unless one already exists.
 	 *
@@ -138,11 +141,12 @@ final class InvoiceRepository {
 	 * @param string               $status     InvoiceStatus.
 	 * @param string               $reason     Reason, or empty.
 	 * @param array<string, mixed> $fields     Other columns to set.
+	 * @param string|null          $from       Status the caller holds the row in (e.g. `sending` after its claim),
+	 *                                         for the status log only; null logs `unknown`. Never read back.
 	 */
-	public function update_status( int $invoice_id, string $status, string $reason = '', array $fields = array() ): void {
+	public function update_status( int $invoice_id, string $status, string $reason = '', array $fields = array(), ?string $from = null ): void {
 		global $wpdb;
 
-		$from    = $this->status_of( $invoice_id );
 		$updated = $wpdb->update(
 			Schema::invoice_table(),
 			array_merge(
@@ -160,8 +164,10 @@ final class InvoiceRepository {
 			array( 'id' => $invoice_id )
 		);
 
+		// The UPDATE is unconditional, so a successful write is the transition; affected rows may be
+		// 0 when the row already had these values within the same second.
 		$error_code = $fields['error_code'] ?? '';
-		$this->changed( is_int( $updated ) && $updated > 0 && null !== $from, $invoice_id, (string) $from, $status, is_string( $error_code ) ? $error_code : '' );
+		$this->changed( false !== $updated, $invoice_id, $from ?? self::UNKNOWN_STATUS, $status, is_string( $error_code ) ? $error_code : '' );
 	}
 
 	/**
@@ -260,8 +266,9 @@ final class InvoiceRepository {
 	 * @param string           $reason     Vietnamese reason, without secrets or personal data.
 	 * @param string|null      $status     InvoiceStatus instead of the one of the code's kind, e.g. `pending`
 	 *                                     while a retry waits or `needs_attention` once retries are used up.
+	 * @param string|null      $from       Status the caller holds the row in, for the status log only.
 	 */
-	public function record_error( int $invoice_id, InvoiceErrorCode $code, string $reason, ?string $status = null ): void {
+	public function record_error( int $invoice_id, InvoiceErrorCode $code, string $reason, ?string $status = null, ?string $from = null ): void {
 		$this->update_status(
 			$invoice_id,
 			$status ?? $code->kind()->status(),
@@ -269,7 +276,8 @@ final class InvoiceRepository {
 			array(
 				'error_code' => $code->value,
 				'error_kind' => $code->kind()->value,
-			)
+			),
+			$from
 		);
 	}
 
@@ -421,6 +429,8 @@ final class InvoiceRepository {
 
 	/**
 	 * Logs a status change this call made; a write that lost or kept the status logs nothing.
+	 * Uses only what the caller knows (never reads the row), and Monitor::log() never throws, so
+	 * telemetry cannot add a query or break the write.
 	 *
 	 * @param bool   $made       Whether the write changed the row.
 	 * @param int    $invoice_id Invoice row ID.
@@ -444,18 +454,5 @@ final class InvoiceRepository {
 		}
 
 		return $made;
-	}
-
-	/**
-	 * Current status of an invoice, or null when the row does not exist.
-	 *
-	 * @param int $invoice_id Invoice row ID.
-	 */
-	private function status_of( int $invoice_id ): ?string {
-		global $wpdb;
-
-		$status = $wpdb->get_var( $wpdb->prepare( 'SELECT status FROM %i WHERE id = %d', Schema::invoice_table(), $invoice_id ) );
-
-		return is_string( $status ) ? $status : null;
 	}
 }
