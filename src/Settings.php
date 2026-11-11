@@ -110,6 +110,40 @@ final class Settings {
 	}
 
 	/**
+	 * Whether error monitoring is switched on in the UI (off by default).
+	 */
+	public function monitoring_enabled(): bool {
+		return '1' === $this->string_value( 'monitoring_enabled' );
+	}
+
+	/**
+	 * Transaction sample rate in [0, 1]; 1.0 when unset or not numeric.
+	 */
+	public function traces_sample_rate(): float {
+		$value = $this->all()['traces_sample_rate'] ?? '1';
+		if ( ! is_string( $value ) || ! is_numeric( $value ) ) {
+			return 1.0;
+		}
+
+		return min( 1.0, max( 0.0, (float) $value ) );
+	}
+
+	/**
+	 * Saves the monitoring switch and sample rate. Callers validate the rate first.
+	 *
+	 * @param bool  $enabled Whether monitoring is on.
+	 * @param float $rate    Sample rate; clamped to [0, 1].
+	 */
+	public function save_monitoring( bool $enabled, float $rate ): void {
+		$this->update(
+			array(
+				'monitoring_enabled' => $enabled ? '1' : '',
+				'traces_sample_rate' => (string) min( 1.0, max( 0.0, $rate ) ),
+			)
+		);
+	}
+
+	/**
 	 * Saves the prefix and walk-in buyer name. Callers validate first.
 	 *
 	 * @param string $reference_prefix   Valid prefix.

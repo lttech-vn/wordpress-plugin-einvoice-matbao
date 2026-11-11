@@ -10,7 +10,7 @@ namespace LTTech\EinvoiceMatbao\Uninstall;
 /**
  * Run by `uninstall.php` when WordPress deletes the plugin, on each site of a network.
  *
- * Always removed: the encrypted Mat Bao and Lark credentials, every plugin transient (the cached
+ * Always removed: the encrypted Mat Bao, Lark and Sentry credentials, the Sentry back-off option, every plugin transient (the cached
  * Mat Bao tokens, found through `einvoice_matbao_token_keys`, and the templates list; deleted by
  * name so a persistent object cache is covered, then the options table is scanned as a safety net), the
  * token name list, the alert records (`einvoice_matbao_alert_*`: only ids, error codes and Lark flags,
@@ -44,6 +44,9 @@ final class Uninstaller {
 
 	/** Option listing the Mat Bao token transient names (their names hash the account). */
 	public const TOKEN_KEYS_OPTION = 'einvoice_matbao_token_keys';
+
+	/** Option holding the Sentry send back-off timestamp. */
+	public const SENTRY_BACKOFF_OPTION = 'einvoice_matbao_sentry_backoff_until';
 
 	/** Alert record option names start with this. */
 	public const ALERT_PREFIX = 'einvoice_matbao_alert_';
@@ -119,6 +122,7 @@ final class Uninstaller {
 		delete_option( self::CREDENTIALS_OPTION );
 		self::delete_transients();
 		delete_option( self::TOKEN_KEYS_OPTION );
+		delete_option( self::SENTRY_BACKOFF_OPTION );
 		foreach ( self::option_names( self::ALERT_PREFIX ) as $option ) {
 			delete_option( $option );
 		}
