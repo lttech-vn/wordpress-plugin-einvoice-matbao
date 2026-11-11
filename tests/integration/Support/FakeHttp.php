@@ -24,6 +24,13 @@ final class FakeHttp {
 	public array $requests = array();
 
 	/**
+	 * Recorded requests with full arguments and undecoded body, in call order.
+	 *
+	 * @var list<array{method: string, url: string, args: array<string, mixed>, body: string|null}>
+	 */
+	private array $raw_requests = array();
+
+	/**
 	 * Route handlers keyed by "METHOD /path".
 	 *
 	 * @var array<string, callable(array<string, mixed>, string): (array<string, mixed>|WP_Error)>
@@ -98,6 +105,15 @@ final class FakeHttp {
 	}
 
 	/**
+	 * Every request with its full arguments (timeout, redirection, ...) and raw body.
+	 *
+	 * @return list<array{method: string, url: string, args: array<string, mixed>, body: string|null}>
+	 */
+	public function raw_requests(): array {
+		return $this->raw_requests;
+	}
+
+	/**
 	 * Builds a WordPress HTTP API response array with a JSON body.
 	 *
 	 * @param int   $status HTTP status code.
@@ -134,6 +150,13 @@ final class FakeHttp {
 			'url'     => $url,
 			'headers' => (array) ( $args['headers'] ?? array() ),
 			'body'    => is_string( $body ) ? json_decode( $body, true ) : $body,
+		);
+
+		$this->raw_requests[] = array(
+			'method' => $method,
+			'url'    => $url,
+			'args'   => $args,
+			'body'   => is_string( $body ) ? $body : null,
 		);
 
 		$route = self::route_of( $method, $url );
