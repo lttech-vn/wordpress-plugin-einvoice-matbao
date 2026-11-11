@@ -315,6 +315,19 @@ final class Monitor {
 	}
 
 	/**
+	 * Drops the backend of this request without sending what it buffered (logs, the open
+	 * transaction), so nothing built for the old configuration reaches the old server. The next
+	 * call builds a backend from the new configuration. Open transaction depth and order contexts
+	 * are kept, so the matching finish of an enclosing request is a no-op on the new backend.
+	 */
+	public static function reconfigure(): void {
+		self::$backend  = null;
+		self::$resolved = false;
+		self::$active   = null;
+		self::$slug     = '';
+	}
+
+	/**
 	 * Forgets the backend so the next call reads the configuration again, or injects one.
 	 *
 	 * @internal Test seam; production code never calls it.

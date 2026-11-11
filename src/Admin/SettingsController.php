@@ -423,7 +423,9 @@ final class SettingsController {
 		if ( '' !== $dsn ) {
 			( new CredentialStore() )->save_sentry_dsn( $dsn );
 		}
-		// A new configuration deserves a fresh attempt, not the pause earned by the old one.
+		// This request is traced on a backend built from the old configuration: drop it unsent,
+		// then clear the pause it earned, so the new configuration gets a fresh attempt.
+		Monitor::reconfigure();
 		delete_option( Uninstaller::SENTRY_BACKOFF_OPTION );
 
 		return Fragment::success( __( 'Đã lưu cấu hình giám sát lỗi.', 'einvoice-matbao' ) );

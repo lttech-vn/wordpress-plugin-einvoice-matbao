@@ -294,6 +294,42 @@ final class SettingsMonitoringRestTest extends SettingsRestTestCase {
 		$this->assertGreaterThan( $before, $bad->request_count(), 'The test event was sent.' );
 	}
 
+	/**
+	 * The save request is itself traced on the backend built from the old DSN; that backend must
+	 * not send (and re-arm the backoff) once the settings changed.
+	 */
+	public function test_saving_a_new_dsn_stops_the_old_backend_from_sending(): void {
+		$this->enable_monitoring(); // Old DSN: project 3.
+		$old = SentrySink::install( $this->http, 'sentry.test', 3 );
+		$old->respond_with( 401 );
+		$new = SentrySink::install( $this->http, 'sentry.test', 4 );
+		$this->htmx( 'POST', '/settings/monitoring/test' );
+		$this->assertGreaterThan( time(), (int) get_option( Uninstaller::SENTRY_BACKOFF_OPTION, 0 ) );
+		delete_option( Uninstaller::SENTRY_BACKOFF_OPTION ); // The old pause elapsed; the next request has a fresh Monitor.
+		Monitor::reset_for_tests();
+		$old_before = $old->request_count();
+
+		$html = $this->save(
+			array(
+				'enabled'            => '1',
+				'dsn'                => 'https://fixedkey@sentry.test/4',
+				'traces_sample_rate' => '1',
+			)
+		);
+		Monitor::flush(); // The shutdown flush of the same request.
+
+		$this->assertStringContainsString( 'data-einv-status="success"', $html );
+		$this->assertSame( $old_before, $old->request_count(), 'Nothing more goes to the old project.' );
+		$this->assertSame( 0, (int) get_option( Uninstaller::SENTRY_BACKOFF_OPTION, 0 ) );
+
+		Monitor::reset_for_tests(); // Next request.
+		$retry = $this->html( $this->htmx( 'POST', '/settings/monitoring/test' ) );
+
+		$this->assertStringContainsString( 'data-einv-status="success"', $retry );
+		$this->assertCount( 1, $new->events() );
+		$this->assertSame( $old_before, $old->request_count() );
+	}
+
 	public function test_test_event_during_backoff_explains_the_pause_without_sending(): void {
 		$this->enable_monitoring();
 		$sink  = SentrySink::install( $this->http, 'sentry.test', 3 );
