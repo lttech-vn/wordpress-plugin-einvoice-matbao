@@ -177,7 +177,7 @@ Trong khi xử lý một đơn, hệ thống SHALL ghi nhận các giá trị ng
 - **THEN** event và log nhận được thay địa chỉ đó bằng `[filtered]`
 
 ### Requirement: Pattern masking
-Hệ thống SHALL thay bằng `[filtered]` các mẫu sau trong mọi chuỗi gửi đi: email; URL (với host Mắt Bão chỉ giữ scheme và host, URL khác bỏ hẳn); dãy đúng 12 chữ số; mã số thuế 10 chữ số hoặc 10 chữ số + `-` + 3 chữ số; chuỗi `Bearer <token>`; chuỗi liền từ 32 ký tự trở lên chỉ gồm chữ, số và `+/=_-` và có ít nhất một chữ số.
+Hệ thống SHALL thay bằng `[filtered]` các mẫu sau trong mọi chuỗi gửi đi: email; URL (với host Mắt Bão chỉ giữ scheme và host, URL khác bỏ hẳn); dãy đúng 12 chữ số; mã số thuế 10 chữ số hoặc 10 chữ số + `-` + 3 chữ số; chuỗi `Bearer <token>`; chuỗi liền từ 32 ký tự trở lên chỉ gồm chữ, số và `+=_-` và có ít nhất một chữ số.
 
 #### Scenario: Token and tax code masked
 - **WHEN** một exception có message `login failed for 0312345678-001 with Bearer abc.def`

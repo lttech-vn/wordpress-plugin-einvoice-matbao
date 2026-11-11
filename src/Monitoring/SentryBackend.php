@@ -66,10 +66,19 @@ final class SentryBackend implements Backend {
 	 * Span statuses Monitor callers may pass; anything else becomes `unknown_error`.
 	 */
 	private const SPAN_STATUSES = array(
-		'ok'             => 'ok',
-		'internal_error' => 'internalError',
-		'unavailable'    => 'unavailable',
-		'unknown_error'  => 'unknownError',
+		'ok'                  => 'ok',
+		'internal_error'      => 'internalError',
+		'unavailable'         => 'unavailable',
+		'unknown_error'       => 'unknownError',
+		'unauthenticated'     => 'unauthenticated',
+		'permission_denied'   => 'permissionDenied',
+		'not_found'           => 'notFound',
+		'already_exists'      => 'alreadyExists',
+		'failed_precondition' => 'failedPrecondition',
+		'resource_exhausted'  => 'resourceExhausted',
+		'unimplemented'       => 'unimplemented',
+		'deadline_exceeded'   => 'deadlineExceeded',
+		'invalid_argument'    => 'invalidArgument',
 	);
 
 	/**

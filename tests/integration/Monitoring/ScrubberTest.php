@@ -50,6 +50,25 @@ final class ScrubberTest extends TestCase {
 		$this->assertSame( self::F, $scrubber->text( str_repeat( 'x', 31 ) . '1' ), 'One digit is enough.' );
 	}
 
+	public function test_route_patterns_are_kept(): void {
+		$scrubber = new Scrubber();
+
+		foreach ( array( '/einvoice-matbao/v1/settings/monitoring/test', '/einvoice-matbao/v1/tabs/(?P<tab>[^/]+)' ) as $route ) {
+			$this->assertSame( $route, $scrubber->text( $route ) );
+		}
+	}
+
+	public function test_base64_with_slashes_is_masked_per_segment(): void {
+		$scrubber = new Scrubber();
+		$secret   = 'abcdefgh12345678/ABCDEFGH12345678/xyzXYZ0123456789ab';
+
+		$this->assertSame( 44, strlen( 'aaaaaaaaaaaaaaaaaaaa/bbbbbbbbbbbbbbbbbbbbbb1' ) );
+		$this->assertSame( 'aaaaaaaaaaaaaaaaaaaa/bbbbbbbbbbbbbbbbbbbbbb1', $scrubber->text( 'aaaaaaaaaaaaaaaaaaaa/bbbbbbbbbbbbbbbbbbbbbb1' ), 'Segments under 32 characters stay.' );
+		$this->assertSame( self::F . '/' . self::F . '/' . self::F, $scrubber->text( str_repeat( 'aB3', 12 ) . '/' . str_repeat( 'cD4', 12 ) . '/' . str_repeat( 'eF5', 12 ) ) );
+		$this->assertSame( 'a/' . self::F, $scrubber->text( 'a/' . str_repeat( 'aB3', 12 ) ) );
+		$this->assertStringNotContainsString( 'xyzXYZ0123456789ab', $scrubber->text( 'x/' . $secret . str_repeat( 'q1', 20 ) ) );
+	}
+
 	public function test_urls(): void {
 		$scrubber = new Scrubber();
 		$matbao   = MatbaoCredentials::BASE_URLS['demo'];

@@ -138,6 +138,40 @@ final class TracingTest extends InvoiceWorkflowTestCase {
 		}
 	}
 
+	public function test_rest_transaction_is_named_after_readable_route_pattern(): void {
+		$this->enable_monitoring();
+		$this->login_as( 'administrator' );
+
+		$this->htmx( 'GET', '/tabs/lark' );
+		$this->htmx( 'POST', '/settings/monitoring/test' );
+
+		$names = array_column( $this->sink->transactions(), 'transaction' );
+		$this->assertSame(
+			array(
+				'/einvoice-matbao/v1/tabs/(?P<tab>[^/]+)',
+				'/einvoice-matbao/v1/settings/monitoring/test',
+			),
+			$names
+		);
+	}
+
+	public function test_denied_rest_request_is_traced_with_response_status(): void {
+		$this->enable_monitoring();
+		wp_set_current_user( 0 );
+
+		$response = $this->htmx( 'GET', '/tabs/lark' );
+		$this->assertSame( 401, $response->get_status() );
+		$this->login_as( 'shop_manager' );
+		$response = $this->htmx( 'GET', '/tabs/lark' );
+		$this->assertSame( 403, $response->get_status() );
+
+		$transactions = $this->sink->transactions();
+		$this->assertCount( 2, $transactions );
+		$this->assertSame( 'unauthenticated', $transactions[0]['contexts']['trace']['status'] );
+		$this->assertSame( 'permission_denied', $transactions[1]['contexts']['trace']['status'] );
+		$this->assertSame( '/einvoice-matbao/v1/tabs/(?P<tab>[^/]+)', $transactions[0]['transaction'] );
+	}
+
 	public function test_rest_response_returned_unchanged(): void {
 		$this->login_as( 'administrator' );
 		$disabled = $this->html( $this->htmx( 'GET', '/tabs/lark' ) );

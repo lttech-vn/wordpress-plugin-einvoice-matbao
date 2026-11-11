@@ -425,11 +425,15 @@ final class SettingsMonitoringRestTest extends SettingsRestTestCase {
 		$response = $this->htmx( 'POST', '/settings/monitoring/test', array(), $nonce );
 
 		$this->assertContains( $response->get_status(), array( 401, 403 ) );
-		// REST tracing may still report the denied request as a transaction; the test event itself must not leave.
+		// Denied calls stay traced: the only item is the route transaction, never a test event.
+		$items = $sink->items();
+		$this->assertCount( 1, $items );
+		$this->assertSame( 'transaction', $items[0]['type'] );
+		$this->assertSame( '/einvoice-matbao/v1/settings/monitoring/test', $items[0]['payload']['transaction'] );
+		$this->assertSame( 'http.server', $items[0]['payload']['contexts']['trace']['op'] );
 		$this->assertCount( 0, $sink->events() );
 		$this->assertCount( 0, $sink->logs() );
 		$this->assertCount( 0, $sink->check_ins() );
-		$this->assertStringNotContainsString( 'test event', implode( "\n", array_map( 'strval', array_column( $sink->transactions(), 'transaction' ) ) ) );
 		$this->assertSame( $before, array( $this->stored_plugin_options(), MonitoringConfig::current()->traces_sample_rate ) );
 	}
 
