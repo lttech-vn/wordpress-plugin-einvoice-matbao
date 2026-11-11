@@ -363,4 +363,86 @@ final class SettingsMonitoringRestTest extends SettingsRestTestCase {
 		$this->assertSame( 403, $response->get_status() );
 		$this->assertFalse( ( new CredentialStore() )->has_sentry_dsn() );
 	}
+
+	public function test_constant_dsn_without_key_saves_flag_and_rate(): void {
+		$this->monitoring_constants( array( 'EINVOICE_MATBAO_SENTRY_DSN' => 'https://constkey@const.test/9' ) );
+
+		$html = $this->save(
+			array(
+				'enabled'            => '1',
+				'dsn'                => '',
+				'traces_sample_rate' => '0.5',
+			)
+		);
+
+		$this->assertStringContainsString( 'data-einv-status="success"', $html );
+		$config = MonitoringConfig::current();
+		$this->assertTrue( $config->active() );
+		$this->assertSame( 'constant', $config->dsn_source );
+		$this->assertSame( 0.5, $config->traces_sample_rate );
+		$this->assertFalse( ( new CredentialStore() )->has_sentry_dsn() );
+	}
+
+	public function test_blank_dsn_without_key_saves_flag_but_stays_inactive(): void {
+		$html = $this->save(
+			array(
+				'enabled'            => '1',
+				'dsn'                => '',
+				'traces_sample_rate' => '1',
+			)
+		);
+
+		$this->assertStringContainsString( 'data-einv-status="success"', $html );
+		$this->assertTrue( ( new Settings() )->monitoring_enabled() );
+		$this->assertFalse( MonitoringConfig::current()->active() );
+		$this->assertFalse( ( new CredentialStore() )->has_sentry_dsn() );
+
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+		$page = get_echo( array( \LTTech\EinvoiceMatbao\Admin\SettingsPage::class, 'render' ) );
+		$this->assertStringContainsString( 'EINVOICE_MATBAO_ENCRYPTION_KEY', $page );
+	}
+
+	/**
+	 * Access checks with monitoring active: no event is sent and nothing changes.
+	 *
+	 * @dataProvider denied_callers
+	 *
+	 * @param string $caller Caller kind.
+	 */
+	public function test_denied_test_event_with_active_monitoring( string $caller ): void {
+		$this->enable_monitoring();
+		$sink   = SentrySink::install( $this->http, 'sentry.test', 3 );
+		$before = array( $this->stored_plugin_options(), MonitoringConfig::current()->traces_sample_rate );
+		$nonce  = null;
+		if ( 'anonymous' === $caller ) {
+			wp_set_current_user( 0 );
+		} elseif ( 'shop_manager' === $caller ) {
+			$this->login_as( 'shop_manager' );
+		} else {
+			$nonce = 'bad';
+		}
+
+		$response = $this->htmx( 'POST', '/settings/monitoring/test', array(), $nonce );
+
+		$this->assertContains( $response->get_status(), array( 401, 403 ) );
+		// REST tracing may still report the denied request as a transaction; the test event itself must not leave.
+		$this->assertCount( 0, $sink->events() );
+		$this->assertCount( 0, $sink->logs() );
+		$this->assertCount( 0, $sink->check_ins() );
+		$this->assertStringNotContainsString( 'test event', implode( "\n", array_map( 'strval', array_column( $sink->transactions(), 'transaction' ) ) ) );
+		$this->assertSame( $before, array( $this->stored_plugin_options(), MonitoringConfig::current()->traces_sample_rate ) );
+	}
+
+	/**
+	 * Callers that must be refused.
+	 *
+	 * @return array<string, array{string}>
+	 */
+	public static function denied_callers(): array {
+		return array(
+			'anonymous'    => array( 'anonymous' ),
+			'shop manager' => array( 'shop_manager' ),
+			'bad nonce'    => array( 'bad_nonce' ),
+		);
+	}
 }
