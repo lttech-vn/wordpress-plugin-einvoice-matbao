@@ -26,6 +26,7 @@ use Sentry\State\Scope;
 use Sentry\Tracing\Span;
 use Sentry\Tracing\SpanContext;
 use Sentry\Tracing\SpanStatus;
+use Sentry\Tracing\DynamicSamplingContext;
 use Sentry\Tracing\Transaction;
 use Sentry\Tracing\TransactionContext;
 
@@ -162,16 +163,21 @@ final class SentryBackend implements Backend {
 	/**
 	 * Opens a transaction; an open one is closed first.
 	 *
-	 * @param string $name Transaction name.
-	 * @param string $op   Operation.
+	 * Name and op are masked before the SDK copies them into the trace context and the dynamic
+	 * sampling context, with the known values of now (the transaction is sent later).
+	 *
+	 * @param string             $name  Transaction name.
+	 * @param string             $op    Operation.
+	 * @param array<int, string> $known Known personal values to mask.
 	 */
-	public function start_transaction( string $name, string $op ): void {
+	public function start_transaction( string $name, string $op, array $known ): void {
 		if ( null !== $this->transaction ) {
 			$this->finish_transaction( 'ok' );
 		}
 
-		$context = TransactionContext::make()->setName( $name );
-		$context->setOp( $op );
+		$redactor = $this->redactor->with_known_values( $known );
+		$context  = TransactionContext::make()->setName( $redactor->text( $name ) );
+		$context->setOp( $redactor->text( $op ) );
 		$this->transaction = $this->hub->startTransaction( $context );
 		$this->hub->setSpan( $this->transaction );
 	}
@@ -212,7 +218,7 @@ final class SentryBackend implements Backend {
 
 		// Masked now: the transaction is sent later, possibly after the order context is gone.
 		$redactor = $this->redactor->with_known_values( $known );
-		$context  = SpanContext::make()->setOp( $op )->setDescription( $redactor->text( $description ) );
+		$context  = SpanContext::make()->setOp( $redactor->text( $op ) )->setDescription( $redactor->text( $description ) );
 		$span     = $parent->startChild( $context );
 		$this->hub->setSpan( $span );
 
@@ -250,8 +256,8 @@ final class SentryBackend implements Backend {
 		$log->setAttribute( 'sentry.release', $this->config->release );
 		$log->setAttribute( 'sentry.environment', $this->config->environment );
 		$log->setAttribute( 'site', $this->config->site );
-		foreach ( $attrs as $key => $value ) {
-			$log->setAttribute( (string) $key, $redactor->value( $value ) );
+		foreach ( LogAttributes::normalize( $attrs, $redactor ) as $key => $value ) {
+			$log->setAttribute( $key, $value );
 		}
 
 		$this->logs[] = $log;
@@ -400,10 +406,7 @@ final class SentryBackend implements Backend {
 			$this->scrub_message( $event );
 			$this->scrub_exceptions( $event );
 			$this->scrub_spans( $event );
-			$transaction = $event->getTransaction();
-			if ( null !== $transaction ) {
-				$event->setTransaction( $this->active->text( $transaction ) );
-			}
+			$this->scrub_trace_metadata( $event );
 
 			return $event;
 		} catch ( \Throwable $failure ) {
@@ -456,8 +459,37 @@ final class SentryBackend implements Backend {
 			if ( null !== $description ) {
 				$span->setDescription( $this->active->text( $description ) );
 			}
+			$op = $span->getOp();
+			if ( null !== $op ) {
+				$span->setOp( $this->active->text( $op ) );
+			}
 			// setData() merges, so every key is overwritten with its masked value.
-			$span->setData( (array) $this->active->value( $span->getData() ) );
+			$span->setData( LogAttributes::normalize( $span->getData(), $this->active ) );
+		}
+	}
+
+	/**
+	 * Masks the transaction name, every context (including `trace` with its op, description and
+	 * data) and the dynamic sampling context that becomes the envelope `trace` header.
+	 *
+	 * @param Event $event Event.
+	 */
+	private function scrub_trace_metadata( Event $event ): void {
+		$transaction = $event->getTransaction();
+		if ( null !== $transaction ) {
+			$event->setTransaction( $this->active->text( $transaction ) );
+		}
+
+		foreach ( $event->getContexts() as $name => $context ) {
+			$event->setContext( $name, (array) $this->active->value( $context ) );
+		}
+
+		$dsc = $event->getSdkMetadata( 'dynamic_sampling_context' );
+		if ( $dsc instanceof DynamicSamplingContext ) {
+			foreach ( $dsc->getEntries() as $key => $value ) {
+				// The DSC is frozen once built; overwriting is the only way to mask it.
+				$dsc->set( $key, $this->active->text( $value ), true );
+			}
 		}
 	}
 
@@ -517,7 +549,8 @@ final class SentryBackend implements Backend {
 	}
 
 	/**
-	 * Adds the masked data of a finished call to its span; a failing mapper only loses the data.
+	 * Adds the masked data of a finished call to its span. A failing mapper only loses the data:
+	 * the failure is reported by class name and the caller's result is kept.
 	 *
 	 * @param Span     $span           Span.
 	 * @param Redactor $redactor       Redactor with the call's known values.
@@ -528,11 +561,10 @@ final class SentryBackend implements Backend {
 		try {
 			$data = $data_of_result( $result );
 			if ( is_array( $data ) ) {
-				$span->setData( (array) $redactor->value( $data ) );
+				$span->setData( LogAttributes::normalize( $data, $redactor ) );
 			}
 		} catch ( \Throwable $failure ) {
-			// Span data is optional; the caller's result matters more than the measurement.
-			unset( $failure );
+			InternalFailure::report( $failure );
 		}
 	}
 

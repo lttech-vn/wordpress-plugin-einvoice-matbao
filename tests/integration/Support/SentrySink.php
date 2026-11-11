@@ -105,6 +105,30 @@ final class SentrySink {
 	}
 
 	/**
+	 * Raw envelope bodies (headers and every item, unparsed), for leak assertions.
+	 *
+	 * @return list<string>
+	 */
+	public function raw_bodies(): array {
+		return array_map( static fn( array $request ): string => (string) $request['body'], $this->raw() );
+	}
+
+	/**
+	 * Envelope headers (first line of each envelope).
+	 *
+	 * @return list<array<string, mixed>>
+	 */
+	public function envelope_headers(): array {
+		$headers = array();
+		foreach ( $this->raw_bodies() as $body ) {
+			$header    = json_decode( strtok( $body, "\n" ), true );
+			$headers[] = is_array( $header ) ? $header : array();
+		}
+
+		return $headers;
+	}
+
+	/**
 	 * Error and message event payloads.
 	 *
 	 * @return list<array<string, mixed>>

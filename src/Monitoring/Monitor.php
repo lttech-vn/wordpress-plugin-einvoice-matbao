@@ -57,9 +57,10 @@ final class Monitor {
 	private static string $slug = '';
 
 	/**
-	 * Known personal values of the enclosing with_order_context() calls, innermost last.
+	 * Known personal values of the enclosing with_order_context() calls, innermost last; null
+	 * marks a context whose values could not be collected (nothing is captured inside it).
 	 *
-	 * @var list<list<string>>
+	 * @var list<list<string>|null>
 	 */
 	private static array $order_contexts = array();
 
@@ -71,7 +72,7 @@ final class Monitor {
 	 * @return string|null Event ID, or null when nothing was sent.
 	 */
 	public static function capture_exception( \Throwable $e, array $tags = array() ): ?string {
-		return self::guard( static fn( Backend $backend ): ?string => $backend->capture_exception( $e, $tags, self::known_values() ) );
+		return self::capture( static fn( Backend $backend ): ?string => $backend->capture_exception( $e, $tags, self::known_values() ) );
 	}
 
 	/**
@@ -81,7 +82,7 @@ final class Monitor {
 	 * @param InvoiceErrorCode $c Error that needs attention.
 	 */
 	public static function capture_needs_attention( InvoiceRecord $i, InvoiceErrorCode $c ): void {
-		self::guard(
+		self::capture(
 			static fn( Backend $backend ): ?string => $backend->capture_message(
 				'Invoice needs attention: ' . $c->value,
 				'warning',
@@ -105,7 +106,7 @@ final class Monitor {
 	 * @param array<string, mixed> $attrs Attributes.
 	 */
 	public static function log( string $level, string $msg, array $attrs = array() ): void {
-		self::guard(
+		self::capture(
 			static function ( Backend $backend ) use ( $level, $msg, $attrs ): void {
 				$backend->log( $level, $msg, $attrs, self::known_values() );
 			}
@@ -119,9 +120,9 @@ final class Monitor {
 	 * @param string $op   Operation, for example `queue.task`.
 	 */
 	public static function start_transaction( string $name, string $op ): void {
-		self::guard(
+		self::capture(
 			static function ( Backend $backend ) use ( $name, $op ): void {
-				$backend->start_transaction( $name, $op );
+				$backend->start_transaction( $name, $op, self::known_values() );
 			}
 		);
 	}
@@ -132,7 +133,8 @@ final class Monitor {
 	 * @param string $status `ok`, `internal_error`, ...
 	 */
 	public static function finish_transaction( string $status = 'ok' ): void {
-		self::guard(
+		// Inside an unreadable order context the matching start was dropped, so this is too.
+		self::capture(
 			static function ( Backend $backend ) use ( $status ): void {
 				$backend->finish_transaction( $status );
 			}
@@ -150,7 +152,7 @@ final class Monitor {
 	 * @throws \Throwable The exception of $callback, unchanged.
 	 */
 	public static function span( string $op, string $desc, callable $callback, ?callable $data_of_result = null ): mixed {
-		$backend = self::backend_or_null();
+		$backend = self::capturing_backend();
 		if ( null === $backend ) {
 			return $callback();
 		}
@@ -164,7 +166,7 @@ final class Monitor {
 			if ( $outcome->is_failure( $failure ) ) {
 				throw $failure;
 			}
-			self::report_internal( $failure );
+			InternalFailure::report( $failure );
 
 			// The instrumentation failed: replay what $callback did, or run it now if it never ran.
 			return $outcome->has_run() ? $outcome->replay() : $callback();
@@ -180,7 +182,7 @@ final class Monitor {
 	 * @return string|null Check-in ID.
 	 */
 	public static function check_in( string $status, ?string $id = null, ?float $duration = null ): ?string {
-		return self::guard( static fn( Backend $backend ): ?string => $backend->check_in( self::$slug, $status, $id, $duration, self::CHECK_IN_SCHEDULE ) );
+		return self::capture( static fn( Backend $backend ): ?string => $backend->check_in( self::$slug, $status, $id, $duration, self::CHECK_IN_SCHEDULE ) );
 	}
 
 	/**
@@ -199,8 +201,9 @@ final class Monitor {
 		try {
 			$values = OrderRedaction::values_for( $order_id );
 		} catch ( \Throwable $failure ) {
-			self::report_internal( $failure );
-			$values = array();
+			// Fail closed: without the buyer values nothing inside this context can be masked.
+			InternalFailure::report( $failure );
+			$values = null;
 		}
 
 		self::$order_contexts[] = $values;
@@ -218,7 +221,7 @@ final class Monitor {
 	 * @return string|null Event ID when the server accepted it.
 	 */
 	public static function send_test_event(): ?string {
-		return self::guard( static fn( Backend $backend ): ?string => $backend->capture_message( self::TEST_EVENT_MESSAGE, 'info', array(), array(), array() ) );
+		return self::capture( static fn( Backend $backend ): ?string => $backend->capture_message( self::TEST_EVENT_MESSAGE, 'info', array(), array(), array() ) );
 	}
 
 	/**
@@ -249,6 +252,31 @@ final class Monitor {
 	}
 
 	/**
+	 * Like guard(), but drops the call inside an order context whose values are unreadable.
+	 *
+	 * @template T
+	 * @param callable(Backend): T $call Backend call that sends or buffers data.
+	 * @return T|null
+	 */
+	private static function capture( callable $call ): mixed {
+		return self::is_suppressed() ? null : self::guard( $call );
+	}
+
+	/**
+	 * The backend for a new capture, or null when monitoring is off or captures are suppressed.
+	 */
+	private static function capturing_backend(): ?Backend {
+		return self::is_suppressed() ? null : self::backend_or_null();
+	}
+
+	/**
+	 * Whether an enclosing order context could not collect its buyer values.
+	 */
+	private static function is_suppressed(): bool {
+		return in_array( null, self::$order_contexts, true );
+	}
+
+	/**
 	 * Runs $call against the backend; a disabled or failing backend yields null.
 	 *
 	 * @template T
@@ -261,7 +289,7 @@ final class Monitor {
 
 			return null === $backend ? null : $call( $backend );
 		} catch ( \Throwable $failure ) {
-			self::report_internal( $failure );
+			InternalFailure::report( $failure );
 
 			return null;
 		}
@@ -287,7 +315,7 @@ final class Monitor {
 			add_action( 'shutdown', array( self::class, 'flush' ), 100 );
 		} catch ( \Throwable $failure ) {
 			self::$backend = null;
-			self::report_internal( $failure );
+			InternalFailure::report( $failure );
 		}
 
 		return self::$backend;
@@ -299,15 +327,6 @@ final class Monitor {
 	 * @return list<string>
 	 */
 	private static function known_values(): array {
-		return array_values( array_unique( array_merge( array(), ...self::$order_contexts ) ) );
-	}
-
-	/**
-	 * Logs a monitoring failure by class name only; it is never sent to the monitoring server.
-	 *
-	 * @param \Throwable $failure Failure.
-	 */
-	private static function report_internal( \Throwable $failure ): void {
-		error_log( 'einvoice-matbao: monitoring failed (' . get_class( $failure ) . ').' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+		return array_values( array_unique( array_merge( array(), ...array_filter( self::$order_contexts ) ) ) );
 	}
 }

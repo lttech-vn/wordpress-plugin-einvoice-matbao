@@ -49,6 +49,27 @@ trait MonitoringFixture {
 	}
 
 	/**
+	 * Runs $callback and returns what it wrote through error_log().
+	 *
+	 * @param callable $callback Code under test.
+	 */
+	protected static function error_log_of( callable $callback ): string {
+		$log      = (string) wp_tempnam( 'einv-monitor-log' );
+		$previous = ini_set( 'error_log', $log ); // phpcs:ignore WordPress.PHP.IniSet.Risky -- capturing error_log output.
+
+		try {
+			$callback();
+		} finally {
+			ini_set( 'error_log', (string) $previous ); // phpcs:ignore WordPress.PHP.IniSet.Risky -- restoring.
+		}
+
+		$written = (string) file_get_contents( $log ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- local temp file.
+		wp_delete_file( $log );
+
+		return $written;
+	}
+
+	/**
 	 * Drops the cached backend, the backoff and every monitoring filter.
 	 */
 	protected function reset_monitoring(): void {

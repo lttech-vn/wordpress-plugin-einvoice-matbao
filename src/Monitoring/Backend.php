@@ -38,10 +38,11 @@ interface Backend {
 	/**
 	 * Opens a transaction; an open one is closed first.
 	 *
-	 * @param string $name Transaction name.
-	 * @param string $op   Operation, for example `queue.task`.
+	 * @param string             $name  Transaction name.
+	 * @param string             $op    Operation, for example `queue.task`.
+	 * @param array<int, string> $known Known personal values to mask in the name and op.
 	 */
-	public function start_transaction( string $name, string $op ): void;
+	public function start_transaction( string $name, string $op, array $known ): void;
 
 	/**
 	 * Closes the open transaction, if any, and sends it when sampled.

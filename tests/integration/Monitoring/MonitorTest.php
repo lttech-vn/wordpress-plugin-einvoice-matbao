@@ -365,15 +365,21 @@ final class MonitorTest extends WP_UnitTestCase {
 		Monitor::start_transaction( 't', 'queue.task' );
 		$calls = 0;
 
-		$result = Monitor::span(
-			'http.client',
-			'POST /api/x',
-			static function () use ( &$calls ): string {
-				++$calls;
-				return 'value';
-			},
-			static function (): array {
-				throw new RuntimeException( 'data failure' );
+		$result = null;
+
+		$log = self::error_log_of(
+			static function () use ( &$calls, &$result ): void {
+				$result = Monitor::span(
+					'http.client',
+					'POST /api/x',
+					static function () use ( &$calls ): string {
+						++$calls;
+						return 'value';
+					},
+					static function (): array {
+						throw new \LogicException( 'data failure a@b.vn' );
+					}
+				);
 			}
 		);
 		Monitor::finish_transaction();
@@ -381,6 +387,8 @@ final class MonitorTest extends WP_UnitTestCase {
 		$this->assertSame( 'value', $result );
 		$this->assertSame( 1, $calls );
 		$this->assertCount( 1, $this->sink->transactions()[0]['spans'] );
+		$this->assertStringContainsString( 'einvoice-matbao: monitoring failed (LogicException).', $log );
+		$this->assertStringNotContainsString( 'a@b.vn', $log );
 	}
 
 	public function test_with_order_context_returns_value_and_rethrows(): void {
@@ -477,7 +485,7 @@ final class MonitorTest extends WP_UnitTestCase {
 				return null;
 			}
 
-			public function start_transaction( string $name, string $op ): void {
+			public function start_transaction( string $name, string $op, array $known ): void {
 			}
 
 			public function finish_transaction( string $status ): void {
@@ -516,7 +524,7 @@ final class MonitorTest extends WP_UnitTestCase {
 				throw new RuntimeException( 'backend down' );
 			}
 
-			public function start_transaction( string $name, string $op ): void {
+			public function start_transaction( string $name, string $op, array $known ): void {
 				throw new RuntimeException( 'backend down' );
 			}
 
