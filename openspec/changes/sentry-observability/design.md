@@ -74,7 +74,7 @@ Spike ngày 2026-11-11 trên Rustrak 0.25.0 (project id 3): envelope `check_in` 
   - dãy đúng 12 chữ số (CCCD);
   - MST `\b\d{10}(-\d{3})?\b`;
   - `Bearer \S+`;
-  - chuỗi liền `[A-Za-z0-9+/=_-]{32,}`.
+  - chuỗi liền `[A-Za-z0-9+/=_-]{32,}` có ít nhất một chữ số (chuỗi không có chữ số như tên hook `einvoice_matbao_recover_stuck_invoices` là định danh code, giữ nguyên).
 - Xóa `vars` của mọi frame trong stacktrace; xóa `request`, `user`, `server_name`, `contexts.runtime`/`os` nếu có `hostname`.
 - Danh sách cho phép đối với tags: `site`, `order_id`, `invoice.id`, `invoice.status`, `error_code`, `error_kind`, `matbao.env`, `component`. Tag ngoài danh sách bị bỏ.
 - Lý do chọn che theo mẫu cộng allowlist tag thay vì bỏ hẳn message: message của Mắt Bão là manh mối chính để debug, còn spec `invoice-retry-dedup` đã có tiền lệ che CCCD.

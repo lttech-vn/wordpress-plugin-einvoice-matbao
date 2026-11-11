@@ -32,6 +32,24 @@ final class ScrubberTest extends TestCase {
 		$this->assertSame( 'order 12345 failed', $scrubber->text( 'order 12345 failed' ), 'Short numbers are not personal data.' );
 	}
 
+	public function test_long_identifiers_without_digits_are_kept(): void {
+		$scrubber = new Scrubber();
+
+		foreach ( array( 'einvoice_matbao_recover_stuck_invoices', 'einvoice_matbao_invoice_needs_attention' ) as $hook ) {
+			$this->assertSame( $hook, $scrubber->text( $hook ) );
+			$this->assertSame( 'run ' . $hook . ' failed', $scrubber->text( 'run ' . $hook . ' failed' ) );
+		}
+	}
+
+	public function test_long_tokens_with_digits_are_masked(): void {
+		$scrubber = new Scrubber();
+
+		$this->assertSame( self::F, $scrubber->text( str_repeat( 'aB3', 12 ) ) );
+		$this->assertSame( 'token ' . self::F, $scrubber->text( 'token ' . sha1( 'einvoice' ) ) );
+		$this->assertSame( self::F, $scrubber->text( base64_encode( str_repeat( 'k', 30 ) ) . '9' ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- builds a token-shaped fixture.
+		$this->assertSame( self::F, $scrubber->text( str_repeat( 'x', 31 ) . '1' ), 'One digit is enough.' );
+	}
+
 	public function test_urls(): void {
 		$scrubber = new Scrubber();
 		$matbao   = MatbaoCredentials::BASE_URLS['demo'];

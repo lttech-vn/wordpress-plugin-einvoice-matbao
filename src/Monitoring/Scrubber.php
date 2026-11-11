@@ -31,7 +31,9 @@ final class Scrubber implements Redactor {
 		'/Bearer\s+\S+/i',
 		'/\b\d{10}(?:-\d{3})?\b/',
 		'/\b\d{12}\b/',
-		'/[A-Za-z0-9+\/=_\-]{32,}/',
+		// A whole run of 32+ token characters with at least one digit; digit-free runs are code
+		// identifiers such as hook names, not secrets.
+		'/(?<![A-Za-z0-9+\/=_\-])(?=[A-Za-z0-9+\/=_\-]*\d)[A-Za-z0-9+\/=_\-]{32,}/',
 	);
 
 	/**

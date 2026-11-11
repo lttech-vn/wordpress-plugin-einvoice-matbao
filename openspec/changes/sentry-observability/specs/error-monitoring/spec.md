@@ -177,11 +177,15 @@ Trong khi xử lý một đơn, hệ thống SHALL ghi nhận các giá trị ng
 - **THEN** event và log nhận được thay địa chỉ đó bằng `[filtered]`
 
 ### Requirement: Pattern masking
-Hệ thống SHALL thay bằng `[filtered]` các mẫu sau trong mọi chuỗi gửi đi: email; URL (với host Mắt Bão chỉ giữ scheme và host, URL khác bỏ hẳn); dãy đúng 12 chữ số; mã số thuế 10 chữ số hoặc 10 chữ số + `-` + 3 chữ số; chuỗi `Bearer <token>`; chuỗi liền từ 32 ký tự trở lên chỉ gồm chữ, số và `+/=_-`.
+Hệ thống SHALL thay bằng `[filtered]` các mẫu sau trong mọi chuỗi gửi đi: email; URL (với host Mắt Bão chỉ giữ scheme và host, URL khác bỏ hẳn); dãy đúng 12 chữ số; mã số thuế 10 chữ số hoặc 10 chữ số + `-` + 3 chữ số; chuỗi `Bearer <token>`; chuỗi liền từ 32 ký tự trở lên chỉ gồm chữ, số và `+/=_-` và có ít nhất một chữ số.
 
 #### Scenario: Token and tax code masked
 - **WHEN** một exception có message `login failed for 0312345678-001 with Bearer abc.def`
 - **THEN** event nhận được có message `login failed for [filtered] with [filtered]`
+
+#### Scenario: Long identifier without digits kept
+- **WHEN** tên transaction là `einvoice_matbao_recover_stuck_invoices` (38 ký tự, không có chữ số)
+- **THEN** server nhận đúng tên đó, còn token 36 ký tự có chữ số như `aB3aB3…` vẫn thành `[filtered]`
 
 #### Scenario: Buyer data in exception message
 - **WHEN** một exception ngoài ngữ cảnh đơn có message chứa email, MST và số CCCD
