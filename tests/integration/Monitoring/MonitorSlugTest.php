@@ -40,24 +40,25 @@ final class MonitorSlugTest extends TestCase {
 	 *
 	 * @dataProvider unusual_hosts
 	 *
-	 * @param string $host Site host.
+	 * @param string $host            Site host.
+	 * @param string $expected_prefix Slug up to the hash.
 	 */
-	public function test_port_and_idn_hosts( string $host ): void {
+	public function test_port_and_idn_hosts( string $host, string $expected_prefix ): void {
 		$this->assertMatchesRegularExpression( '/^einvoice-matbao-recovery-[a-z0-9-]+-[0-9a-f]{8}$/', MonitorSlug::for_host( $host ) );
-		$this->assertSame( MonitorSlug::for_host( $host ), MonitorSlug::for_host( $host ), 'The slug is stable.' );
+		$this->assertSame( $expected_prefix . substr( sha1( strtolower( $host ) ), 0, 8 ), MonitorSlug::for_host( $host ) );
 	}
 
 	/**
 	 * Unusual hosts.
 	 *
-	 * @return array<string, array{string}>
+	 * @return array<string, array{string, string}>
 	 */
 	public static function unusual_hosts(): array {
 		return array(
-			'port'           => array( 'shop.vn:8443' ),
-			'idn'            => array( 'cửahàng.vn' ),
-			'only non-ascii' => array( 'ửữ' ),
-			'uppercase'      => array( 'Shop.VN' ),
+			'port'           => array( 'shop.vn:8443', 'einvoice-matbao-recovery-shop-vn-8443-' ),
+			'idn'            => array( 'cửahàng.vn', 'einvoice-matbao-recovery-c-ah-ng-vn-' ),
+			'only non-ascii' => array( 'ửữ', 'einvoice-matbao-recovery-site-' ),
+			'uppercase'      => array( 'Shop.VN', 'einvoice-matbao-recovery-shop-vn-' ),
 		);
 	}
 

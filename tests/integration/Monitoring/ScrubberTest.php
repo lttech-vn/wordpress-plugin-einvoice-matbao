@@ -75,6 +75,50 @@ final class ScrubberTest extends TestCase {
 		$this->assertSame( self::F, ( new Scrubber( array( 'Trần Thị B' ) ) )->text( 'trần thị b' ) );
 	}
 
+	/**
+	 * Buyer values taken from the draft-invoice fixtures (DraftInvoiceBuyerSnapshotTest).
+	 *
+	 * @return array<string, array{array<int, string>, string}>
+	 */
+	public static function buyer_fixtures(): array {
+		return array(
+			'business buyer'   => array(
+				array( 'Doanh nghiệp Thử', '0000000000-001', 'Số 2 Đường Thử, Quận Thử', 'Nguyễn Văn A', 'ketoan@example.vn', '0900000001' ),
+				'Draft for Doanh nghiệp Thử (MST 0000000000-001) at Số 2 Đường Thử, Quận Thử; contact Nguyễn Văn A <ketoan@example.vn> 0900000001',
+			),
+			'individual buyer' => array(
+				array( 'Nguyễn Văn A', 'Số 1 Đường Thử, Quận Thử', '000000001234', '0900000001' ),
+				'NMua_CCCDan 000000001234 invalid for NGUYỄN VĂN A, số 1 đường thử, quận thử, tel 0900000001',
+			),
+		);
+	}
+
+	/**
+	 * Every fixture value is masked wherever it appears.
+	 *
+	 * @dataProvider buyer_fixtures
+	 *
+	 * @param array<int, string> $known   Buyer values of the order.
+	 * @param string             $message Message that embeds them.
+	 */
+	public function test_fixture_buyer_values_are_filtered( array $known, string $message ): void {
+		$scrubbed = ( new Scrubber() )->with_known_values( $known )->text( $message );
+
+		foreach ( $known as $value ) {
+			$this->assertStringNotContainsStringIgnoringCase( $value, $scrubbed );
+		}
+		$this->assertStringContainsString( self::F, $scrubbed );
+	}
+
+	/**
+	 * Patterns alone catch identifiers even when no known values are loaded.
+	 */
+	public function test_fixture_identifiers_are_filtered_by_pattern_alone(): void {
+		$scrubbed = ( new Scrubber() )->text( 'MST 0000000000-001, CCCD 000000001234, mail ketoan@example.vn' );
+
+		$this->assertSame( 'MST [filtered], CCCD [filtered], mail [filtered]', $scrubbed );
+	}
+
 	public function test_value_recurses(): void {
 		$this->assertSame(
 			array(
