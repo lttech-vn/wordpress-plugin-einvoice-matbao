@@ -9,6 +9,7 @@ namespace LTTech\EinvoiceMatbao\Matbao;
 
 use LTTech\EinvoiceMatbao\Encryption;
 use LTTech\EinvoiceMatbao\Monitoring\Monitor;
+use LTTech\EinvoiceMatbao\Monitoring\TransportErrorData;
 
 /**
  * Talks to Mat Bao through the WordPress HTTP API, which is the fake-able boundary in tests
@@ -296,7 +297,7 @@ final class MatbaoClient {
 	 */
 	private static function span_data( $response ): array {
 		if ( is_wp_error( $response ) ) {
-			return array( 'error.type' => $response->get_error_code() );
+			return TransportErrorData::of( $response );
 		}
 
 		$data     = array( 'http.response.status_code' => (int) wp_remote_retrieve_response_code( $response ) );

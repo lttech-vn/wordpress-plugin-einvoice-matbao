@@ -685,14 +685,22 @@ final class SentryBackend implements Backend {
 
 	/**
 	 * Span status of a call that returned normally: an HTTP response code maps to its SDK status,
-	 * anything else is `ok`.
+	 * a transport failure (`error.type`, no response code) is `deadline_exceeded` for a timeout and
+	 * `internal_error` otherwise, anything else is `ok`.
 	 *
 	 * @param array<string, mixed> $data Masked span data.
 	 */
 	private static function http_span_status( array $data ): SpanStatus {
 		$code = $data['http.response.status_code'] ?? null;
 
-		return is_int( $code ) ? SpanStatus::createFromHttpStatusCode( $code ) : SpanStatus::ok();
+		if ( is_int( $code ) ) {
+			return SpanStatus::createFromHttpStatusCode( $code );
+		}
+		if ( ! isset( $data['error.type'] ) ) {
+			return SpanStatus::ok();
+		}
+
+		return TransportErrorData::TIMEOUT === $data['error.type'] ? SpanStatus::deadlineExceeded() : SpanStatus::internalError();
 	}
 
 	/**

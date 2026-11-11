@@ -184,6 +184,41 @@ final class WorkflowMonitoringTest extends InvoiceWorkflowTestCase {
 		}
 	}
 
+	public function test_matbao_transport_failure_marks_span_error(): void {
+		$this->configure_matbao();
+		$this->enable_monitoring();
+		$this->http->respond_with( self::CREATE_ROUTE, static fn(): \WP_Error => new \WP_Error( 'http_request_failed', 'cURL error 6: could not resolve host' ) );
+		$credentials = ( new CredentialStore() )->matbao();
+		$this->assertNotNull( $credentials );
+		( new MatbaoClient( $credentials ) )->forget_token();
+
+		Monitor::start_transaction( 't', 'queue.task' );
+		$this->complete_and_run( $this->new_order() );
+		Monitor::finish_transaction();
+
+		$spans = array_values( array_filter( $this->sink->transactions()[0]['spans'], static fn( array $span ): bool => 'POST /api/invoice/create-invoice' === $span['description'] ) );
+		$this->assertNotEmpty( $spans );
+		$this->assertSame( 'http_request_failed', $spans[0]['data']['error.type'] );
+		$this->assertSame( 'internal_error', $spans[0]['status'] );
+	}
+
+	public function test_matbao_timeout_marks_span_deadline_exceeded(): void {
+		$this->configure_matbao();
+		$this->enable_monitoring();
+		$this->http->respond_with( self::CREATE_ROUTE, static fn(): \WP_Error => new \WP_Error( 'http_request_failed', 'cURL error 28: Operation timed out after 15001 milliseconds' ) );
+		$credentials = ( new CredentialStore() )->matbao();
+		$this->assertNotNull( $credentials );
+		( new MatbaoClient( $credentials ) )->forget_token();
+
+		Monitor::start_transaction( 't', 'queue.task' );
+		$this->complete_and_run( $this->new_order() );
+		Monitor::finish_transaction();
+
+		$spans = array_values( array_filter( $this->sink->transactions()[0]['spans'], static fn( array $span ): bool => 'POST /api/invoice/create-invoice' === $span['description'] ) );
+		$this->assertNotEmpty( $spans );
+		$this->assertSame( 'deadline_exceeded', $spans[0]['status'] );
+	}
+
 	public function test_lark_failure_has_no_webhook(): void {
 		$this->enable_monitoring();
 		$this->with_encryption_key();

@@ -188,6 +188,8 @@ final class MonitorTest extends WP_UnitTestCase {
 			'400 is invalid_argument' => array( 400, 'invalid_argument' ),
 			'503 is unavailable'      => array( 503, 'unavailable' ),
 			'500 is internal_error'   => array( 500, 'internal_error' ),
+			'201 is ok'               => array( 201, 'ok' ),
+			'204 is ok'               => array( 204, 'ok' ),
 		);
 	}
 
@@ -209,6 +211,37 @@ final class MonitorTest extends WP_UnitTestCase {
 		$span = $this->sink->transactions()[0]['spans'][0];
 		$this->assertSame( $status, $span['status'] );
 		$this->assertSame( $code, $span['data']['http.response.status_code'] );
+	}
+
+	/**
+	 * Span data without a response code.
+	 *
+	 * @return array<string, array{array<string, mixed>, string}>
+	 */
+	public static function codeless_span_provider(): array {
+		return array(
+			'no status, no error' => array( array(), 'ok' ),
+			'transport error'     => array( array( 'error.type' => 'http_request_failed' ), 'internal_error' ),
+			'transport timeout'   => array( array( 'error.type' => 'timeout' ), 'deadline_exceeded' ),
+		);
+	}
+
+	/**
+	 * A call that returned without a response code is an error only when it carries `error.type`.
+	 *
+	 * @dataProvider codeless_span_provider
+	 *
+	 * @param array<string, mixed> $data   Span data.
+	 * @param string               $status Expected span status.
+	 */
+	public function test_span_status_without_response_code( array $data, string $status ): void {
+		$this->enable_monitoring( 1.0 );
+
+		Monitor::start_transaction( 't', 'queue.task' );
+		Monitor::span( 'http.client', 'POST /api/x', static fn(): int => 1, static fn(): array => $data );
+		Monitor::finish_transaction();
+
+		$this->assertSame( $status, $this->sink->transactions()[0]['spans'][0]['status'] );
 	}
 
 	public function test_unsampled_transaction_not_sent(): void {

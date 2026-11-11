@@ -8,6 +8,7 @@
 namespace LTTech\EinvoiceMatbao\Lark;
 
 use LTTech\EinvoiceMatbao\Monitoring\Monitor;
+use LTTech\EinvoiceMatbao\Monitoring\TransportErrorData;
 
 /**
  * Minimal Lark custom bot client. Uses the WordPress HTTP API (fake-able in tests) and never
@@ -55,7 +56,7 @@ final class LarkClient {
 			'POST lark-webhook',
 			fn() => wp_remote_post( $this->webhook->webhook_url, $args ),
 			static fn( $result ): array => is_wp_error( $result )
-				? array( 'error.type' => $result->get_error_code() )
+				? TransportErrorData::of( $result )
 				: array( 'http.response.status_code' => (int) wp_remote_retrieve_response_code( $result ) )
 		);
 
