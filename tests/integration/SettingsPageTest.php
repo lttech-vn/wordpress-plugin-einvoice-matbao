@@ -155,6 +155,20 @@ final class SettingsPageTest extends WP_UnitTestCase {
 		$this->assertLessThan( strpos( $page, 'id="einv-tabs"' ), strpos( $page, 'EINVOICE_MATBAO_ENCRYPTION_KEY' ) );
 	}
 
+	public function test_monitoring_tab_contents(): void {
+		$html = SettingsPage::render_tabs( 'monitoring' );
+
+		$this->assertStringContainsString( 'data-einv-tab="monitoring"', $html );
+		$this->assertStringContainsString( 'hx-post="' . esc_url( rest_url( 'einvoice-matbao/v1/settings/monitoring' ) ) . '"', $html );
+		$this->assertStringContainsString( 'hx-post="' . esc_url( rest_url( 'einvoice-matbao/v1/settings/monitoring/test' ) ) . '"', $html );
+		$this->assertStringContainsString( 'name="enabled"', $html );
+		$this->assertStringContainsString( 'name="dsn"', $html );
+		$this->assertStringContainsString( 'name="traces_sample_rate"', $html );
+		$this->assertStringContainsString( 'Gửi event thử', $html );
+		$this->assertStringNotContainsString( 'settings/lark', $html );
+		$this->assertStringNotContainsString( 'einv-lark-webhook', $html );
+	}
+
 	public function test_tabs_group_the_existing_forms(): void {
 		$connection = SettingsPage::render_tabs( 'connection' );
 		$this->assertStringContainsString( 'settings/matbao', $connection );

@@ -15,7 +15,7 @@ use LTTech\EinvoiceMatbao\Tests\Integration\Support\SettingsRestTestCase;
 final class SettingsTabsRestTest extends SettingsRestTestCase {
 
 	/**
-	 * The five tab keys.
+	 * The six tab keys.
 	 *
 	 * @return array<string, array{string}>
 	 */
@@ -25,6 +25,7 @@ final class SettingsTabsRestTest extends SettingsRestTestCase {
 			'connection' => array( 'connection' ),
 			'invoicing'  => array( 'invoicing' ),
 			'lark'       => array( 'lark' ),
+			'monitoring' => array( 'monitoring' ),
 			'advanced'   => array( 'advanced' ),
 		);
 	}

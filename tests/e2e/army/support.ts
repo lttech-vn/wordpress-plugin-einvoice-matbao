@@ -52,6 +52,7 @@ export async function resetWorld(ctx: Pick<Ctx, "app">): Promise<void> {
 	await seam(ctx, "/encryption-key", { off: false });
 	await seam(ctx, "/credentials/restore", {});
 	await seam(ctx, "/product-units/clear", {});
+	await seam(ctx, "/monitoring/reset", {});
 	await seam(ctx, "/settings", { prefix: "E2E", walk_in: "", unit: "Gói", template: { form: "1", series: `C${String(new Date().getUTCFullYear()).slice(2)}TAT` } });
 }
 
@@ -108,6 +109,7 @@ export const PAGES = {
 	tab: (key: string) => `/wp-admin/admin.php?page=einvoice-matbao-settings&tab=${key}`,
 	settings: "/wp-admin/admin.php?page=einvoice-matbao-settings&tab=connection",
 	invoicing: "/wp-admin/admin.php?page=einvoice-matbao-settings&tab=invoicing",
+	monitoring: "/wp-admin/admin.php?page=einvoice-matbao-settings&tab=monitoring",
 	lark: "/wp-admin/admin.php?page=einvoice-matbao-settings&tab=lark",
 	invoices: "/wp-admin/admin.php?page=einvoice-matbao-settings&tab=invoices",
 	oldInvoices: "/wp-admin/admin.php?page=einvoice-matbao-invoices",

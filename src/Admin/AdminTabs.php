@@ -25,6 +25,7 @@ final class AdminTabs {
 			'connection' => __( 'Kết nối Mắt Bão', 'einvoice-matbao' ),
 			'invoicing'  => __( 'Xuất hóa đơn', 'einvoice-matbao' ),
 			'lark'       => __( 'Cảnh báo Lark', 'einvoice-matbao' ),
+			'monitoring' => __( 'Giám sát lỗi', 'einvoice-matbao' ),
 			'advanced'   => __( 'Nâng cao', 'einvoice-matbao' ),
 		);
 	}

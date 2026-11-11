@@ -16,7 +16,7 @@ use WP_UnitTestCase;
 final class AdminTabsTest extends WP_UnitTestCase {
 
 	public function test_tabs_are_ordered_with_invoices_first(): void {
-		$this->assertSame( array( 'invoices', 'connection', 'invoicing', 'lark', 'advanced' ), array_keys( AdminTabs::labels() ) );
+		$this->assertSame( array( 'invoices', 'connection', 'invoicing', 'lark', 'monitoring', 'advanced' ), array_keys( AdminTabs::labels() ) );
 		$this->assertSame( 'Hóa đơn', AdminTabs::labels()['invoices'] );
 	}
 

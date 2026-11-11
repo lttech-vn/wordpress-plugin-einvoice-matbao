@@ -16,6 +16,9 @@ use LTTech\EinvoiceMatbao\Matbao\MatbaoClient;
 use LTTech\EinvoiceMatbao\Matbao\MatbaoCredentials;
 use LTTech\EinvoiceMatbao\Matbao\MatbaoError;
 use LTTech\EinvoiceMatbao\Matbao\MatbaoTemplate;
+use LTTech\EinvoiceMatbao\Monitoring\Monitor;
+use LTTech\EinvoiceMatbao\Monitoring\MonitoringConfig;
+use LTTech\EinvoiceMatbao\Monitoring\SentryDsn;
 use LTTech\EinvoiceMatbao\Settings;
 use WP_Error;
 use WP_HTTP_Response;
@@ -39,15 +42,17 @@ final class SettingsController {
 	 */
 	public static function register_routes(): void {
 		$routes = array(
-			'/settings/templates'   => array( WP_REST_Server::READABLE, 'list_templates' ),
-			'/settings/matbao'      => array( WP_REST_Server::CREATABLE, 'save_matbao' ),
-			'/settings/matbao/test' => array( WP_REST_Server::CREATABLE, 'test_matbao' ),
-			'/settings/lark'        => array( WP_REST_Server::CREATABLE, 'save_lark' ),
-			'/settings/lark/test'   => array( WP_REST_Server::CREATABLE, 'test_lark' ),
-			'/settings/template'    => array( WP_REST_Server::CREATABLE, 'save_template' ),
-			'/settings/invoicing'   => array( WP_REST_Server::CREATABLE, 'save_invoicing' ),
-			'/settings/unit'        => array( WP_REST_Server::CREATABLE, 'save_unit' ),
-			'/tabs/(?P<tab>[^/]+)'  => array( WP_REST_Server::READABLE, 'show_tab' ),
+			'/settings/templates'       => array( WP_REST_Server::READABLE, 'list_templates' ),
+			'/settings/matbao'          => array( WP_REST_Server::CREATABLE, 'save_matbao' ),
+			'/settings/matbao/test'     => array( WP_REST_Server::CREATABLE, 'test_matbao' ),
+			'/settings/lark'            => array( WP_REST_Server::CREATABLE, 'save_lark' ),
+			'/settings/lark/test'       => array( WP_REST_Server::CREATABLE, 'test_lark' ),
+			'/settings/monitoring'      => array( WP_REST_Server::CREATABLE, 'save_monitoring' ),
+			'/settings/monitoring/test' => array( WP_REST_Server::CREATABLE, 'test_monitoring' ),
+			'/settings/template'        => array( WP_REST_Server::CREATABLE, 'save_template' ),
+			'/settings/invoicing'       => array( WP_REST_Server::CREATABLE, 'save_invoicing' ),
+			'/settings/unit'            => array( WP_REST_Server::CREATABLE, 'save_unit' ),
+			'/tabs/(?P<tab>[^/]+)'      => array( WP_REST_Server::READABLE, 'show_tab' ),
 		);
 
 		foreach ( $routes as $route => list( $methods, $handler ) ) {
@@ -383,6 +388,59 @@ final class SettingsController {
 		}
 
 		return Fragment::success( __( 'Đã gửi tin nhắn kiểm tra tới Lark.', 'einvoice-matbao' ) );
+	}
+
+	/**
+	 * Saves the error monitoring switch, DSN (encrypted) and trace sample rate.
+	 *
+	 * A blank DSN keeps the stored one. A field overridden by a wp-config constant is ignored.
+	 * Everything is validated before anything is written.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 */
+	public function save_monitoring( WP_REST_Request $request ): WP_REST_Response {
+		$config = MonitoringConfig::current();
+
+		$rate = trim( self::raw_param( $request, 'traces_sample_rate' ) );
+		if ( ! is_numeric( $rate ) || (float) $rate < 0.0 || (float) $rate > 1.0 ) {
+			return Fragment::error( __( 'Tỉ lệ lấy mẫu phải là số từ 0 đến 1.', 'einvoice-matbao' ) );
+		}
+
+		$dsn = 'constant' === $config->dsn_source ? '' : trim( self::raw_param( $request, 'dsn' ) );
+		if ( '' !== $dsn ) {
+			if ( null === SentryDsn::parse( $dsn ) ) {
+				return Fragment::error( __( 'DSN không hợp lệ.', 'einvoice-matbao' ) );
+			}
+			if ( ! ( new Encryption() )->is_available() ) {
+				return self::missing_key_error();
+			}
+		}
+
+		$settings = new Settings();
+		$enabled  = $config->enabled_from_constant ? $settings->monitoring_enabled() : '1' === self::raw_param( $request, 'enabled' );
+		$settings->save_monitoring( $enabled, (float) $rate );
+		if ( '' !== $dsn ) {
+			( new CredentialStore() )->save_sentry_dsn( $dsn );
+		}
+
+		return Fragment::success( __( 'Đã lưu cấu hình giám sát lỗi.', 'einvoice-matbao' ) );
+	}
+
+	/**
+	 * Sends a test event to the monitoring server and reports the event ID.
+	 */
+	public function test_monitoring(): WP_REST_Response {
+		if ( ! MonitoringConfig::current()->active() ) {
+			return Fragment::error( __( 'Cần bật giám sát và nhập DSN hợp lệ trước khi gửi thử.', 'einvoice-matbao' ) );
+		}
+
+		$event_id = Monitor::send_test_event();
+		if ( null === $event_id ) {
+			return Fragment::error( __( 'Máy chủ Sentry không nhận event thử. Kiểm tra DSN và kết nối mạng.', 'einvoice-matbao' ) );
+		}
+
+		/* translators: %s: Sentry event ID. */
+		return Fragment::success( sprintf( __( 'Đã gửi event thử (ID: %s).', 'einvoice-matbao' ), $event_id ) );
 	}
 
 	/**

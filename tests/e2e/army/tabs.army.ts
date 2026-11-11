@@ -21,6 +21,13 @@ describe("plugin screen tabs", { serial: false, agent: "admin" }, () => {
 		await expect(browser.locator("[data-einv-total]")).toBeVisible();
 	});
 
+	test("the monitoring tab sits between Lark and Advanced", async ({ app, browser }) => {
+		await app.open(SCREEN);
+		const keys = await browser.evaluate(() => Array.from(document.querySelectorAll("[data-einv-tab-link]")).map((a) => a.getAttribute("data-einv-tab-link")));
+		expect(keys).toEqual(["invoices", "connection", "invoicing", "lark", "monitoring", "advanced"]);
+		await expect(tabLink(browser, "monitoring")).toHaveText("Giám sát lỗi");
+	});
+
 	test("switching tabs does not reload and updates the URL", async ({ app, screen, browser }) => {
 		await app.open(SCREEN);
 		await browser.evaluate(() => {

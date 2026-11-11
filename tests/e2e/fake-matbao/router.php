@@ -17,7 +17,7 @@
  *        (the lost-response case). Without a step the call is answered normally.
  *   POST /__control/delete   {mtChieu}    removes the draft from Mat Bao
  *   POST /__control/issue    {mtChieu}    marks it issued (no longer a draft)
- *   GET  /__control/requests[?endpoint=]  logged calls, passwords redacted
+ *   GET  /__control/requests[?endpoint=]  logged calls, passwords redacted (`sentry-envelope`: POST /api/<n>/envelope/)
  *   GET  /__control/invoices              stored invoices
  *
  * @package EinvoiceMatbao
@@ -152,6 +152,26 @@ if ( str_starts_with( $path, '/__control/' ) ) {
 			einv_fake_json( 200, array_values( einv_fake_with_state( static fn( array &$s ): array => $s['invoices'] ) ) );
 	}
 	einv_fake_json( 404, array( 'error' => 'unknown control action' ) );
+}
+
+// ---- Sentry sink (error monitoring E2E) ----------------------------------------------------------------------
+// POST /api/<project>/envelope/ is what the Sentry SDK sends; answer 200 and keep the envelope for the tests.
+if ( 'POST' === $method && 1 === preg_match( '#^/api/[0-9]+/envelope/?$#', $path ) ) {
+	einv_fake_with_state(
+		static function ( array &$s ) use ( $raw, $path ): void {
+			++$s['seq'];
+			$s['requests'][] = array(
+				'seq'      => $s['seq'],
+				'endpoint' => 'sentry-envelope',
+				'body'     => array(
+					'path'     => $path,
+					'envelope' => $raw,
+				),
+				'auth'     => isset( $_SERVER['HTTP_X_SENTRY_AUTH'] ),
+			);
+		}
+	);
+	einv_fake_json( 200, array( 'id' => bin2hex( random_bytes( 16 ) ) ) );
 }
 
 // ---- API -----------------------------------------------------------------------------------------------------

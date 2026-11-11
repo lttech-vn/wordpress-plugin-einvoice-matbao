@@ -11,6 +11,7 @@ use LTTech\EinvoiceMatbao\CredentialStore;
 use LTTech\EinvoiceMatbao\Encryption;
 use LTTech\EinvoiceMatbao\Matbao\MatbaoCredentials;
 use LTTech\EinvoiceMatbao\Matbao\MatbaoTemplate;
+use LTTech\EinvoiceMatbao\Monitoring\MonitoringConfig;
 use LTTech\EinvoiceMatbao\Settings;
 use LTTech\EinvoiceMatbao\Uninstall\UninstallSettingsController;
 
@@ -139,6 +140,7 @@ final class SettingsPage {
 			'connection' => self::render_connection_panel(),
 			'invoicing'  => self::render_invoicing_panel(),
 			'lark'       => self::render_lark_panel(),
+			'monitoring' => self::render_monitoring_panel(),
 			'advanced'   => UninstallSettingsController::render_section(),
 			default      => InvoicePage::render_panel(),
 		};
@@ -303,6 +305,58 @@ final class SettingsPage {
 						<div class="flex flex-wrap gap-2">
 							<button type="submit" class="<?php echo esc_attr( self::BUTTON ); ?>"><?php esc_html_e( 'Lưu webhook', 'einvoice-matbao' ); ?></button>
 							<button type="button" class="<?php echo esc_attr( self::SECONDARY ); ?>" hx-post="<?php echo esc_url( rest_url( SettingsController::NAMESPACE . '/settings/lark/test' ) ); ?>" hx-target="next .einv-result" hx-params="none"><?php esc_html_e( 'Gửi tin nhắn kiểm tra', 'einvoice-matbao' ); ?></button>
+						</div>
+					</form>
+					<div class="einv-result" aria-live="polite"></div>
+				</section>
+
+		<?php
+		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Error monitoring card. The DSN is never rendered back, only its host and project.
+	 */
+	private static function render_monitoring_panel(): string {
+		$config   = MonitoringConfig::current();
+		$settings = new Settings();
+		$locked   = '<span class="ml-2 text-einv-ink-mute">' . esc_html__( 'Đặt trong wp-config', 'einvoice-matbao' ) . '</span>';
+
+		ob_start();
+		?>
+				<section class="<?php echo esc_attr( self::CARD ); ?>">
+					<h2 class="<?php echo esc_attr( self::TITLE ); ?>"><?php esc_html_e( 'Giám sát lỗi (Sentry)', 'einvoice-matbao' ); ?></h2>
+					<p class="<?php echo esc_attr( self::HELP ); ?> mb-4"><?php esc_html_e( 'Gửi lỗi, hiệu năng và log của plugin tới máy chủ Sentry của bạn. Dữ liệu người mua được che trước khi gửi; DSN được lưu mã hóa và không hiển thị lại.', 'einvoice-matbao' ); ?></p>
+					<?php if ( $config->dsn_constant_invalid ) : ?>
+						<p class="<?php echo esc_attr( self::HELP ); ?> text-einv-error" role="alert"><?php echo esc_html( sprintf( /* translators: %s: constant name. */ __( 'Hằng %s không hợp lệ nên đang dùng DSN trong trang này.', 'einvoice-matbao' ), MonitoringConfig::DSN_CONSTANT ) ); ?></p>
+					<?php endif; ?>
+					<?php if ( $config->stored_dsn_unreadable ) : ?>
+						<p class="<?php echo esc_attr( self::HELP ); ?> text-einv-error" role="alert"><?php esc_html_e( 'DSN đã lưu không đọc được (khóa mã hóa đã đổi?). Hãy nhập lại.', 'einvoice-matbao' ); ?></p>
+					<?php endif; ?>
+					<form hx-post="<?php echo esc_url( rest_url( SettingsController::NAMESPACE . '/settings/monitoring' ) ); ?>" hx-target="next .einv-result" class="space-y-4">
+						<div>
+							<label class="flex items-center gap-2 text-[14px] text-einv-ink">
+								<input type="checkbox" name="enabled" value="1" <?php checked( $config->enabled ); ?> <?php disabled( $config->enabled_from_constant ); ?> />
+								<?php esc_html_e( 'Bật gửi lỗi, hiệu năng và log lên máy chủ Sentry', 'einvoice-matbao' ); ?>
+								<?php echo $config->enabled_from_constant ? $locked : ''; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped above. ?>
+							</label>
+						</div>
+						<div>
+							<label class="<?php echo esc_attr( self::LABEL ); ?>" for="einv-sentry-dsn"><?php esc_html_e( 'DSN', 'einvoice-matbao' ); ?></label>
+							<input id="einv-sentry-dsn" name="dsn" type="password" autocomplete="off" class="<?php echo esc_attr( self::FIELD ); ?>" value="" <?php echo 'constant' === $config->dsn_source ? 'readonly' : ''; ?> placeholder="<?php echo esc_attr( null !== $config->dsn ? __( 'Đã lưu, để trống nếu không đổi', 'einvoice-matbao' ) : 'https://<key>@sentry.example/3' ); ?>" />
+							<?php echo 'constant' === $config->dsn_source ? $locked : ''; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped above. ?>
+							<p class="<?php echo esc_attr( self::HELP ); ?>"><?php esc_html_e( 'Dán DSN của project (vd. https://<key>@rustrak.example/3). Để trống để giữ DSN đã lưu.', 'einvoice-matbao' ); ?></p>
+							<p class="mt-1 text-[13px] <?php echo esc_attr( null !== $config->dsn ? 'text-einv-success' : 'text-einv-ink-mute' ); ?>">
+								<?php echo esc_html( null !== $config->dsn ? sprintf( /* translators: %s: host and project of the DSN. */ __( 'Đang dùng: %s', 'einvoice-matbao' ), $config->dsn->label() ) : __( 'Chưa có DSN.', 'einvoice-matbao' ) ); ?>
+							</p>
+						</div>
+						<div>
+							<label class="<?php echo esc_attr( self::LABEL ); ?>" for="einv-sentry-rate"><?php esc_html_e( 'Tỉ lệ lấy mẫu hiệu năng (0 đến 1)', 'einvoice-matbao' ); ?></label>
+							<input id="einv-sentry-rate" name="traces_sample_rate" type="number" min="0" max="1" step="any" class="<?php echo esc_attr( self::FIELD ); ?>" value="<?php echo esc_attr( (string) $settings->traces_sample_rate() ); ?>" />
+						</div>
+						<div class="flex flex-wrap gap-2">
+							<button type="submit" class="<?php echo esc_attr( self::BUTTON ); ?>"><?php esc_html_e( 'Lưu cấu hình', 'einvoice-matbao' ); ?></button>
+							<button type="button" class="<?php echo esc_attr( self::SECONDARY ); ?>" hx-post="<?php echo esc_url( rest_url( SettingsController::NAMESPACE . '/settings/monitoring/test' ) ); ?>" hx-target="next .einv-result" hx-params="none"><?php esc_html_e( 'Gửi event thử', 'einvoice-matbao' ); ?></button>
 						</div>
 					</form>
 					<div class="einv-result" aria-live="polite"></div>
