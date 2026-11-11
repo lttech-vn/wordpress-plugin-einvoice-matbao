@@ -203,7 +203,10 @@ final class WorkflowMonitoringTest extends InvoiceWorkflowTestCase {
 
 		$lark_errors = array_values( array_filter( $this->events_of_level( 'error' ), static fn( array $event ): bool => 'invoice_alerts' === ( $event['tags']['component'] ?? '' ) ) );
 		$this->assertCount( 1, $lark_errors, 'The final Lark failure is reported once.' );
-		$spans = $this->sink->transactions()[0]['spans'];
+		// Plugin actions are traced too, so the earlier draft run is its own transaction: take the alerts one.
+		$alerts = array_values( array_filter( $this->sink->transactions(), static fn( array $transaction ): bool => 'alerts' === $transaction['transaction'] ) );
+		$this->assertCount( 1, $alerts );
+		$spans = $alerts[0]['spans'];
 		$this->assertNotEmpty( $spans );
 		foreach ( $spans as $span ) {
 			$this->assertSame( 'POST lark-webhook', $span['description'] );

@@ -50,6 +50,21 @@ final class Monitor {
 	private static bool $resolved = false;
 
 	/**
+	 * Whether monitoring is active, read from the configuration only; null until read.
+	 *
+	 * @var bool|null
+	 */
+	private static ?bool $active = null;
+
+	/**
+	 * Number of start_transaction() calls not yet finished; only the outermost pair reaches the
+	 * backend, so nested runs (an action run inside a REST request) report into one transaction.
+	 *
+	 * @var int
+	 */
+	private static int $transaction_depth = 0;
+
+	/**
 	 * Monitor slug of this site.
 	 *
 	 * @var string
@@ -114,12 +129,39 @@ final class Monitor {
 	}
 
 	/**
-	 * Opens a transaction.
+	 * Whether monitoring is active for this request. Reads the configuration only (cached for the
+	 * request), never the Sentry SDK, so hooks can skip their own work cheaply when it is off.
+	 */
+	public static function is_active(): bool {
+		if ( self::$resolved ) {
+			return null !== self::$backend;
+		}
+
+		if ( null === self::$active ) {
+			try {
+				self::$active = MonitoringConfig::current()->active();
+			} catch ( \Throwable $failure ) {
+				InternalFailure::report( $failure );
+				self::$active = false;
+			}
+		}
+
+		return self::$active;
+	}
+
+	/**
+	 * Opens a transaction. Inside an open transaction this only nests: the outer one stays the
+	 * reported transaction and the matching finish_transaction() leaves it open.
 	 *
 	 * @param string $name Transaction name.
 	 * @param string $op   Operation, for example `queue.task`.
 	 */
 	public static function start_transaction( string $name, string $op ): void {
+		++self::$transaction_depth;
+		if ( self::$transaction_depth > 1 ) {
+			return;
+		}
+
 		self::capture(
 			static function ( Backend $backend ) use ( $name, $op ): void {
 				$backend->start_transaction( $name, $op, self::known_values() );
@@ -128,11 +170,21 @@ final class Monitor {
 	}
 
 	/**
-	 * Closes the open transaction.
+	 * Closes the open transaction. A nested finish only unwinds one level (its status is not
+	 * reported); a finish without an open transaction does nothing.
 	 *
 	 * @param string $status `ok`, `internal_error`, ...
 	 */
 	public static function finish_transaction( string $status = 'ok' ): void {
+		if ( 0 === self::$transaction_depth ) {
+			return;
+		}
+
+		--self::$transaction_depth;
+		if ( self::$transaction_depth > 0 ) {
+			return;
+		}
+
 		// Inside an unreadable order context the matching start was dropped, so this is too.
 		self::capture(
 			static function ( Backend $backend ) use ( $status ): void {
@@ -245,10 +297,12 @@ final class Monitor {
 	 * @param Backend|null $b Backend to use, or null to resolve it from the configuration.
 	 */
 	public static function reset_for_tests( ?Backend $b = null ): void {
-		self::$backend        = $b;
-		self::$resolved       = null !== $b;
-		self::$order_contexts = array();
-		self::$slug           = null === $b ? '' : MonitorSlug::for_host( MonitoringConfig::current()->site );
+		self::$backend           = $b;
+		self::$resolved          = null !== $b;
+		self::$active            = null;
+		self::$transaction_depth = 0;
+		self::$order_contexts    = array();
+		self::$slug              = null === $b ? '' : MonitorSlug::for_host( MonitoringConfig::current()->site );
 	}
 
 	/**

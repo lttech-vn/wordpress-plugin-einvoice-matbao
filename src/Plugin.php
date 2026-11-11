@@ -44,6 +44,8 @@ final class Plugin {
 		Alert\InvoiceAlerts::register();
 		Invoice\OrderChangeWatcher::register();
 		Privacy\BuyerPersonalData::register();
+		Monitoring\ActionSchedulerTracing::register();
+		Monitoring\RestTracing::register();
 
 		add_action( 'rest_api_init', array( Admin\SettingsController::class, 'register_routes' ) );
 		add_action( 'rest_api_init', array( Admin\InvoiceController::class, 'register_routes' ) );
