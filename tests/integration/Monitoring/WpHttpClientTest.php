@@ -243,4 +243,48 @@ final class WpHttpClientTest extends WP_UnitTestCase {
 		self::send( self::client( self::T0 + 61 ) );
 		$this->assertSame( 2, $this->sink->request_count() );
 	}
+
+	/**
+	 * The SDK writes the DSN into the envelope header; the DSN must not leave the site.
+	 */
+	public function test_envelope_header_dsn_is_stripped(): void {
+		$header = '{"event_id":"abc","sent_at":"2026-01-01T00:00:00Z","dsn":"https://k@sentry.test/3","sdk":{"name":"x"}}';
+		$items  = "{\"type\":\"event\",\"length\":2}\n{\"a\":\"https://k@sentry.test/3\"}";
+		$this->post_raw( $header . "\n" . $items );
+
+		$bodies = $this->sink->raw_bodies();
+		$this->assertCount( 1, $bodies );
+		$this->assertStringNotContainsString( '"dsn"', strtok( $bodies[0], "\n" ) );
+		$this->assertSame(
+			array(
+				'event_id' => 'abc',
+				'sent_at'  => '2026-01-01T00:00:00Z',
+				'sdk'      => array( 'name' => 'x' ),
+			),
+			json_decode( strtok( $bodies[0], "\n" ), true )
+		);
+		$this->assertSame( $items, substr( $bodies[0], (int) strpos( $bodies[0], "\n" ) + 1 ) );
+		$this->assertStringContainsString( 'sentry_key=k', $this->http->raw_requests()[0]['args']['headers']['X-Sentry-Auth'] );
+	}
+
+	public function test_malformed_envelope_header_is_not_sent(): void {
+		$this->assertSame( 0, $this->post_raw( "not json\n{}" ) );
+		$this->assertSame( 0, $this->post_raw( "[1,2]\n{}" ) );
+
+		$this->assertSame( array(), $this->http->raw_requests() );
+		$this->assertFalse( get_option( Uninstaller::SENTRY_BACKOFF_OPTION ) );
+		$this->assertSame( 200, self::send( self::client( self::T0 ) ) );
+	}
+
+	/**
+	 * Posts a raw envelope body.
+	 *
+	 * @param string $body Envelope.
+	 */
+	private function post_raw( string $body ): int {
+		$request = new Request();
+		$request->setStringBody( $body );
+
+		return self::client( self::T0 )->sendRequest( $request, new Options( array( 'dsn' => 'https://k@sentry.test/3' ) ) )->getStatusCode();
+	}
 }

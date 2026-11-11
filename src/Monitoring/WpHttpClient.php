@@ -67,6 +67,10 @@ final class WpHttpClient implements HttpClientInterface {
 		if ( null === $dsn || null === $body ) {
 			return new Response( 0, array(), 'einvoice_matbao_monitoring_invalid_request' );
 		}
+		$body = self::without_dsn( $body );
+		if ( null === $body ) {
+			return new Response( 0, array(), 'einvoice_matbao_monitoring_invalid_envelope' );
+		}
 		if ( $this->broken || $this->backing_off() ) {
 			return new Response( 0, array(), 'einvoice_matbao_monitoring_backoff' );
 		}
@@ -88,6 +92,28 @@ final class WpHttpClient implements HttpClientInterface {
 		}
 
 		return new Response( $status, $headers, '' );
+	}
+
+	/**
+	 * Removes the `dsn` key from the envelope header (first line); the SDK writes the full DSN there.
+	 * Every other header key and all item lines stay as they are. Authentication is the
+	 * `X-Sentry-Auth` header, which carries the public key only.
+	 *
+	 * @param string $envelope Serialized envelope.
+	 * @return string|null Envelope without the DSN, or null when the header is not a JSON object.
+	 */
+	private static function without_dsn( string $envelope ): ?string {
+		$newline = strpos( $envelope, "\n" );
+		$line    = false === $newline ? $envelope : substr( $envelope, 0, $newline );
+		$rest    = false === $newline ? '' : substr( $envelope, $newline );
+		$header  = json_decode( $line );
+		if ( ! is_object( $header ) ) {
+			return null;
+		}
+		unset( $header->dsn );
+		$encoded = wp_json_encode( $header, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRESERVE_ZERO_FRACTION );
+
+		return false === $encoded ? null : $encoded . $rest;
 	}
 
 	/**

@@ -429,4 +429,25 @@ final class MonitorRedactionTest extends WP_UnitTestCase {
 	public static function name(): string {
 		return self::NAME;
 	}
+
+	public function test_dsn_never_leaves_the_site_in_any_envelope(): void {
+		Monitor::capture_exception( new RuntimeException( 'boom' ) );
+		Monitor::start_transaction( 't', 'queue.task' );
+		Monitor::span( 'http.client', 'POST /x', static fn(): int => 1 );
+		Monitor::log( 'info', 'hello' );
+		Monitor::finish_transaction();
+		Monitor::check_in( 'ok' );
+		Monitor::flush();
+
+		$bodies = $this->sink->raw_bodies();
+		$this->assertGreaterThanOrEqual( 4, count( $bodies ) );
+		foreach ( $bodies as $body ) {
+			$this->assertStringNotContainsString( self::$sink_dsn, $body );
+			$this->assertStringNotContainsString( '@sentry.test', $body );
+			$this->assertStringNotContainsString( '"dsn"', $body );
+		}
+		foreach ( $this->http->raw_requests() as $request ) {
+			$this->assertStringContainsString( 'sentry_key=k', $request['args']['headers']['X-Sentry-Auth'] );
+		}
+	}
 }
