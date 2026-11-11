@@ -1,0 +1,3 @@
+# PHP-Scoper phar used by scripts/scope-vendor.sh: <version> <sha256 of php-scoper.phar>.
+# Source: https://github.com/humbug/php-scoper/releases/download/<version>/php-scoper.phar
+0.18.20 5e35e4a89ea53b2c70a19bfa8a856e4f9080aa12eb13a5bce650bb69d08eb122

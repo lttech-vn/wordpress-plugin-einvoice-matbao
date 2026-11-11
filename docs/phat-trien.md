@@ -289,7 +289,10 @@ Mỗi mối quan tâm một workflow trong `.github/workflows/`:
 2. Tạo và đẩy tag: `git tag vX.Y.Z && git push origin vX.Y.Z` (`vX.Y.Z-rc.N` tạo prerelease).
 3. `release.yml` kiểm tag = header = hằng số, chạy các workflow assets, PHP và E2E làm cổng, build zip bằng `scripts/build-zip.sh`, cài zip vào WordPress + WooCommerce sạch (`scripts/smoke-zip.sh`), attest provenance và publish Release với ghi chú tự sinh, file zip và `.sha256`.
 
-Build local bằng `scripts/build-zip.sh` (cần bun, zip và Docker hoặc Composer); kết quả ở `dist/`.
+Build local bằng `scripts/build-zip.sh` (cần bun, zip, curl và Docker hoặc PHP ≥ 8.2 + Composer); kết quả ở `dist/`.
+
+- Thư viện đóng kèm (Sentry SDK, Guzzle PSR-7, Symfony, PSR) được `scripts/scope-vendor.sh` đổi namespace sang `LTTech\EinvoiceMatbao\Vendor\…` bằng PHP-Scoper (`scoper.inc.php`), để plugin khác mang bản Sentry/Guzzle riêng không xung đột. Phar PHP-Scoper ghim version + sha256 trong `scripts/php-scoper.sha256`; symbol WordPress/WooCommerce/Action Scheduler giữ nguyên, lấy từ `php-stubs/*` đúng version trong `composer.lock`.
+- Dev/test dùng `vendor/` chưa scope; chỉ zip phát hành được scope. `scripts/smoke-zip.sh` kiểm tra zip không còn namespace thư viện chưa prefix, kích hoạt được khi một mu-plugin đã nạp `Sentry\SentrySdk` và `GuzzleHttp\Psr7\Request` chưa scope, và gửi event, transaction, log, check-in thật tới một Sentry giả trong container.
 
 ## Browser E2E và kiểm tra API demo Mắt Bão
 
