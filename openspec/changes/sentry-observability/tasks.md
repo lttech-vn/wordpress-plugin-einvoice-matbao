@@ -29,10 +29,10 @@
 
 ## 5. Admin UI tab Giám sát lỗi
 
-- [ ] 5.1 `AdminTabs::labels()` thêm `monitoring` trước `advanced`; cập nhật test tab hiện có (AdminTabsTest, SettingsPageTest, SettingsTabsRestTest)
-- [ ] 5.2 `SettingsPage::render_monitoring_panel()`: công tắc, DSN (hiện host · project id, chỉ đọc khi có hằng), sample rate, nút gửi thử; chuỗi tiếng Việt qua text domain
-- [ ] 5.3 `SettingsController`: route `POST /settings/monitoring` (validate, blank DSN giữ cũ, bỏ qua trường bị hằng ghi đè, từ chối khi thiếu khóa mã hóa) và `POST /settings/monitoring/test` (event info, trả event ID, không lộ DSN); test REST đủ access/nonce/validate
-- [ ] 5.4 E2E army: thêm kịch bản tab Giám sát lỗi (lưu DSN, gửi thử tới fake sink), cập nhật `tabs.army.ts` cho 6 tab
+- [x] 5.1 `AdminTabs::labels()` thêm `monitoring` trước `advanced`; cập nhật test tab hiện có (AdminTabsTest, SettingsPageTest, SettingsTabsRestTest)
+- [x] 5.2 `SettingsPage::render_monitoring_panel()`: công tắc, DSN (hiện host · project id, chỉ đọc khi có hằng), sample rate, nút gửi thử; chuỗi tiếng Việt qua text domain
+- [x] 5.3 `SettingsController`: route `POST /settings/monitoring` (validate, blank DSN giữ cũ, bỏ qua trường bị hằng ghi đè, từ chối khi thiếu khóa mã hóa) và `POST /settings/monitoring/test` (event info, trả event ID, không lộ DSN); test REST đủ access/nonce/validate
+- [x] 5.4 E2E army: thêm kịch bản tab Giám sát lỗi (lưu DSN, gửi thử tới fake sink), cập nhật `tabs.army.ts` cho 6 tab
 
 ## 6. Đóng gói scope
 
