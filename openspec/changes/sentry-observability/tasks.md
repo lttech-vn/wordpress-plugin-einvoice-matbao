@@ -41,6 +41,6 @@
 
 ## 7. Tài liệu và xác minh
 
-- [ ] 7.1 Cập nhật `docs/huong-dan-su-dung.md` (bật giám sát, DSN, hằng wp-config, khuyến nghị system cron) và `docs/phat-trien.md` (module Monitoring, scope build, test với Rustrak)
-- [ ] 7.2 Chạy `composer check` trên cả tổ hợp min và latest, `bun test`, E2E army và smoke-zip
-- [ ] 7.3 Verify E2E với Rustrak thật (project 3): bật trong UI, gây lỗi Mắt Bão giả, xác nhận qua MCP có issue, transaction có span, log trạng thái và monitor `einvoice-matbao-recovery-<host>`; dọn dữ liệu thử sau đó
+- [x] 7.1 Cập nhật `docs/huong-dan-su-dung.md` (bật giám sát, DSN, hằng wp-config, khuyến nghị system cron) và `docs/phat-trien.md` (module Monitoring, scope build, test với Rustrak)
+- [x] 7.2 Chạy `composer check` trên cả tổ hợp min và latest, `bun test`, E2E army và smoke-zip
+- [x] 7.3 Verify E2E với Rustrak thật (project 3): bật trong UI, gây lỗi Mắt Bão giả, xác nhận qua MCP có issue, transaction có span, log trạng thái và monitor `einvoice-matbao-recovery-<host>`; dọn dữ liệu thử sau đó
