@@ -20,11 +20,11 @@
 
 ## 4. Điểm đo trong luồng nghiệp vụ
 
-- [ ] 4.1 Issues: thêm `Monitor::capture_exception` cạnh mọi `error_log` trong `InvoiceAlerts`, `OrderChangeWatcher`, `DraftInvoiceWorkflow` và trong catch `\Throwable` của `DraftInvoiceWorkflow::send()`; `error_log` giữ nguyên
-- [ ] 4.2 Issues: `InvoiceAlerts::on_needs_attention` gọi `Monitor::capture_needs_attention` sau khi `AlertStore::create` thành công (warning, fingerprint theo `error_code`, tag theo allowlist)
+- [x] 4.1 Issues: thêm `Monitor::capture_exception` cạnh mọi `error_log` trong `InvoiceAlerts`, `OrderChangeWatcher`, `DraftInvoiceWorkflow` và trong catch `\Throwable` của `DraftInvoiceWorkflow::send()`; `error_log` giữ nguyên
+- [x] 4.2 Issues: `InvoiceAlerts::on_needs_attention` gọi `Monitor::capture_needs_attention` sau khi `AlertStore::create` thành công (warning, fingerprint theo `error_code`, tag theo allowlist)
 - [ ] 4.3 Tracing: tạo `src/Monitoring/ActionSchedulerTracing.php` (transaction cho action group `einvoice-matbao`) và `src/Monitoring/RestTracing.php` (route `einvoice-matbao/v1`); đăng ký trong `Plugin::boot`
-- [ ] 4.4 Span HTTP trong `MatbaoClient::request()` (method + path, status, `matbao.error_code`) và `LarkClient::send_text()` (`POST lark-webhook`, không URL)
-- [ ] 4.5 Logs: `InvoiceRepository` gửi log `invoice status changed` sau mỗi lần đổi trạng thái thành công; log `error` tại các chỗ `error_log`
+- [x] 4.4 Span HTTP trong `MatbaoClient::request()` (method + path, status, `matbao.error_code`) và `LarkClient::send_text()` (`POST lark-webhook`, không URL)
+- [x] 4.5 Logs: `InvoiceRepository` gửi log `invoice status changed` sau mỗi lần đổi trạng thái thành công; log `error` tại các chỗ `error_log`
 - [ ] 4.6 Cron monitor: `ActionSchedulerTracing` gửi check-in `in_progress` → `ok`/`error` với duration và `monitor_config` 15 phút cho hook recovery sweep
 
 ## 5. Admin UI tab Giám sát lỗi
