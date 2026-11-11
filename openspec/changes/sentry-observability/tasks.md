@@ -1,9 +1,9 @@
 ## 1. Dependency và nền tảng
 
-- [ ] 1.1 Thêm `sentry/sentry` ^4.36 vào `composer.json` (require) với `config.platform-check=false`, cập nhật `composer.lock`; xác nhận PHPStan/PHPCS vẫn đạt trên bản chưa scope
-- [ ] 1.2 Tạo `src/Monitoring/SentryDsn.php` (parse/validate DSN, trả host và project id, không bao giờ lộ public key trong `__toString`/message) kèm test
-- [ ] 1.3 Tạo `src/Monitoring/Scrubber.php` (redact giá trị người mua đã biết + che chuỗi theo mẫu, allowlist tag, xóa frame vars) kèm test với dữ liệu người mua từ fixture
-- [ ] 1.4 Tạo `src/Monitoring/MonitorSlug.php` (slug `einvoice-matbao-recovery-<host16>-<hash8>`) kèm test va chạm và host dài
+- [x] 1.1 Thêm `sentry/sentry` ^4.36 vào `composer.json` (require) với `config.platform-check=false`, cập nhật `composer.lock`; xác nhận PHPStan/PHPCS vẫn đạt trên bản chưa scope
+- [x] 1.2 Tạo `src/Monitoring/SentryDsn.php` (parse/validate DSN, trả host và project id, không bao giờ lộ public key trong `__toString`/message) kèm test
+- [x] 1.3 Tạo `src/Monitoring/Scrubber.php` (redact giá trị người mua đã biết + che chuỗi theo mẫu, allowlist tag, xóa frame vars) kèm test với dữ liệu người mua từ fixture
+- [x] 1.4 Tạo `src/Monitoring/MonitorSlug.php` (slug `einvoice-matbao-recovery-<host16>-<hash8>`) kèm test va chạm và host dài
 
 ## 2. Cấu hình và lưu trữ
 
