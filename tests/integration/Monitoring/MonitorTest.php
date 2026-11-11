@@ -8,6 +8,7 @@
 namespace LTTech\EinvoiceMatbao\Tests\Integration\Monitoring;
 
 use DomainException;
+use LTTech\EinvoiceMatbao\CredentialStore;
 use LTTech\EinvoiceMatbao\Monitoring\Backend;
 use LTTech\EinvoiceMatbao\Monitoring\Monitor;
 use LTTech\EinvoiceMatbao\Monitoring\MonitoringConfig;
@@ -17,6 +18,7 @@ use LTTech\EinvoiceMatbao\Monitoring\SentryBackend;
 use LTTech\EinvoiceMatbao\Tests\Integration\Support\FakeHttp;
 use LTTech\EinvoiceMatbao\Tests\Integration\Support\MonitoringFixture;
 use LTTech\EinvoiceMatbao\Tests\Integration\Support\SentrySink;
+use LTTech\EinvoiceMatbao\Settings;
 use RuntimeException;
 use WP_UnitTestCase;
 
@@ -622,5 +624,44 @@ final class MonitorTest extends WP_UnitTestCase {
 				throw new RuntimeException( 'backend down' );
 			}
 		};
+	}
+
+	/**
+	 * Inactive configurations (no DSN, DSN constant alone, enabled constant false) send nothing.
+	 *
+	 * @return array<string, array{bool, string, array<string, mixed>}>
+	 */
+	public static function inactive_configurations(): array {
+		return array(
+			'enabled without DSN'         => array( true, '', array() ),
+			'DSN constant alone'          => array( false, '', array( 'EINVOICE_MATBAO_SENTRY_DSN' => 'https://k@sentry.test/3' ) ),
+			'enabled constant false wins' => array( true, 'https://k@sentry.test/3', array( 'EINVOICE_MATBAO_SENTRY_ENABLED' => false ) ),
+		);
+	}
+
+	/**
+	 * Nothing is sent while monitoring is inactive.
+	 *
+	 * @dataProvider inactive_configurations
+	 *
+	 * @param bool                 $enabled   UI switch.
+	 * @param string               $ui_dsn    DSN stored through the UI.
+	 * @param array<string, mixed> $constants wp-config constants.
+	 */
+	public function test_inactive_configuration_sends_no_request( bool $enabled, string $ui_dsn, array $constants ): void {
+		add_filter( 'einvoice_matbao_encryption_key', static fn(): string => 'test-only-key-material-0123456789abcdef' );
+		( new Settings() )->save_monitoring( $enabled, 1.0 );
+		if ( '' !== $ui_dsn ) {
+			( new CredentialStore() )->save_sentry_dsn( $ui_dsn );
+		}
+		$this->monitoring_constants( $constants );
+
+		$this->assertNull( Monitor::capture_exception( new RuntimeException( 'x' ) ) );
+		Monitor::log( 'info', 'm' );
+		Monitor::check_in( 'ok' );
+		Monitor::flush();
+
+		$this->assertSame( 0, $this->sink->request_count() );
+		$this->assertSame( array(), $this->http->raw_requests() );
 	}
 }
