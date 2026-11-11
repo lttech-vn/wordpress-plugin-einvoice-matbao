@@ -269,65 +269,48 @@ final class SettingsMonitoringRestTest extends SettingsRestTestCase {
 		$this->assertStringNotContainsString( 'k@sentry.test', $html );
 	}
 
-	public function test_test_event_works_right_after_saving_a_fixed_dsn(): void {
-		$this->enable_monitoring();
-		$bad = SentrySink::install( $this->http, 'sentry.test', 3 );
-		$bad->respond_with( 401 );
-		$this->htmx( 'POST', '/settings/monitoring/test' );
-		$this->assertGreaterThan( time(), (int) get_option( Uninstaller::SENTRY_BACKOFF_OPTION, 0 ) );
-
-		$this->save(
-			array(
-				'enabled'            => '1',
-				'dsn'                => 'https://fixedkey@sentry.test/3',
-				'traces_sample_rate' => '1',
-			)
-		);
-		$this->assertSame( 0, (int) get_option( Uninstaller::SENTRY_BACKOFF_OPTION, 0 ) );
-		$bad->respond_with( 200 );
-		Monitor::reset_for_tests(); // Each real request boots a fresh Monitor; the test process keeps one.
-		$before = $bad->request_count();
-
-		$html = $this->html( $this->htmx( 'POST', '/settings/monitoring/test' ) );
-
-		$this->assertStringContainsString( 'data-einv-status="success"', $html );
-		$this->assertGreaterThan( $before, $bad->request_count(), 'The test event was sent.' );
-	}
-
 	/**
-	 * The save request is itself traced on the backend built from the old DSN; that backend must
-	 * not send (and re-arm the backoff) once the settings changed.
+	 * Real flow, one fresh Monitor per HTTP request (a PHP process boots its own backend, with its
+	 * own circuit breaker): bad DSN fails the test event, then the admin saves the right DSN. The
+	 * save request is traced on a backend built from the OLD DSN, which keeps answering 401.
 	 */
-	public function test_saving_a_new_dsn_stops_the_old_backend_from_sending(): void {
-		$this->enable_monitoring(); // Old DSN: project 3.
+	public function test_test_event_works_right_after_saving_a_fixed_dsn(): void {
+		$this->enable_monitoring(); // Old DSN: project 3, rejected throughout.
 		$old = SentrySink::install( $this->http, 'sentry.test', 3 );
 		$old->respond_with( 401 );
 		$new = SentrySink::install( $this->http, 'sentry.test', 4 );
-		$this->htmx( 'POST', '/settings/monitoring/test' );
-		$this->assertGreaterThan( time(), (int) get_option( Uninstaller::SENTRY_BACKOFF_OPTION, 0 ) );
-		delete_option( Uninstaller::SENTRY_BACKOFF_OPTION ); // The old pause elapsed; the next request has a fresh Monitor.
-		Monitor::reset_for_tests();
-		$old_before = $old->request_count();
 
-		$html = $this->save(
+		Monitor::reset_for_tests();
+		$failed = $this->html( $this->htmx( 'POST', '/settings/monitoring/test' ) );
+		Monitor::flush();
+		$this->assertStringContainsString( 'Máy chủ Sentry không nhận event thử', $failed );
+		$this->assertGreaterThan( time(), (int) get_option( Uninstaller::SENTRY_BACKOFF_OPTION, 0 ) );
+
+		Monitor::reset_for_tests();
+		$paused = $this->html( $this->htmx( 'POST', '/settings/monitoring/test' ) );
+		$this->assertStringContainsString( 'Đang tạm ngừng gửi', $paused );
+
+		Monitor::reset_for_tests(); // The save request starts on a backend built from the old DSN.
+		$old_before = $old->request_count();
+		$saved      = $this->save(
 			array(
 				'enabled'            => '1',
 				'dsn'                => 'https://fixedkey@sentry.test/4',
 				'traces_sample_rate' => '1',
 			)
 		);
-		Monitor::flush(); // The shutdown flush of the same request.
-
-		$this->assertStringContainsString( 'data-einv-status="success"', $html );
-		$this->assertSame( $old_before, $old->request_count(), 'Nothing more goes to the old project.' );
+		Monitor::flush(); // The shutdown flush of the save request.
+		$this->assertStringContainsString( 'data-einv-status="success"', $saved );
+		$this->assertSame( $old_before, $old->request_count(), 'The save request sends nothing to the old project.' );
 		$this->assertSame( 0, (int) get_option( Uninstaller::SENTRY_BACKOFF_OPTION, 0 ) );
 
-		Monitor::reset_for_tests(); // Next request.
+		Monitor::reset_for_tests();
 		$retry = $this->html( $this->htmx( 'POST', '/settings/monitoring/test' ) );
+		Monitor::flush();
 
 		$this->assertStringContainsString( 'data-einv-status="success"', $retry );
-		$this->assertCount( 1, $new->events() );
-		$this->assertSame( $old_before, $old->request_count() );
+		$this->assertCount( 1, $new->events(), 'The test event reached the new project.' );
+		$this->assertSame( $old_before, $old->request_count(), 'The old project received nothing after the save.' );
 	}
 
 	public function test_test_event_during_backoff_explains_the_pause_without_sending(): void {
