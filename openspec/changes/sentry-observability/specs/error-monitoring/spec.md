@@ -118,7 +118,7 @@ Khi giám sát bật, hệ thống SHALL gửi một event lỗi kèm stacktrace
 - **THEN** server giám sát nhận đúng một event `warning` cho alert đó
 
 #### Scenario: Same error code on two orders
-- **WHEN** hai đơn khác nhau cùng dừng với `matbao_rejected`
+- **WHEN** hai đơn khác nhau cùng dừng với `matbao_http`
 - **THEN** hai event có cùng fingerprint dựa trên `error_code`
 
 ### Requirement: Performance tracing
