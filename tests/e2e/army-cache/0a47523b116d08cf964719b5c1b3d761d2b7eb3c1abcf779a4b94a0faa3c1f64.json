@@ -1,6 +1,6 @@
 {
   "schemaVersion": "trace-1",
-  "createdAt": "2026-11-06T16:23:35.619Z",
+  "createdAt": "2026-11-11T16:36:50.499Z",
   "payload": {
     "actions": [
       {
@@ -37,7 +37,7 @@
       "provider": "e2e-text-agent.chat",
       "model": "gpt-6-luna"
     },
-    "summary": "Entered MST 0000000001 and clicked Lưu kết nối; the form displayed the Vietnamese error: “Lỗi: Cần nhập đủ mã số thuế, tên đăng nhập và mật khẩu.”】【。}...} (commentary) ৷ 恒一arsuuphiqizo”】【?} (commentary) ৷񎟀 (analysis) 4.1.2 (final) 4.1.2 (final) 4.1.2 (final) 4.1.2 (final) 4.1.2 (final) 4.1.2 (fina…",
+    "summary": "Entered mã số thuế 0000000001 and clicked Lưu kết nối without changing other fields. The form showed the Vietnamese error notice: “Lỗi: Cần nhập đủ mã số thuế, tên đăng nhập và mật khẩu.”.",
     "startPath": "/wp-admin/admin.php?page=einvoice-matbao-settings&tab=connection",
     "endPath": "/wp-admin/admin.php?page=einvoice-matbao-settings&tab=connection",
     "endAnchors": [
@@ -51,7 +51,7 @@
         "value": "0000000001"
       },
       {
-        "text": "Warning: Cannot modify header information - headers already sent by (output started at /var/www/html/wp-content/plugins/einvoice-matbao/src/Admin/SettingsController.php:121) in /var/www/html/wp-includes/rest-api.php on line 813 Warning: Cannot modify header information - headers already sent by (ou…"
+        "text": "Warning: Cannot modify header information - headers already sent by (output started at /var/www/html/wp-content/plugins/einvoice-matbao/src/Admin/SettingsController.php:126) in /var/www/html/wp-includes/rest-api.php on line 813 Warning: Cannot modify header information - headers already sent by (ou…"
       }
     ],
     "goneAnchors": [
@@ -60,7 +60,7 @@
         "name": "Mã số thuế"
       }
     ],
-    "endWaitMs": 34076,
+    "endWaitMs": 13092,
     "keyedBy": {
       "cacheSchema": "trace-1",
       "policyVersion": "conservative/6",
