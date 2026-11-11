@@ -177,6 +177,40 @@ final class MonitorTest extends WP_UnitTestCase {
 		$this->assertSame( 'ok', $span['status'] );
 	}
 
+	/**
+	 * HTTP responses do not throw, so the span status must follow the response code.
+	 *
+	 * @return array<string, array{int, string}>
+	 */
+	public static function http_status_provider(): array {
+		return array(
+			'200 is ok'               => array( 200, 'ok' ),
+			'400 is invalid_argument' => array( 400, 'invalid_argument' ),
+			'503 is unavailable'      => array( 503, 'unavailable' ),
+			'500 is internal_error'   => array( 500, 'internal_error' ),
+		);
+	}
+
+	/**
+	 * Span status follows the HTTP response code of the measured call.
+	 *
+	 * @dataProvider http_status_provider
+	 *
+	 * @param int    $code   Response code.
+	 * @param string $status Expected span status.
+	 */
+	public function test_span_status_follows_http_response_code( int $code, string $status ): void {
+		$this->enable_monitoring( 1.0 );
+
+		Monitor::start_transaction( 't', 'queue.task' );
+		Monitor::span( 'http.client', 'POST /api/x', static fn(): int => $code, static fn(): array => array( 'http.response.status_code' => $code ) );
+		Monitor::finish_transaction();
+
+		$span = $this->sink->transactions()[0]['spans'][0];
+		$this->assertSame( $status, $span['status'] );
+		$this->assertSame( $code, $span['data']['http.response.status_code'] );
+	}
+
 	public function test_unsampled_transaction_not_sent(): void {
 		$this->enable_monitoring( 0.0 );
 

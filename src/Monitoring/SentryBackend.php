@@ -280,8 +280,9 @@ final class SentryBackend implements Backend {
 
 		try {
 			$result = $callback();
-			$span->setStatus( SpanStatus::ok() );
-			self::set_span_data( $span, $redactor, $data_of_result, $result );
+			$data   = self::span_data( $redactor, $data_of_result, $result );
+			$span->setStatus( self::http_span_status( $data ) );
+			$span->setData( $data );
 
 			return $result;
 		} catch ( \Throwable $failure ) {
@@ -663,23 +664,35 @@ final class SentryBackend implements Backend {
 	}
 
 	/**
-	 * Adds the masked data of a finished call to its span. A failing mapper only loses the data:
-	 * the failure is reported by class name and the caller's result is kept.
+	 * Masked span data of a finished call. A failing mapper only loses the data: the failure is
+	 * reported by class name and the caller's result is kept.
 	 *
-	 * @param Span     $span           Span.
 	 * @param Redactor $redactor       Redactor with the call's known values.
 	 * @param callable $data_of_result Maps the result to span data.
 	 * @param mixed    $result         Result of the measured call.
+	 * @return array<string, mixed>
 	 */
-	private static function set_span_data( Span $span, Redactor $redactor, callable $data_of_result, mixed $result ): void {
+	private static function span_data( Redactor $redactor, callable $data_of_result, mixed $result ): array {
 		try {
 			$data = $data_of_result( $result );
-			if ( is_array( $data ) ) {
-				$span->setData( LogAttributes::normalize( $data, $redactor ) );
-			}
+			return is_array( $data ) ? LogAttributes::normalize( $data, $redactor ) : array();
 		} catch ( \Throwable $failure ) {
 			InternalFailure::report( $failure );
+
+			return array();
 		}
+	}
+
+	/**
+	 * Span status of a call that returned normally: an HTTP response code maps to its SDK status,
+	 * anything else is `ok`.
+	 *
+	 * @param array<string, mixed> $data Masked span data.
+	 */
+	private static function http_span_status( array $data ): SpanStatus {
+		$code = $data['http.response.status_code'] ?? null;
+
+		return is_int( $code ) ? SpanStatus::createFromHttpStatusCode( $code ) : SpanStatus::ok();
 	}
 
 	/**

@@ -211,6 +211,7 @@ final class WorkflowMonitoringTest extends InvoiceWorkflowTestCase {
 		foreach ( $spans as $span ) {
 			$this->assertSame( 'POST lark-webhook', $span['description'] );
 			$this->assertSame( 500, $span['data']['http.response.status_code'] );
+			$this->assertSame( 'internal_error', $span['status'] );
 		}
 		$path = (string) wp_parse_url( self::LARK_WEBHOOK, PHP_URL_PATH );
 		foreach ( $this->sink->raw_bodies() as $body ) {
