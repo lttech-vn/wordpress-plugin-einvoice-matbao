@@ -8,11 +8,13 @@
 namespace LTTech\EinvoiceMatbao\Tests\Integration;
 
 use LTTech\EinvoiceMatbao\CredentialStore;
+use LTTech\EinvoiceMatbao\Monitoring\Monitor;
 use LTTech\EinvoiceMatbao\Monitoring\MonitoringConfig;
 use LTTech\EinvoiceMatbao\Settings;
 use LTTech\EinvoiceMatbao\Tests\Integration\Support\MonitoringFixture;
 use LTTech\EinvoiceMatbao\Tests\Integration\Support\SentrySink;
 use LTTech\EinvoiceMatbao\Tests\Integration\Support\SettingsRestTestCase;
+use LTTech\EinvoiceMatbao\Uninstall\Uninstaller;
 
 /**
  * Administrators configure error monitoring; the DSN is stored encrypted and never rendered back.
@@ -265,6 +267,44 @@ final class SettingsMonitoringRestTest extends SettingsRestTestCase {
 
 		$this->assertStringContainsString( 'data-einv-status="error"', $html );
 		$this->assertStringNotContainsString( 'k@sentry.test', $html );
+	}
+
+	public function test_test_event_works_right_after_saving_a_fixed_dsn(): void {
+		$this->enable_monitoring();
+		$bad = SentrySink::install( $this->http, 'sentry.test', 3 );
+		$bad->respond_with( 401 );
+		$this->htmx( 'POST', '/settings/monitoring/test' );
+		$this->assertGreaterThan( time(), (int) get_option( Uninstaller::SENTRY_BACKOFF_OPTION, 0 ) );
+
+		$this->save(
+			array(
+				'enabled'            => '1',
+				'dsn'                => 'https://fixedkey@sentry.test/3',
+				'traces_sample_rate' => '1',
+			)
+		);
+		$this->assertSame( 0, (int) get_option( Uninstaller::SENTRY_BACKOFF_OPTION, 0 ) );
+		$bad->respond_with( 200 );
+		Monitor::reset_for_tests(); // Each real request boots a fresh Monitor; the test process keeps one.
+		$before = $bad->request_count();
+
+		$html = $this->html( $this->htmx( 'POST', '/settings/monitoring/test' ) );
+
+		$this->assertStringContainsString( 'data-einv-status="success"', $html );
+		$this->assertGreaterThan( $before, $bad->request_count(), 'The test event was sent.' );
+	}
+
+	public function test_test_event_during_backoff_explains_the_pause_without_sending(): void {
+		$this->enable_monitoring();
+		$sink  = SentrySink::install( $this->http, 'sentry.test', 3 );
+		$until = time() + 300;
+		update_option( Uninstaller::SENTRY_BACKOFF_OPTION, $until, false );
+
+		$html = $this->html( $this->htmx( 'POST', '/settings/monitoring/test' ) );
+
+		$this->assertStringContainsString( 'data-einv-status="error"', $html );
+		$this->assertStringContainsString( 'Đang tạm ngừng gửi tới máy chủ Sentry đến ' . wp_date( 'H:i', $until ), $html );
+		$this->assertSame( 0, $sink->request_count() );
 	}
 
 	public function test_test_event_when_disabled(): void {

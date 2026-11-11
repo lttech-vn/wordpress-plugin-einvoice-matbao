@@ -20,6 +20,7 @@ use LTTech\EinvoiceMatbao\Monitoring\Monitor;
 use LTTech\EinvoiceMatbao\Monitoring\MonitoringConfig;
 use LTTech\EinvoiceMatbao\Monitoring\SentryDsn;
 use LTTech\EinvoiceMatbao\Settings;
+use LTTech\EinvoiceMatbao\Uninstall\Uninstaller;
 use WP_Error;
 use WP_HTTP_Response;
 use WP_REST_Request;
@@ -422,6 +423,8 @@ final class SettingsController {
 		if ( '' !== $dsn ) {
 			( new CredentialStore() )->save_sentry_dsn( $dsn );
 		}
+		// A new configuration deserves a fresh attempt, not the pause earned by the old one.
+		delete_option( Uninstaller::SENTRY_BACKOFF_OPTION );
 
 		return Fragment::success( __( 'Đã lưu cấu hình giám sát lỗi.', 'einvoice-matbao' ) );
 	}
@@ -432,6 +435,12 @@ final class SettingsController {
 	public function test_monitoring(): WP_REST_Response {
 		if ( ! MonitoringConfig::current()->active() ) {
 			return Fragment::error( __( 'Cần bật giám sát và nhập DSN hợp lệ trước khi gửi thử.', 'einvoice-matbao' ) );
+		}
+
+		$paused_until = (int) get_option( Uninstaller::SENTRY_BACKOFF_OPTION, 0 );
+		if ( $paused_until > time() ) {
+			/* translators: %s: local time, for example 19:02. */
+			return Fragment::error( sprintf( __( 'Đang tạm ngừng gửi tới máy chủ Sentry đến %s (sau một lần gửi lỗi). Hãy thử lại sau.', 'einvoice-matbao' ), wp_date( 'H:i', $paused_until ) ) );
 		}
 
 		$event_id = Monitor::send_test_event();
