@@ -51,6 +51,7 @@ if [ "$actual" != "$scoper_sha256" ]; then
 fi
 
 # 2. Symbols that must keep their global names, from the locked stub versions.
+# shellcheck disable=SC2016 # PHP code: $lock, $p and $argv are PHP variables, not shell ones.
 stub_versions="$(run php -r '
 	$lock = json_decode( file_get_contents( $argv[1] ), true );
 	foreach ( array_merge( $lock["packages"], $lock["packages-dev"] ) as $p ) {
@@ -81,6 +82,7 @@ done
 
 # 4. Swap the scoped tree in and build its autoloader, in one PHP-side step: a Docker bind mount
 # may not see a host-side swap right away.
+# shellcheck disable=SC2016 # $1 and $2 expand in the inner sh, which receives them as arguments.
 run sh -c 'set -e
 	rm -rf "$1/src" "$1/vendor" "$1/composer.json"
 	mv "$2/src" "$2/vendor" "$2/composer.json" "$1/"
@@ -88,11 +90,7 @@ run sh -c 'set -e
 	composer dump-autoload --working-dir="$1" --no-dev --no-interaction --classmap-authoritative --quiet' \
 	scope-vendor "$pkg" "$tools/scoped"
 
-# Composer skips an autoload `files` entry whose identifier another autoloader on the site
-# already loaded, and the identifiers do not change with the prefix, so the scoped autoloader
-# keeps its own registry of loaded files.
-real="$pkg/vendor/composer/autoload_real.php"
-grep -q "__composer_autoload_files" "$real" || { echo "Composer autoload_real.php changed; review the files registry rename." >&2; exit 1; }
-run php -r '
-	file_put_contents( $argv[1], str_replace( "__composer_autoload_files", "__einvoice_matbao_autoload_files", file_get_contents( $argv[1] ) ) );' "$real"
+# 5. The scoped autoloader keeps its own registry of loaded `files` entries (see the script);
+# it exits non-zero, failing the build, unless the rename is complete and verified.
+run php "$repo/scripts/autoload-registry.php" "$pkg/vendor/composer"
 test -s "$pkg/vendor/autoload.php"

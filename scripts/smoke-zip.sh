@@ -56,6 +56,7 @@ for d in tests docs docker scripts node_modules assets/src; do
 done
 
 wp plugin is-active einvoice-matbao
+# shellcheck disable=SC2016 # PHP code for wp eval: $wpdb and $t are PHP variables.
 wp eval 'if ( ! class_exists( "LTTech\\EinvoiceMatbao\\Plugin" ) ) { fwrite( STDERR, "Plugin class not loaded\n" ); exit( 1 ); }
 global $wpdb;
 foreach ( array( "einvoice_matbao_invoice", "einvoice_matbao_attempt" ) as $t ) {
@@ -75,9 +76,11 @@ echo "scoped libraries loaded next to unscoped ones\n";'
 "${compose[@]}" cp docker/smoke/sentry-sink.php wordpress:/tmp/sentry-sink.php
 "${compose[@]}" exec -T -d wordpress php -S 127.0.0.1:9999 /tmp/sentry-sink.php
 # A transport error would open WpHttpClient's 60 s backoff, so wait until the sink answers.
+# shellcheck disable=SC2016 # PHP code: $i is a PHP variable.
 wpx php -r 'for ( $i = 0; $i < 50; $i++ ) { if ( @fsockopen( "127.0.0.1", 9999 ) ) { exit( 0 ); } usleep( 100000 ); } fwrite( STDERR, "Fake ingest did not start\n" ); exit( 1 );'
 wp config set EINVOICE_MATBAO_SENTRY_DSN 'http://smokepublickey@127.0.0.1:9999/7' --type=constant
 wp config set EINVOICE_MATBAO_SENTRY_ENABLED true --raw --type=constant
+# shellcheck disable=SC2016 # PHP code for wp eval: $id, $sent, ... are PHP variables.
 wp eval 'use LTTech\EinvoiceMatbao\Monitoring\Monitor;
 if ( ! Monitor::is_active() ) { fwrite( STDERR, "Monitoring is not active\n" ); exit( 1 ); }
 $id = Monitor::send_test_event();
