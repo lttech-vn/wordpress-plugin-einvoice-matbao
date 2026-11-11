@@ -15,6 +15,8 @@ use LTTech\EinvoiceMatbao\Matbao\MatbaoCredentials;
 use LTTech\EinvoiceMatbao\Matbao\MatbaoError;
 use LTTech\EinvoiceMatbao\Matbao\MatbaoInvoice;
 use LTTech\EinvoiceMatbao\Matbao\TemplateCache;
+use LTTech\EinvoiceMatbao\Monitoring\CaughtFailure;
+use LTTech\EinvoiceMatbao\Monitoring\Monitor;
 use LTTech\EinvoiceMatbao\Settings;
 use WC_Order;
 
@@ -62,6 +64,9 @@ final class DraftInvoiceWorkflow {
 	 * InvoiceErrorCode. Admin and Lark alerts (#7) hook here.
 	 */
 	public const NEEDS_ATTENTION_ACTION = 'einvoice_matbao_invoice_needs_attention';
+
+	/** `component` tag of the issues this workflow reports. */
+	private const MONITORING_COMPONENT = 'draft_workflow';
 
 	/**
 	 * Hooks the order status change and the queued action.
@@ -287,6 +292,16 @@ final class DraftInvoiceWorkflow {
 	 * @param int $order_id Order ID.
 	 */
 	public function send( int $order_id ): void {
+		// Buyer values of the order are masked in everything monitoring captures meanwhile.
+		Monitor::with_order_context( $order_id, fn() => $this->claim_and_send( $order_id ) );
+	}
+
+	/**
+	 * Body of send(), inside the order's monitoring context.
+	 *
+	 * @param int $order_id Order ID.
+	 */
+	private function claim_and_send( int $order_id ): void {
 		$invoice = $this->repository->find_by_order( $order_id );
 		if ( null === $invoice || ! $this->repository->claim( $invoice->id, InvoiceStatus::PENDING, InvoiceStatus::SENDING ) ) {
 			return;
@@ -300,8 +315,10 @@ final class DraftInvoiceWorkflow {
 
 		try {
 			$this->send_claimed( $invoice, $order_id );
-		} catch ( \Throwable ) {
-			// Details may carry URLs or tokens, so the stored reason stays generic.
+		} catch ( \Throwable $failure ) {
+			// Details may carry URLs or tokens, so the stored reason stays generic; monitoring
+			// gets them masked.
+			CaughtFailure::report( $failure, self::MONITORING_COMPONENT, 'draft send failed unexpectedly', $order_id );
 			self::record_error( $this->repository, $order_id, InvoiceErrorCode::UNEXPECTED, __( 'Lỗi không xác định khi gửi hóa đơn nháp; cần admin kiểm tra.', 'einvoice-matbao' ) );
 		}
 	}
@@ -675,6 +692,7 @@ final class DraftInvoiceWorkflow {
 			}
 		} catch ( \Throwable $failure ) {
 			error_log( 'einvoice-matbao: order change check failed (' . get_class( $failure ) . ').' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			CaughtFailure::report( $failure, self::MONITORING_COMPONENT, 'order change check failed', $invoice->order_id );
 		}
 	}
 
@@ -744,6 +762,7 @@ final class DraftInvoiceWorkflow {
 			} catch ( \Throwable $listener_error ) {
 				// A failing alert listener must not overwrite the recorded status; only the class is logged.
 				error_log( 'einvoice-matbao: retries_exhausted listener failed (' . get_class( $listener_error ) . ').' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				CaughtFailure::report( $listener_error, self::MONITORING_COMPONENT, 'retries_exhausted listener failed', $invoice->order_id );
 			}
 			return;
 		}
@@ -788,6 +807,7 @@ final class DraftInvoiceWorkflow {
 			} catch ( \Throwable $listener_error ) {
 				// A failing alert listener must not overwrite the recorded error; only the class is logged.
 				error_log( 'einvoice-matbao: needs_attention listener failed (' . get_class( $listener_error ) . ').' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				CaughtFailure::report( $listener_error, self::MONITORING_COMPONENT, 'needs_attention listener failed', $order_id );
 			}
 		}
 	}

@@ -15,6 +15,8 @@ use LTTech\EinvoiceMatbao\Invoice\InvoiceRepository;
 use LTTech\EinvoiceMatbao\Invoice\InvoiceStatus;
 use LTTech\EinvoiceMatbao\Lark\LarkClient;
 use LTTech\EinvoiceMatbao\Lark\LarkError;
+use LTTech\EinvoiceMatbao\Monitoring\CaughtFailure;
+use LTTech\EinvoiceMatbao\Monitoring\Monitor;
 
 /**
  * Only listens to the workflow's hooks; it never changes an invoice or queues a draft action.
@@ -55,6 +57,8 @@ final class InvoiceAlerts {
 		if ( ! AlertStore::create( $key, $invoice->order_id, $code->value, $invoice->alert_cycle ) ) {
 			return;
 		}
+		// After the dedupe, so monitoring gets one event per alert like Lark does.
+		Monitor::capture_needs_attention( $invoice, $code );
 
 		try {
 			$queued = 0 !== as_enqueue_async_action( self::SEND_ACTION, array( $key ), DraftInvoiceWorkflow::GROUP );
@@ -90,6 +94,16 @@ final class InvoiceAlerts {
 			return;
 		}
 
+		Monitor::with_order_context( $alert['order_id'], static fn() => self::deliver( $key, $alert ) );
+	}
+
+	/**
+	 * Body of send(), inside the order's monitoring context.
+	 *
+	 * @param string                                                                                           $key   Alert key.
+	 * @param array{order_id: int, code: string, cycle: int, dismissed: bool, lark: string, lark_retries: int} $alert Alert.
+	 */
+	private static function deliver( string $key, array $alert ): void {
 		try {
 			$webhook = ( new CredentialStore() )->lark();
 			if ( null === $webhook ) {
@@ -105,6 +119,7 @@ final class InvoiceAlerts {
 			}
 			AlertStore::set( $key, 'lark', 'failed' );
 			error_log( 'einvoice-matbao: Lark alert failed (' . get_class( $failure ) . ').' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			CaughtFailure::report( $failure, 'invoice_alerts', 'Lark alert failed', $alert['order_id'] );
 		}
 	}
 

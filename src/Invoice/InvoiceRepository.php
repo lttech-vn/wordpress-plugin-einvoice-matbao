@@ -7,6 +7,8 @@
 
 namespace LTTech\EinvoiceMatbao\Invoice;
 
+use LTTech\EinvoiceMatbao\Monitoring\Monitor;
+
 // phpcs:disable WordPress.DB.DirectDatabaseQuery -- custom tables (ADR 0002); status rows must never be served from a cache.
 
 /**
@@ -70,7 +72,7 @@ final class InvoiceRepository {
 			)
 		);
 
-		return 1 === $updated;
+		return $this->changed( 1 === $updated, $invoice_id, $from, $to );
 	}
 
 	/**
@@ -96,7 +98,7 @@ final class InvoiceRepository {
 			)
 		);
 
-		return 1 === $updated;
+		return $this->changed( 1 === $updated, $invoice->id, $invoice->status, $to );
 	}
 
 	/**
@@ -126,7 +128,7 @@ final class InvoiceRepository {
 			)
 		);
 
-		return 1 === $updated;
+		return $this->changed( 1 === $updated, $invoice_id, $from, InvoiceStatus::PENDING );
 	}
 
 	/**
@@ -140,7 +142,8 @@ final class InvoiceRepository {
 	public function update_status( int $invoice_id, string $status, string $reason = '', array $fields = array() ): void {
 		global $wpdb;
 
-		$wpdb->update(
+		$from    = $this->status_of( $invoice_id );
+		$updated = $wpdb->update(
 			Schema::invoice_table(),
 			array_merge(
 				array(
@@ -156,6 +159,9 @@ final class InvoiceRepository {
 			),
 			array( 'id' => $invoice_id )
 		);
+
+		$error_code = $fields['error_code'] ?? '';
+		$this->changed( is_int( $updated ) && $updated > 0 && null !== $from, $invoice_id, (string) $from, $status, is_string( $error_code ) ? $error_code : '' );
 	}
 
 	/**
@@ -411,5 +417,45 @@ final class InvoiceRepository {
 		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE invoice_id = %d ORDER BY id', Schema::attempt_table(), $invoice_id ), ARRAY_A );
 
 		return is_array( $rows ) ? array_values( $rows ) : array();
+	}
+
+	/**
+	 * Logs a status change this call made; a write that lost or kept the status logs nothing.
+	 *
+	 * @param bool   $made       Whether the write changed the row.
+	 * @param int    $invoice_id Invoice row ID.
+	 * @param string $from       Status before.
+	 * @param string $to         Status after.
+	 * @param string $error_code Recorded error code, or empty.
+	 * @return bool $made.
+	 */
+	private function changed( bool $made, int $invoice_id, string $from, string $to, string $error_code = '' ): bool {
+		if ( $made && $from !== $to ) {
+			Monitor::log(
+				'info',
+				'invoice status changed',
+				array(
+					'invoice.id' => $invoice_id,
+					'from'       => $from,
+					'to'         => $to,
+					'error_code' => $error_code,
+				)
+			);
+		}
+
+		return $made;
+	}
+
+	/**
+	 * Current status of an invoice, or null when the row does not exist.
+	 *
+	 * @param int $invoice_id Invoice row ID.
+	 */
+	private function status_of( int $invoice_id ): ?string {
+		global $wpdb;
+
+		$status = $wpdb->get_var( $wpdb->prepare( 'SELECT status FROM %i WHERE id = %d', Schema::invoice_table(), $invoice_id ) );
+
+		return is_string( $status ) ? $status : null;
 	}
 }

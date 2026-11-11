@@ -8,6 +8,8 @@
 namespace LTTech\EinvoiceMatbao\Invoice;
 
 use LTTech\EinvoiceMatbao\Buyer\BuyerSnapshotter;
+use LTTech\EinvoiceMatbao\Monitoring\CaughtFailure;
+use LTTech\EinvoiceMatbao\Monitoring\Monitor;
 use LTTech\EinvoiceMatbao\Settings;
 use WC_Order;
 
@@ -28,6 +30,9 @@ use WC_Order;
  * posts storage because it only uses the CRUD hooks WooCommerce fires for both.
  */
 final class OrderChangeWatcher {
+
+	/** `component` tag of the issues this watcher reports. */
+	private const MONITORING_COMPONENT = 'order_watcher';
 
 	/**
 	 * Order IDs saved during this request.
@@ -90,6 +95,7 @@ final class OrderChangeWatcher {
 			} catch ( \Throwable $failure ) {
 				// A failing check must not break the save that triggered it; only the class is logged.
 				error_log( 'einvoice-matbao: order change check failed (' . get_class( $failure ) . ').' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				CaughtFailure::report( $failure, self::MONITORING_COMPONENT, 'order change check failed', $order_id );
 			}
 		}
 	}
@@ -100,6 +106,16 @@ final class OrderChangeWatcher {
 	 * @param int $order_id Order ID.
 	 */
 	public static function check( int $order_id ): void {
+		// Buyer values of the order are masked in everything monitoring captures meanwhile.
+		Monitor::with_order_context( $order_id, static fn() => self::compare( $order_id ) );
+	}
+
+	/**
+	 * Body of check(), inside the order's monitoring context.
+	 *
+	 * @param int $order_id Order ID.
+	 */
+	private static function compare( int $order_id ): void {
 		$repository = new InvoiceRepository();
 		$invoice    = $repository->find_by_order( $order_id );
 		$order      = wc_get_order( $order_id );
@@ -228,6 +244,7 @@ final class OrderChangeWatcher {
 			do_action( 'einvoice_matbao_invoice_needs_attention', $invoice, $code );
 		} catch ( \Throwable $listener_error ) {
 			error_log( 'einvoice-matbao: needs_attention listener failed (' . get_class( $listener_error ) . ').' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			CaughtFailure::report( $listener_error, self::MONITORING_COMPONENT, 'needs_attention listener failed', $invoice->order_id );
 		}
 	}
 }
