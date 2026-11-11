@@ -94,6 +94,37 @@ final class MonitoringConfigTest extends WP_UnitTestCase {
 		$this->assertTrue( $config->active() );
 	}
 
+	/**
+	 * Empty and whitespace-only values.
+	 *
+	 * @return array<string, array{string}>
+	 */
+	public static function blank_dsn_constants(): array {
+		return array(
+			'empty'      => array( '' ),
+			'whitespace' => array( '   ' ),
+		);
+	}
+
+	/**
+	 * A defined but blank DSN constant is invalid: it is ignored and the warning flag is set.
+	 *
+	 * @dataProvider blank_dsn_constants
+	 *
+	 * @param string $value Constant value.
+	 */
+	public function test_blank_dsn_constant_is_invalid_and_falls_back( string $value ): void {
+		( new Settings() )->save_monitoring( true, 1.0 );
+		( new CredentialStore() )->save_sentry_dsn( self::DSN );
+		$this->constants( array( 'EINVOICE_MATBAO_SENTRY_DSN' => $value ) );
+
+		$config = MonitoringConfig::current();
+
+		$this->assertTrue( $config->dsn_constant_invalid );
+		$this->assertSame( 'ui', $config->dsn_source );
+		$this->assertTrue( $config->active() );
+	}
+
 	public function test_enabled_constant_false_wins(): void {
 		( new Settings() )->save_monitoring( true, 1.0 );
 		( new CredentialStore() )->save_sentry_dsn( self::DSN );
@@ -152,6 +183,18 @@ final class MonitoringConfigTest extends WP_UnitTestCase {
 		$this->assertSame( 0.0, $settings->traces_sample_rate() );
 		update_option( Settings::OPTION, array( 'traces_sample_rate' => 'abc' ) );
 		$this->assertSame( 1.0, $settings->traces_sample_rate() );
+	}
+
+	public function test_stored_sample_rate_is_clamped_on_read(): void {
+		$settings = new Settings();
+		foreach ( array(
+			'7'   => 1.0,
+			'-2'  => 0.0,
+			'abc' => 1.0,
+		) as $stored => $expected ) {
+			update_option( Settings::OPTION, array( 'traces_sample_rate' => (string) $stored ) );
+			$this->assertSame( $expected, $settings->traces_sample_rate(), "stored '$stored'" );
+		}
 	}
 
 	public function test_stored_ciphertext(): void {

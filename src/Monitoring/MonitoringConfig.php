@@ -62,10 +62,9 @@ final class MonitoringConfig {
 		$constant_dsn         = null;
 		$dsn_constant_invalid = false;
 		if ( array_key_exists( self::DSN_CONSTANT, $constants ) ) {
-			$raw          = $constants[ self::DSN_CONSTANT ];
-			$constant_dsn = is_string( $raw ) ? SentryDsn::parse( $raw ) : null;
-			// An empty constant means "not configured", not a mistake.
-			$dsn_constant_invalid = null === $constant_dsn && ! ( is_string( $raw ) && '' === trim( $raw ) );
+			$raw                  = $constants[ self::DSN_CONSTANT ];
+			$constant_dsn         = is_string( $raw ) ? SentryDsn::parse( $raw ) : null;
+			$dsn_constant_invalid = null === $constant_dsn;
 		}
 
 		$stored_raw            = $store->sentry_dsn();
