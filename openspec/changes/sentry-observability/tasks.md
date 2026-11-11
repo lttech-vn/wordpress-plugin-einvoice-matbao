@@ -13,10 +13,10 @@
 
 ## 3. Backend Sentry và facade
 
-- [ ] 3.1 Tạo `src/Monitoring/WpHttpClient.php` (implement `Sentry\HttpClient\HttpClientInterface` qua `wp_remote_post`, timeout 3 giây/connect 2 giây, circuit breaker theo request + option `einvoice_matbao_sentry_backoff_until` 60 giây/`Retry-After` ≤ 600 giây; option bị xóa khi gỡ cài đặt)
-- [ ] 3.2 Tạo `src/Monitoring/SentryBackend.php` (ClientBuilder: `default_integrations=false`, `send_default_pii=false`, `server_name=''`, `enable_logs=true`, mọi `before_send*` qua Scrubber; Hub riêng, không gọi `\Sentry\init()`)
-- [ ] 3.3 Tạo `src/Monitoring/Monitor.php` (facade tĩnh, khởi tạo lười, no-op khi tắt, nuốt mọi lỗi, flush ở `shutdown`, `with_order_context()` nạp giá trị người mua của đơn vào Scrubber; có seam reset/inject backend cho test)
-- [ ] 3.4 Test chứng minh: tắt hoặc thiếu DSN thì không có request và không nạp class `Sentry\ClientBuilder`; không đổi `\Sentry\SentrySdk::getCurrentHub()` toàn cục; warning của code ngoài plugin không tạo event
+- [x] 3.1 Tạo `src/Monitoring/WpHttpClient.php` (implement `Sentry\HttpClient\HttpClientInterface` qua `wp_remote_post`, timeout 3 giây/connect 2 giây, circuit breaker theo request + option `einvoice_matbao_sentry_backoff_until` 60 giây/`Retry-After` ≤ 600 giây; option bị xóa khi gỡ cài đặt)
+- [x] 3.2 Tạo `src/Monitoring/SentryBackend.php` (ClientBuilder: `default_integrations=false`, `send_default_pii=false`, `server_name=''`, `enable_logs=true`, mọi `before_send*` qua Scrubber; Hub riêng, không gọi `\Sentry\init()`)
+- [x] 3.3 Tạo `src/Monitoring/Monitor.php` (facade tĩnh, khởi tạo lười, no-op khi tắt, nuốt mọi lỗi, flush ở `shutdown`, `with_order_context()` nạp giá trị người mua của đơn vào Scrubber; có seam reset/inject backend cho test)
+- [x] 3.4 Test chứng minh: tắt hoặc thiếu DSN thì không có request và không nạp class `Sentry\ClientBuilder`; không đổi `\Sentry\SentrySdk::getCurrentHub()` toàn cục; warning của code ngoài plugin không tạo event
 
 ## 4. Điểm đo trong luồng nghiệp vụ
 
