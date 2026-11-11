@@ -81,6 +81,68 @@ final class WpHttpClientTest extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'sentry_version=7', $requests[0]['args']['headers']['X-Sentry-Auth'] );
 	}
 
+	/**
+	 * Connect timeout applied by the Requests hook, keyed by request URL.
+	 *
+	 * @param string $url Request URL.
+	 * @return float|int|null Connect timeout, or null when the hook left it alone.
+	 */
+	private static function connect_timeout_for( string $url ) {
+		$headers = array();
+		$data    = array();
+		$type    = 'POST';
+		$options = array( 'connect_timeout' => null );
+		do_action_ref_array( 'requests-requests.before_request', array( &$url, &$headers, &$data, &$type, &$options ) ); // phpcs:ignore WordPress.NamingConventions.ValidHookName.UseUnderscores, WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- core's Requests hook, invoked as WP_HTTP_Requests_Hooks does.
+
+		return $options['connect_timeout'];
+	}
+
+	public function test_connect_timeout_applies_to_sentry_url_only_during_request(): void {
+		$seen = array();
+		$this->http->respond_with(
+			'POST /api/3/envelope/',
+			function ( array $args, string $url ) use ( &$seen ): array {
+				$seen = array(
+					'sentry' => self::connect_timeout_for( $url ),
+					'other'  => self::connect_timeout_for( 'https://api.example.test/x' ),
+				);
+
+				return FakeHttp::json_response( 200, array() );
+			}
+		);
+
+		self::send( self::client( self::T0 ) );
+
+		$this->assertSame( 2.0, $seen['sentry'] );
+		$this->assertNull( $seen['other'] );
+		$this->assertNull( self::connect_timeout_for( 'https://sentry.test/api/3/envelope/' ), 'Hook removed after the request.' );
+	}
+
+	public function test_connect_timeout_hook_removed_after_transport_error(): void {
+		$this->sink->fail_transport();
+
+		self::send( self::client( self::T0 ) );
+
+		$this->assertNull( self::connect_timeout_for( 'https://sentry.test/api/3/envelope/' ) );
+	}
+
+	public function test_connect_timeout_hook_removed_when_http_layer_throws(): void {
+		$this->http->respond_with(
+			'POST /api/3/envelope/',
+			static function (): array {
+				throw new \RuntimeException( 'transport exploded' );
+			}
+		);
+
+		try {
+			self::send( self::client( self::T0 ) );
+		} catch ( \RuntimeException $e ) {
+			$this->assertSame( 'transport exploded', $e->getMessage() );
+		}
+
+		$this->assertNull( self::connect_timeout_for( 'https://sentry.test/api/3/envelope/' ) );
+	}
+
 	public function test_success_does_not_back_off(): void {
 		self::send( self::client( self::T0 ) );
 		self::send( self::client( self::T0 ) );
