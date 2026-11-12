@@ -25,6 +25,10 @@ final class DraftInvoiceWorkflowTest extends InvoiceWorkflowTestCase {
 		$this->configure_matbao();
 		$this->fake_create_invoice_ok( 'ZmFrZS1pZC0x' );
 		$order = $this->create_order( array( array( $this->create_product( 'Gói dịch vụ A', '100000', '', 'taxable', 'SKU-A' ), 1 ) ) );
+		$order->set_billing_first_name( '' );
+		$order->set_billing_last_name( '' );
+		$order->set_billing_email( '' );
+		$order->save();
 
 		$this->complete_and_run( $order );
 

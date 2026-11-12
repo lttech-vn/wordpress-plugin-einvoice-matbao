@@ -428,6 +428,7 @@ final class BuyerPersonalDataPrivacyTest extends InvoiceWorkflowTestCase {
 		$order = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
 		$order->set_billing_email( $email );
 		$order->set_billing_phone( '0900000001' );
+		$order->set_billing_address_1( $post['einv_address'] ?? '' );
 		$order->set_customer_id( 0 );
 		$billing = array(
 			'billing_first_name' => $order->get_billing_first_name(),

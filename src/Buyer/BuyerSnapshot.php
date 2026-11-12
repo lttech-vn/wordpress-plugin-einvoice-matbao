@@ -25,6 +25,7 @@ final class BuyerSnapshot {
 	 * @param array<string, string> $fields       `NMua_*` fields without the citizen ID.
 	 * @param string                $id_encrypted Encrypted citizen ID, or empty.
 	 * @param string                $id_mask      Citizen ID with all but 4 digits hidden, or empty.
+	 * @param bool                  $personal     Whether the snapshot holds personal data of the buyer beyond the configured name.
 	 */
 	public function __construct(
 		public readonly string $type,
@@ -32,6 +33,7 @@ final class BuyerSnapshot {
 		public readonly array $fields,
 		public readonly string $id_encrypted = '',
 		public readonly string $id_mask = '',
+		public readonly bool $personal = false,
 	) {
 	}
 
@@ -65,7 +67,7 @@ final class BuyerSnapshot {
 	/**
 	 * Array form for order meta.
 	 *
-	 * @return array{type: string, buyer_name: string, fields: array<string, string>, id_encrypted: string, id_mask: string}
+	 * @return array{type: string, buyer_name: string, fields: array<string, string>, id_encrypted: string, id_mask: string, personal: bool}
 	 */
 	public function to_array(): array {
 		return array(
@@ -74,6 +76,7 @@ final class BuyerSnapshot {
 			'fields'       => $this->fields,
 			'id_encrypted' => $this->id_encrypted,
 			'id_mask'      => $this->id_mask,
+			'personal'     => $this->personal,
 		);
 	}
 
@@ -93,6 +96,6 @@ final class BuyerSnapshot {
 		}
 		$text = static fn( string $key ): string => is_string( $data[ $key ] ?? null ) ? $data[ $key ] : '';
 
-		return new self( $text( 'type' ), $text( 'buyer_name' ), $fields, $text( 'id_encrypted' ), $text( 'id_mask' ) );
+		return new self( $text( 'type' ), $text( 'buyer_name' ), $fields, $text( 'id_encrypted' ), $text( 'id_mask' ), true === ( $data['personal'] ?? false ) );
 	}
 }

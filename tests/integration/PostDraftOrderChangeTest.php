@@ -78,6 +78,7 @@ final class PostDraftOrderChangeTest extends InvoiceWorkflowTestCase {
 		);
 		$order = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
 		$order->set_billing_phone( '0900000001' );
+		$order->set_billing_address_1( 'business' === ( $post['einv_buyer_type'] ?? '' ) ? 'Số 2 Đường Thử, Quận Thử' : 'Số 1 Đường Thử, Quận Thử' );
 		// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- fires a WooCommerce hook.
 		do_action(
 			'woocommerce_checkout_create_order',

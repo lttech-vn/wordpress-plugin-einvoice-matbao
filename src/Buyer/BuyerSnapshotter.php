@@ -81,7 +81,7 @@ final class BuyerSnapshotter {
 			trim( $order->get_billing_first_name() . ' ' . $order->get_billing_last_name() ),
 			$request['business_name'],
 			$request['tax_code'],
-			$request['address'],
+			$this->address( $order, $request['address'] ),
 			$id_number,
 			$order->get_billing_phone(),
 			$order->get_billing_email(),
@@ -101,7 +101,7 @@ final class BuyerSnapshotter {
 		$type    = $request['type'] ?? '';
 
 		if ( null === $request || ( BuyerType::INDIVIDUAL !== $type && BuyerType::BUSINESS !== $type ) ) {
-			return new BuyerSnapshot( BuyerType::WALK_IN, $walk_in_name, array( 'NMua_Ten' => $walk_in_name ) );
+			return $this->build_walk_in( $order, $walk_in_name );
 		}
 
 		$full_name = trim( $order->get_billing_first_name() . ' ' . $order->get_billing_last_name() );
@@ -114,12 +114,105 @@ final class BuyerSnapshotter {
 		} else {
 			$fields['NMua_MST'] = $request['tax_code'];
 		}
-		$fields['NMua_DChi']    = $request['address'];
+		$fields['NMua_DChi']    = $this->address( $order, $request['address'] );
 		$fields['NMua_SDThoai'] = BuyerRules::normalize_phone( $order->get_billing_phone() );
 		if ( '' !== $email && mb_strlen( $email ) <= BuyerRules::MAX_EMAIL && is_email( $email ) ) {
 			$fields['NMua_DCTDTu'] = $email;
 		}
 
-		return new BuyerSnapshot( $type, $name, $fields, $request['id_encrypted'], $request['id_mask'] );
+		return new BuyerSnapshot( $type, $name, $fields, $request['id_encrypted'], $request['id_mask'], true );
+	}
+
+	/**
+	 * Snapshot of a buyer who did not ask for an invoice: the billing details that are valid, on
+	 * top of the configured name. Invalid or empty details are skipped, never an error.
+	 *
+	 * @param WC_Order $order        Order.
+	 * @param string   $walk_in_name Configured `NMua_Ten`.
+	 */
+	private function build_walk_in( WC_Order $order, string $walk_in_name ): BuyerSnapshot {
+		$billing = array_merge(
+			$this->walk_in_name_fields( $order ),
+			$this->walk_in_address_fields( $order ),
+			$this->walk_in_phone_fields( $order ),
+			$this->walk_in_email_fields( $order ),
+		);
+		$fields  = array_merge( array( 'NMua_Ten' => $walk_in_name ), $billing );
+
+		return new BuyerSnapshot( BuyerType::WALK_IN, $fields['NMua_Ten'], $fields, '', '', array() !== $billing );
+	}
+
+	/**
+	 * `NMua_Ten` and `NMua_HVTNMHang` from the billing name.
+	 *
+	 * @param WC_Order $order Order.
+	 * @return array<string, string>
+	 */
+	private function walk_in_name_fields( WC_Order $order ): array {
+		$name = trim( $order->get_billing_first_name() . ' ' . $order->get_billing_last_name() );
+		if ( '' === $name ) {
+			return array();
+		}
+
+		$fields = array( 'NMua_Ten' => mb_substr( $name, 0, BuyerRules::MAX_BUSINESS_NAME ) );
+		if ( mb_strlen( $name ) <= BuyerRules::MAX_FULL_NAME ) {
+			$fields['NMua_HVTNMHang'] = $name;
+		}
+
+		return $fields;
+	}
+
+	/**
+	 * `NMua_DChi` from the billing address, cut to the allowed length.
+	 *
+	 * @param WC_Order $order Order.
+	 * @return array<string, string>
+	 */
+	private function walk_in_address_fields( WC_Order $order ): array {
+		$address = BillingAddress::from_order( $order );
+
+		return '' === $address ? array() : array( 'NMua_DChi' => mb_substr( $address, 0, BuyerRules::MAX_ADDRESS ) );
+	}
+
+	/**
+	 * `NMua_SDThoai` when the billing phone is a valid number.
+	 *
+	 * @param WC_Order $order Order.
+	 * @return array<string, string>
+	 */
+	private function walk_in_phone_fields( WC_Order $order ): array {
+		$phone = BuyerRules::normalize_phone( $order->get_billing_phone() );
+		if ( strlen( $phone ) > BuyerRules::MAX_PHONE || 1 !== preg_match( BuyerRules::PHONE_PATTERN, $phone ) ) {
+			return array();
+		}
+
+		return array( 'NMua_SDThoai' => $phone );
+	}
+
+	/**
+	 * `NMua_DCTDTu` when the billing email is valid.
+	 *
+	 * @param WC_Order $order Order.
+	 * @return array<string, string>
+	 */
+	private function walk_in_email_fields( WC_Order $order ): array {
+		$email = trim( $order->get_billing_email() );
+		if ( '' === $email || mb_strlen( $email ) > BuyerRules::MAX_EMAIL || ! is_email( $email ) ) {
+			return array();
+		}
+
+		return array( 'NMua_DCTDTu' => $email );
+	}
+
+	/**
+	 * Buyer address: the billing address, else the address of a legacy checkout request.
+	 *
+	 * @param WC_Order $order          Order.
+	 * @param string   $request_address Address stored by an older checkout request.
+	 */
+	private function address( WC_Order $order, string $request_address ): string {
+		$billing = BillingAddress::from_order( $order );
+
+		return '' !== $billing ? $billing : $request_address;
 	}
 }

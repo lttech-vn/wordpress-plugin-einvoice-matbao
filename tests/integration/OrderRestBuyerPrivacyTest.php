@@ -137,6 +137,7 @@ final class OrderRestBuyerPrivacyTest extends InvoiceWorkflowTestCase {
 		);
 		$order = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
 		$order->set_billing_phone( '0900000001' );
+		$order->set_billing_address_1( 'Số 1 Đường Thử, Quận Thử' );
 		$billing = array(
 			'billing_first_name' => $order->get_billing_first_name(),
 			'billing_last_name'  => $order->get_billing_last_name(),
