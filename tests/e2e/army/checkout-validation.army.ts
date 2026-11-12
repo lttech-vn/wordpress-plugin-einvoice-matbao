@@ -50,7 +50,9 @@ describe("classic checkout validation", { serial: false, agent: "default" }, () 
 		await screen.getByLabel("Yêu cầu xuất hóa đơn").check();
 		await screen.getByLabel("Doanh nghiệp").check();
 		await screen.getByLabel("Mã số thuế").fill("12345");
+		// The composed billing address joins address 1 and city, so both must be empty for the error.
 		await screen.getByLabel("Street address", { exact: false }).first().fill("");
+		await screen.getByLabel("Town / City", { exact: false }).first().fill("");
 		await placeOrder(screen).tap();
 		await expect(browser.locator("#einv_business_name_error")).toContainText("Vui lòng nhập tên doanh nghiệp");
 		await expect(browser.locator("#einv_tax_code_error")).toContainText("Mã số thuế phải gồm 10 hoặc 13 chữ số");
@@ -61,6 +63,7 @@ describe("classic checkout validation", { serial: false, agent: "default" }, () 
 		await screen.getByLabel("Tên doanh nghiệp").fill("CÔNG TY TNHH THỬ NGHIỆM E2E");
 		await screen.getByLabel("Mã số thuế").fill("0000000000");
 		await screen.getByLabel("Street address", { exact: false }).first().fill("2 Đường Thử Nghiệm, Quận 3");
+		await screen.getByLabel("Town / City", { exact: false }).first().fill(BILLING.city);
 		await expect(browser.locator("#einv_tax_code_error")).toHaveText("");
 		await expect(browser.locator("#einv_business_name_error")).toHaveText("");
 		await expect(browser.locator("#billing_address_1_error")).toHaveText("");
