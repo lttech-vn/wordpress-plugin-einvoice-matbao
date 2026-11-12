@@ -32,8 +32,9 @@ Ghi nhận quyết định người dùng trong phiên khảo sát trước khi 
 
 - Form cơ bản chỉ yêu cầu tên, số điện thoại và email.
 - Checkbox yêu cầu xuất hóa đơn mở lựa chọn cá nhân/doanh nghiệp; không chọn thì xử lý vãng lai.
-- Cá nhân tái sử dụng tên, số điện thoại và email; chỉ nhập thêm địa chỉ hóa đơn và CCCD theo yêu cầu nghiệp vụ đã chốt.
-- Doanh nghiệp tái sử dụng số điện thoại và email; chỉ nhập thêm tên doanh nghiệp, MST và địa chỉ hóa đơn. Không bắt nhập lại tên người liên hệ.
+- Cá nhân tái sử dụng tên, số điện thoại, email và địa chỉ thanh toán; chỉ nhập thêm CCCD (quyết định 2026-11-12, thay cho việc nhập địa chỉ hóa đơn riêng).
+- Doanh nghiệp tái sử dụng số điện thoại, email và địa chỉ thanh toán; chỉ nhập thêm tên doanh nghiệp và MST. Doanh nghiệp điền địa chỉ đăng ký vào địa chỉ thanh toán (quyết định 2026-11-12).
+- Địa chỉ hóa đơn luôn lấy từ địa chỉ thanh toán cho mọi loại người mua; không còn ô địa chỉ hóa đơn riêng ở checkout (quyết định 2026-11-12).
 - Các field cấu hình hóa đơn và dữ liệu tiền/thuế/dòng dịch vụ không trở thành field checkout.
 - [Khảo sát tài liệu người mua](research/matbao-buyer-fields.md): bảy field người mua khảo sát không được đánh dấu Bắt buộc trong bảng định nghĩa create-invoice. Tài liệu chưa có required matrix cá nhân/doanh nghiệp/vãng lai; không đủ để khẳng định backend chấp nhận việc bỏ trống hoặc xác nhận mapping vãng lai.
 - Parent đã kiểm tra trực tiếp các ô bảng trong XML của cả ba DOCX bằng parser chạy qua uv: bảy field người mua có ô Ràng buộc trống. Không suy rộng hàng địa chỉ nhập kho PXK sang người mua GTGT; không dùng example chứng từ TNCN để xác nhận mapping cá nhân GTGT.
@@ -82,6 +83,8 @@ Chỉ lập spec triển khai sau khi giải quyết các quyết định còn m
 
 ### Dữ liệu hóa đơn
 - Người mua vãng lai: `NMua_Ten` = "Khách hàng không lấy hóa đơn" (admin sửa được), field khác để trống. Đã xác nhận hiển thị trên demo ngày 31/10/2026 (xem [kết quả](research/e2e-demo-results.md)).
+- Quyết định 2026-11-12 bổ sung cho dòng trên: người mua vãng lai gửi tên, địa chỉ, số điện thoại và email từ thông tin thanh toán khi hợp lệ; trường sai hoặc trống bị bỏ qua. Có tên thanh toán thì thay `NMua_Ten` mặc định.
+- Quyết định 2026-11-12: Mắt Bão chỉ bắt buộc `NMua_Ten` (theo demo ngày 14/10/2026); các trường cá nhân/doanh nghiệp vẫn bắt buộc theo quy tắc nghiệp vụ `BuyerRules`, không theo bảng API.
 - Tiền, thuế, fee, coupon lấy từ số liệu WooCommerce đã lưu trên từng dòng. Mỗi dòng gửi giá sau giảm; không tạo dòng chiết khấu (`ThTienChuaCK = ThTien`, `TLCKhau = 0`, `STCKhau = 0`). Fee là dòng riêng.
 - `TSuat` suy từ rate WC đã lưu: 0, 5, 8, 10. `tax_status = none` thì `-1` (KCT). Rate khác (ví dụ 7%, 3.5%) thì chặn nháp và báo admin.
 - Tổng dòng phải bằng `TgThTien`, `TgTThue`, `TgTTTBSo` và `order total` WC; lệch thì chặn nháp. Không tính lại hay điều chỉnh.

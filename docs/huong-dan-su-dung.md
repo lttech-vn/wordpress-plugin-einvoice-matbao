@@ -108,7 +108,7 @@ Sau khi kết nối thành công, danh sách mẫu GTGT của năm hiện tại 
 ### Mã tham chiếu và người mua vãng lai (tab Xuất hóa đơn)
 
 - **Prefix mã tham chiếu (MTChieu):** chữ cái không dấu hoặc chữ số. Mã tham chiếu của mỗi hóa đơn là `prefix + WC + mã đơn`, tối đa 20 ký tự, ví dụ `SHOPWC1234`. Đặt prefix ngắn để còn chỗ cho mã đơn.
-- **Tên người mua vãng lai (NMua_Ten):** ghi lên hóa đơn của khách không yêu cầu xuất hóa đơn. Để trống thì dùng *Khách hàng không lấy hóa đơn*.
+- **Tên người mua vãng lai (NMua_Ten):** dùng khi đơn không có tên trong thông tin thanh toán. Nếu khách đã điền tên thanh toán thì hóa đơn dùng tên đó. Để trống thì dùng *Khách hàng không lấy hóa đơn*.
 
 ### Đơn vị tính (tab Xuất hóa đơn)
 
@@ -131,14 +131,16 @@ Tin Lark chỉ gồm mã đơn, loại lỗi, **Cách xử lý** (hướng dẫn
 
 ## Checkout: khách yêu cầu xuất hóa đơn
 
-Dưới phần thông tin thanh toán có ô **Yêu cầu xuất hóa đơn**. Không tick thì đơn vẫn được tạo nháp với **người mua vãng lai**, kể cả khi khách đã điền tên trong thông tin thanh toán.
+Dưới phần thông tin thanh toán có ô **Yêu cầu xuất hóa đơn**. Không tick thì đơn vẫn được tạo nháp với **người mua vãng lai**. Khi đó plugin gửi các thông tin thanh toán mà khách đã điền và hợp lệ: tên, địa chỉ, số điện thoại và email. Thông tin sai định dạng (điện thoại, email) bị bỏ qua, không làm đơn lỗi.
 
 Khi tick, khách chọn **Cá nhân** hoặc **Doanh nghiệp**:
 
 | Loại | Cần có |
 |---|---|
-| Cá nhân | Họ tên và số điện thoại (lấy từ thông tin thanh toán), **địa chỉ xuất hóa đơn**, **số CCCD** (đúng 12 chữ số) |
-| Doanh nghiệp | **Tên doanh nghiệp**, **mã số thuế** (10 hoặc 13 chữ số, có thể có dấu `-` trước 3 số cuối), **địa chỉ xuất hóa đơn**, số điện thoại và email (lấy từ thông tin thanh toán) |
+| Cá nhân | Họ tên và số điện thoại (lấy từ thông tin thanh toán), **số CCCD** (đúng 12 chữ số). Địa chỉ lấy từ **địa chỉ thanh toán** |
+| Doanh nghiệp | **Tên doanh nghiệp**, **mã số thuế** (10 hoặc 13 chữ số, có thể có dấu `-` trước 3 số cuối). Số điện thoại và email lấy từ thông tin thanh toán. Địa chỉ xuất hóa đơn lấy từ **địa chỉ thanh toán**, nên doanh nghiệp điền **địa chỉ đăng ký** vào ô địa chỉ thanh toán |
+
+Plugin không có ô địa chỉ xuất hóa đơn riêng. Hóa đơn ghi địa chỉ thanh toán gồm địa chỉ dòng 1, dòng 2, thành phố và tỉnh/thành, nối bằng dấu phẩy. Cửa hàng cần giữ trường địa chỉ thanh toán được bật ở checkout; nếu tắt, khách không nhập được địa chỉ và yêu cầu cá nhân hoặc doanh nghiệp sẽ báo lỗi.
 
 Dữ liệu sai được báo ngay trên trình duyệt và kiểm tra lại ở máy chủ. Plugin chỉ kiểm tra **định dạng**, không xác minh danh tính hay tra cứu MST.
 
