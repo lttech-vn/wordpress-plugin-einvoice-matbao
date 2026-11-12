@@ -177,7 +177,7 @@ final class SettingsCredentialsRestTest extends SettingsRestTestCase {
 		$this->assertStringNotContainsString( self::LARK_SECRET, $html );
 		$this->assertStringNotContainsString( 'fake-hook', $this->stored_plugin_options() );
 		$this->assertStringNotContainsString( self::LARK_SECRET, $this->stored_plugin_options() );
-		$lark_tab = $this->render_settings_page( 'lark' );
+		$lark_tab = $this->render_settings_page( 'notifications' );
 		$this->assertStringContainsString( 'name="webhook_url"', $lark_tab );
 		$this->assertStringNotContainsString( 'fake-hook', $lark_tab );
 

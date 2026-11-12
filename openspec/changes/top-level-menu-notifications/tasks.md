@@ -18,9 +18,9 @@
 
 ## 4. Giao diện tab Thông báo
 
-- [ ] 4.1 `SettingsPage::render_tabs()`: tab `notifications` ghép panel Lark và panel Sentry, mỗi thẻ có `.einv-result` riêng; xóa case `lark` và `monitoring`
-- [ ] 4.2 Thêm checkbox "Bật cảnh báo Lark" vào `render_lark_panel()`
-- [ ] 4.3 Cập nhật `SettingsPageTest`, `SettingsMonitoringRestTest` theo tab mới và bỏ domain nội bộ trong test (thay `sentry.example.com`)
+- [x] 4.1 `SettingsPage::render_tabs()`: tab `notifications` ghép panel Lark và panel Sentry, mỗi thẻ có `.einv-result` riêng; xóa case `lark` và `monitoring`
+- [x] 4.2 Thêm checkbox "Bật cảnh báo Lark" vào `render_lark_panel()`
+- [x] 4.3 Cập nhật `SettingsPageTest`, `SettingsMonitoringRestTest` theo tab mới và bỏ domain nội bộ trong test (thay `sentry.example.com`)
 
 ## 5. Tài liệu và kiểm chứng
 

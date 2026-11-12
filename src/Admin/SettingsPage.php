@@ -144,12 +144,11 @@ final class SettingsPage {
 		}
 
 		$panel = match ( $tab ) {
-			'connection' => self::render_connection_panel(),
-			'invoicing'  => self::render_invoicing_panel(),
-			'lark'       => self::render_lark_panel(),
-			'monitoring' => self::render_monitoring_panel(),
-			'advanced'   => UninstallSettingsController::render_section(),
-			default      => InvoicePage::render_panel(),
+			'connection'    => self::render_connection_panel(),
+			'invoicing'     => self::render_invoicing_panel(),
+			'notifications' => self::render_lark_panel() . self::render_monitoring_panel(),
+			'advanced'      => UninstallSettingsController::render_section(),
+			default         => InvoicePage::render_panel(),
 		};
 		if ( 'invoices' !== $tab ) {
 			$panel = '<div class="max-w-3xl">' . $panel . '</div>';
@@ -299,6 +298,13 @@ final class SettingsPage {
 					<h2 class="<?php echo esc_attr( self::TITLE ); ?>"><?php esc_html_e( 'Cảnh báo Lark', 'einvoice-matbao' ); ?></h2>
 					<p class="<?php echo esc_attr( self::HELP ); ?> mb-4"><?php esc_html_e( 'Webhook của custom bot Lark trong group nhận cảnh báo. Webhook và secret được lưu mã hóa và không hiển thị lại.', 'einvoice-matbao' ); ?></p>
 					<form hx-post="<?php echo esc_url( rest_url( SettingsController::NAMESPACE . '/settings/lark' ) ); ?>" hx-target="next .einv-result" class="space-y-4">
+						<div>
+							<label class="flex items-center gap-2 text-[14px] text-einv-ink">
+								<input id="einv-lark-enabled" type="checkbox" name="enabled" value="1" <?php checked( ( new Settings() )->lark_enabled( $store->has_lark() ) ); ?> />
+								<?php esc_html_e( 'Bật cảnh báo Lark', 'einvoice-matbao' ); ?>
+							</label>
+							<p class="<?php echo esc_attr( self::HELP ); ?>"><?php esc_html_e( 'Tắt thì không gửi tin tới Lark nhưng vẫn giữ webhook đã lưu.', 'einvoice-matbao' ); ?></p>
+						</div>
 						<div>
 							<label class="<?php echo esc_attr( self::LABEL ); ?>" for="einv-lark-webhook"><?php esc_html_e( 'Webhook URL', 'einvoice-matbao' ); ?></label>
 							<input id="einv-lark-webhook" name="webhook_url" type="password" autocomplete="off" class="<?php echo esc_attr( self::FIELD ); ?>" value="" placeholder="<?php echo esc_attr( $store->has_lark() ? __( 'Đã lưu, để trống nếu không đổi', 'einvoice-matbao' ) : 'https://open.larksuite.com/open-apis/bot/v2/hook/…' ); ?>" />
