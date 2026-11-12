@@ -131,6 +131,61 @@ final class DraftInvoiceBuyerSnapshotTest extends InvoiceWorkflowTestCase {
 		$this->assertArrayNotHasKey( 'NMua_DCTDTu', $invoice );
 	}
 
+	public function test_walk_in_drops_a_malformed_email_under_the_length_limit(): void {
+		$order = new class() extends WC_Order {
+			/**
+			 * WooCommerce rejects a malformed email in its setter, so the stale value is injected here.
+			 *
+			 * @param string $context Context.
+			 */
+			public function get_billing_email( $context = 'view' ): string {
+				return 'not-an-email';
+			}
+		};
+		$order->set_billing_first_name( 'Nguyễn' );
+		$order->set_billing_phone( '0900000001' );
+
+		$snapshot = ( new BuyerSnapshotter() )->build( $order, 'Khách hàng không lấy hóa đơn' );
+
+		$this->assertLessThan( 50, strlen( $order->get_billing_email() ) );
+		$this->assertArrayNotHasKey( 'NMua_DCTDTu', $snapshot->fields );
+		$this->assertSame( '0900000001', $snapshot->fields['NMua_SDThoai'] );
+		$this->assertSame( 'Nguyễn', $snapshot->fields['NMua_Ten'] );
+		$this->assertTrue( $snapshot->personal );
+	}
+
+	public function test_walk_in_with_only_a_long_name_is_personal_without_the_short_name_field(): void {
+		$order = $this->walk_in_order(
+			array(
+				'first_name' => str_repeat( 'N', 101 ),
+				'last_name'  => '',
+				'email'      => '',
+				'phone'      => '',
+			)
+		);
+
+		$snapshot = ( new BuyerSnapshotter() )->build( $order, 'Khách hàng không lấy hóa đơn' );
+
+		$this->assertSame( str_repeat( 'N', 101 ), $snapshot->fields['NMua_Ten'] );
+		$this->assertArrayNotHasKey( 'NMua_HVTNMHang', $snapshot->fields );
+		$this->assertArrayNotHasKey( 'NMua_DChi', $snapshot->fields );
+		$this->assertTrue( $snapshot->personal );
+	}
+
+	public function test_walk_in_cuts_a_name_over_400_characters(): void {
+		$order = $this->walk_in_order(
+			array(
+				'first_name' => str_repeat( 'N', 450 ),
+				'last_name'  => '',
+			)
+		);
+
+		$snapshot = ( new BuyerSnapshotter() )->build( $order, 'Khách hàng không lấy hóa đơn' );
+
+		$this->assertSame( str_repeat( 'N', 400 ), $snapshot->fields['NMua_Ten'] );
+		$this->assertArrayNotHasKey( 'NMua_HVTNMHang', $snapshot->fields );
+	}
+
 	public function test_walk_in_with_empty_billing_sends_only_the_configured_name(): void {
 		$this->configure_matbao();
 		$this->fake_create_invoice_ok();
