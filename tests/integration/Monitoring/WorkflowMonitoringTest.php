@@ -82,6 +82,7 @@ final class WorkflowMonitoringTest extends InvoiceWorkflowTestCase {
 		$this->assertNotEmpty( $event['exception']['values'][0]['stacktrace']['frames'] ?? array() );
 		$this->assertSame( (string) $order->get_id(), $event['tags']['order_id'] );
 		$this->assertSame( 'draft_workflow', $event['tags']['component'] );
+		$this->assertSame( $order->get_id(), $event['contexts']['invoice']['order_id'] );
 		$value = (string) $event['exception']['values'][0]['value'];
 		$this->assertStringNotContainsString( $token, $value );
 		$this->assertStringNotContainsString( 'internal.example', $value );

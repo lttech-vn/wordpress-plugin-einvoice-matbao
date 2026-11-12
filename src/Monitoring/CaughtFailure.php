@@ -30,8 +30,10 @@ final class CaughtFailure {
 			$tags['order_id'] = (string) $order_id;
 		}
 
-		$send = static function () use ( $failure, $what, $tags ): void {
-			Monitor::capture_exception( $failure, $tags );
+		$contexts = null !== $order_id ? static fn(): array => InvoiceContext::for_order_or_empty( $order_id ) : null;
+
+		$send = static function () use ( $failure, $what, $tags, $contexts ): void {
+			Monitor::capture_exception( $failure, $tags, $contexts );
 			Monitor::log( 'error', $what, array_merge( $tags, array( 'exception.type' => get_class( $failure ) ) ) );
 		};
 

@@ -70,6 +70,23 @@ final class InvoiceContext {
 	}
 
 	/**
+	 * Same as for_order(), but an unreadable invoice yields no context instead of an exception, so an
+	 * event about a caught failure is still sent.
+	 *
+	 * @param int $order_id Order ID.
+	 * @return array<string, array<string, mixed>>
+	 */
+	public static function for_order_or_empty( int $order_id ): array {
+		try {
+			return self::for_order( $order_id );
+		} catch ( \Throwable $failure ) {
+			InternalFailure::report( $failure );
+
+			return array();
+		}
+	}
+
+	/**
 	 * Context of the invoice of an order.
 	 *
 	 * @param int $order_id Order ID.
