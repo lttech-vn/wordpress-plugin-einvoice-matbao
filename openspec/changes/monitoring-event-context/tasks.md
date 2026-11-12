@@ -57,6 +57,6 @@ Blocked by: 1
 
 Blocked by: 5, 6, 7
 
-- [ ] 8.1 Cập nhật `docs/phat-trien.md` (phần giám sát lỗi và cảnh báo) và `docs/huong-dan-su-dung.md` (hướng dẫn xử lý hiện ở đâu), viết tiếng Việt
-- [ ] 8.2 Chạy toàn bộ test integration, PHPCS và PHPStan theo `docs/phat-trien.md`
+- [x] 8.1 Cập nhật `docs/phat-trien.md` (phần giám sát lỗi và cảnh báo) và `docs/huong-dan-su-dung.md` (hướng dẫn xử lý hiện ở đâu), viết tiếng Việt
+- [x] 8.2 Chạy toàn bộ test integration, PHPCS và PHPStan theo `docs/phat-trien.md`
 - [ ] 8.3 Verify E2E trên site local có Rustrak: tạo đơn có dòng hai thuế suất, kiểm tra event trên Rustrak có message mới, context `invoice`/`line`, tag `product_id`, và tin Lark có hướng dẫn; ghi lại nếu môi trường không cho phép
