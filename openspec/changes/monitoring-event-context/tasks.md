@@ -41,9 +41,9 @@ Blocked by: 2, 4
 
 Blocked by: 3, 4
 
-- [ ] 6.1 `CaughtFailure::report` thêm context `invoice` khi tìm được hóa đơn của đơn
-- [ ] 6.2 `ActionSchedulerTracing`: lưu args ở `on_begin`; `on_failed` gắn context `action` (hook, action ID), tag `order_id` và chạy trong `Monitor::with_order_context` khi args[0] là int dương
-- [ ] 6.3 Test: Unexpected error while sending (có context `invoice`), Action Scheduler action throws, Action Scheduler exception echoes the buyer, Action without an order
+- [x] 6.1 `CaughtFailure::report` thêm context `invoice` khi tìm được hóa đơn của đơn
+- [x] 6.2 `ActionSchedulerTracing`: lưu args ở `on_begin`; `on_failed` gắn context `action` (hook, action ID), tag `order_id` và chạy trong `Monitor::with_order_context` khi args[0] là int dương
+- [x] 6.3 Test: Unexpected error while sending (có context `invoice`), Action Scheduler action throws, Action Scheduler exception echoes the buyer, Action without an order
 
 ## 7. Hint in Lark and admin UI
 
