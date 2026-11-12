@@ -146,14 +146,19 @@ final class NeedsAttentionEventTest extends InvoiceWorkflowTestCase {
 
 		$this->enable_monitoring();
 		$calls = 0;
-		add_filter(
-			'woocommerce_get_edit_order_url',
-			static function () use ( &$calls ): never {
-				++$calls;
-				throw new RuntimeException( 'order url unavailable' ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- test fixture, never rendered.
-			}
-		);
-		$monitored = $this->outcome_of( $this->stop_order() );
+
+		// Armed after the order completes: WooCommerce's own emails read the same URL inside an output buffer.
+		$arm = static function () use ( &$calls ): void {
+			add_filter(
+				'woocommerce_get_edit_order_url',
+				static function () use ( &$calls ): never {
+					++$calls;
+					throw new RuntimeException( 'order url unavailable' ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- test fixture, never rendered.
+				}
+			);
+		};
+
+		$monitored = $this->outcome_of( $this->stop_order( $arm ) );
 
 		$this->assertGreaterThan( 0, $calls, 'The context really failed to build.' );
 		$this->assertSame( $baseline, $monitored );
@@ -162,10 +167,15 @@ final class NeedsAttentionEventTest extends InvoiceWorkflowTestCase {
 
 	/**
 	 * Completes an order and runs its draft actions until no retry is left.
+	 *
+	 * @param callable|null $after_complete Runs once the order is completed, before its actions run.
 	 */
-	private function stop_order(): WC_Order {
+	private function stop_order( ?callable $after_complete = null ): WC_Order {
 		$order = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
 		$order->update_status( 'completed' );
+		if ( null !== $after_complete ) {
+			$after_complete();
+		}
 		$ran = $this->run_queued_draft_actions();
 		for ( $run = 0; $run < 10 && $ran > 0; $run++ ) {
 			$ran = $this->run_queued_draft_actions();

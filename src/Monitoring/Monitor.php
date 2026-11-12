@@ -129,7 +129,12 @@ final class Monitor {
 				}
 
 				return $backend->capture_message(
-					sprintf( 'Hóa đơn cần xử lý: %s – Đơn #%d', $c->label(), $i->order_id ),
+					sprintf(
+						/* translators: 1: invoice error label, 2: order ID. */
+						__( 'Hóa đơn cần xử lý: %1$s – Đơn #%2$d', 'einvoice-matbao' ),
+						$c->label(),
+						$i->order_id
+					),
 					'warning',
 					$tags,
 					array( 'needs-attention', $c->value ),
