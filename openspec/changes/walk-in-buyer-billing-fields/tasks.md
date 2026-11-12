@@ -18,9 +18,9 @@ Blocked by: 1
 
 Blocked by: 1
 
-- [ ] 3.1 Classic: bỏ ô `einv_address`, `input()` lấy địa chỉ từ billing posted, validate/save dùng `BuyerRules`
-- [ ] 3.2 Blocks: giữ `address` trong schema nhưng bỏ qua giá trị, `save_to_order` lấy địa chỉ từ billing của đơn
-- [ ] 3.3 `checkout-rules.ts`, `checkout.ts`, `checkout-blocks.ts`: bỏ ô địa chỉ, validate địa chỉ billing (Classic từ `billing_address_1`..., Blocks từ `billingAddress`), build lại `assets/dist`
+- [x] 3.1 Classic: bỏ ô `einv_address`, `input()` lấy địa chỉ từ billing posted, validate/save dùng `BuyerRules`
+- [x] 3.2 Blocks: giữ `address` trong schema nhưng bỏ qua giá trị, `save_to_order` lấy địa chỉ từ billing của đơn
+- [x] 3.3 `checkout-rules.ts`, `checkout.ts`, `checkout-blocks.ts`: bỏ ô địa chỉ, validate địa chỉ billing (Classic từ `billing_address_1`..., Blocks từ `billingAddress`), build lại `assets/dist`
 
 ## 4. Privacy exporter và eraser
 
