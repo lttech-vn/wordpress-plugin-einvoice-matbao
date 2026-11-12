@@ -273,8 +273,9 @@ Code nằm trong `src/Monitoring/`. Tính năng mặc định tắt; cấu hình
 
 - `admin_path` chỉ giữ path và các query `page`, `action`, `id`, `post` (bỏ scheme, host, nonce, fragment). ID 10 hoặc 12 chữ số vẫn bị `Scrubber` che, và bộ lọc được ưu tiên.
 - `contexts.line` và `contexts.matbao` chỉ tồn tại trong request có lỗi. `FailureDetail` được đăng ký bằng `Monitor::with_failure_detail()` quanh đúng lần `record_error()`, và gỡ ngay khi callback kết thúc; sweep xử lý nhiều đơn không làm rò chi tiết sang đơn khác. Cảnh báo `order_*_changed` phát trong lúc đó không bị gắn chi tiết vì khác mã lỗi.
-- Mọi việc dựng context chạy trong `Monitor::guard`: lỗi khi dựng context chỉ được `InternalFailure` ghi lại, còn trạng thái, mã lỗi và lịch retry của hóa đơn vẫn như khi giám sát tắt.
-- Action Scheduler: `on_failed` gắn tag `order_id` và context `action` (`hook`, `action_id`) khi tham số đầu là mã đơn; qua `Monitor::with_order_context()` nên `Scrubber` che được giá trị người mua có trong message exception.
+- Context của event (closure của capture needs-attention và `CaughtFailure`) chạy trong `Monitor::guard`: lỗi dựng context chỉ được `InternalFailure` ghi lại, còn trạng thái, mã lỗi và lịch retry của hóa đơn vẫn như khi giám sát tắt. `FailureDetail` được dựng trong `with_failure_detail()` với try/catch riêng: nếu lỗi thì ghi `InternalFailure`, và callback vẫn chạy đúng một lần nhưng không có phạm vi chi tiết (event không có `line`/`matbao`).
+- Action Scheduler: mọi exception của action được trace đều có context `action` (`hook`, `action_id`), kể cả action không liên quan đơn.
+- Chỉ khi tham số đầu tiên (`args[0]`) là số nguyên dương thì mới có tag `order_id`, context ngữ cảnh đơn, và exception được gửi trong `Monitor::with_order_context()` để `Scrubber` che giá trị người mua có trong message.
 
 ### Kiểm thử với `SentrySink`
 

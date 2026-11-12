@@ -236,12 +236,14 @@ Cách xử lý đầy đủ của mỗi lỗi giống nhau ở mọi nơi: hộp
 | Tiền tệ không phải VND | Cửa hàng hoặc đơn dùng tiền tệ khác | Plugin chỉ hỗ trợ VND |
 | Số tiền không nguyên đồng | Có dòng tiền/thuế lẻ đồng | Sửa giá hoặc cấu hình thuế để ra số nguyên |
 | Thuế suất không hỗ trợ / Thiếu thuế suất đã lưu | Thuế khác 0/5/8/10%, hoặc dòng không lưu thuế | Đổi thuế suất của dòng sang 0%, 5%, 8% hoặc 10%, rồi gửi lại. Nếu dòng chưa lưu thuế, bấm **Tính lại** trong đơn trước |
-| Dòng hàng có hai thuế suất | Lớp thuế của sản phẩm sinh ra hai thuế suất cho một dòng | Kiểm tra lớp thuế của sản phẩm và thuế trên dòng trong đơn, sửa cho còn đúng một thuế suất, rồi gửi lại |
+| Dòng không có đúng một thuế suất | Một dòng hàng không có đúng một thuế suất GTGT: thiếu thuế hoặc có hai thuế suất trở lên (thường do lớp thuế của sản phẩm) | Kiểm tra lớp thuế của sản phẩm và thuế trên dòng trong đơn, sửa cho còn đúng một thuế suất, rồi gửi lại |
 | Tổng tiền lệch tổng đơn hàng | Tổng các dòng không khớp tổng đơn | Kiểm tra phí, giảm giá, làm tròn của đơn |
 | Mã tham chiếu quá dài | Prefix + `WC` + mã đơn vượt 20 ký tự. Mã của đơn này đã cố định nên không gửi lại được | Xuất hóa đơn tay trên Mắt Bão. Rút ngắn prefix ở tab **Xuất hóa đơn** để các đơn sau không bị lỗi này |
 | Thông tin người mua không hợp lệ | Thông tin trên đơn sai định dạng khi hoàn thành | Sửa trên đơn, rồi gửi lại |
 | Thiếu khóa mã hóa để đọc CCCD / Không giải mã được CCCD | Thiếu hoặc đã đổi `EINVOICE_MATBAO_ENCRYPTION_KEY` | Khôi phục đúng khóa cũ trong `wp-config.php` |
-| Không kết nối được Mắt Bão / Mắt Bão tạm thời lỗi | Mạng hoặc Mắt Bão gián đoạn | Plugin tự thử lại; hết lượt thì gửi lại thủ công |
+| Không kết nối được Mắt Bão | Không liên lạc được với Mắt Bão (mạng, DNS, cấu hình máy chủ) | Bấm **Kiểm tra kết nối** ở tab **Kết nối Mắt Bão**, sau đó **Kiểm tra trạng thái** trên đơn rồi **Gửi lại** |
+| Mắt Bão tạm thời lỗi | Mắt Bão trả lỗi tạm thời, plugin đã hết lượt thử lại tự động | Chờ vài phút, bấm **Kiểm tra trạng thái** trên đơn rồi **Gửi lại** |
+| Không đọc được phản hồi Mắt Bão | Plugin không hiểu câu trả lời của Mắt Bão, nên không biết nháp đã tạo hay chưa | Bấm **Kiểm tra trạng thái** trước để đối chiếu trên Mắt Bão, rồi mới **Gửi lại** (tránh tạo trùng) |
 | Mắt Bão từ chối hóa đơn | Mắt Bão trả lỗi nghiệp vụ hoặc đăng nhập | Xem thông điệp ở trang chi tiết, sửa rồi gửi lại |
 | Hóa đơn tìm thấy không khớp đơn hàng | Trên Mắt Bão có hóa đơn cùng mã tham chiếu nhưng khác trạng thái/tổng tiền, hoặc có nhiều hóa đơn | Kiểm tra trực tiếp trên Mắt Bão, xử lý tay trước khi gửi lại |
 | Không xếp được hàng đợi | Action Scheduler lỗi | Kiểm tra WP-Cron và hành động đã lên lịch (xem ngay dưới bảng) |
