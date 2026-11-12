@@ -16,7 +16,7 @@
 - **Branch**: `feat/sentry-observability`
 - **Base branch**: `main`
 - **Final state**: `pr-open`
-- **PR URL**: `pending`, cập nhật sau khi tạo PR
+- **PR URL**: `https://github.com/lttech-vn/wordpress-plugin-einvoice-matbao/pull/44`
 
 ---
 
@@ -29,7 +29,7 @@
 
 ## PR comment
 
-- **PR comment status**: `pending`, cập nhật sau khi đăng comment định hướng review
+- **PR comment status**: `posted` (https://github.com/lttech-vn/wordpress-plugin-einvoice-matbao/pull/44#issuecomment-6811983834)
 
 ---
 
