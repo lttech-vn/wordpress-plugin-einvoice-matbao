@@ -34,8 +34,8 @@ Blocked by: 1, 3
 
 Blocked by: 2, 4
 
-- [ ] 5.1 `DraftInvoiceWorkflow`: bọc `record_error` của hai nhánh `catch ( InvoiceDataError )` và nhánh xử lý `MatbaoError` trong `fail()` bằng `Monitor::with_failure_detail()` (context `matbao`: kind, http_status, api_code, target_sent, auto_retry)
-- [ ] 5.2 Test end-to-end tích hợp qua `SentrySink`: Tax rate count error on a product line, Mat Bao rejection (306 trên create-invoice), Product name equals buyer name, Detail does not leak to another order, Post-draft warning during a failure
+- [x] 5.1 `DraftInvoiceWorkflow`: bọc `record_error` của hai nhánh `catch ( InvoiceDataError )` và nhánh xử lý `MatbaoError` trong `fail()` bằng `Monitor::with_failure_detail()` (context `matbao`: kind, http_status, api_code, target_sent, auto_retry)
+- [x] 5.2 Test end-to-end tích hợp qua `SentrySink`: Tax rate count error on a product line, Mat Bao rejection (306 trên create-invoice), Product name equals buyer name, Detail does not leak to another order, Post-draft warning during a failure
 
 ## 6. Exception context for caught failures and Action Scheduler
 
