@@ -10,9 +10,9 @@ Blocked by: none
 
 Blocked by: 1
 
-- [ ] 2.1 `BuyerSnapshotter::build()` cho vãng lai: lọc từng trường billing (tên, địa chỉ cắt 400, SĐT, email), `NMua_Ten` dự phòng tên cấu hình
-- [ ] 2.2 `BuyerSnapshotter::build()` cá nhân/doanh nghiệp lấy `NMua_DChi` từ billing, dự phòng `address` cũ của yêu cầu; `validate()` dùng cùng thứ tự
-- [ ] 2.3 Thêm cờ `personal` vào `BuyerSnapshot` (`to_array`/`from_array`, mặc định false cho snapshot cũ)
+- [x] 2.1 `BuyerSnapshotter::build()` cho vãng lai: lọc từng trường billing (tên, địa chỉ cắt 400, SĐT, email), `NMua_Ten` dự phòng tên cấu hình
+- [x] 2.2 `BuyerSnapshotter::build()` cá nhân/doanh nghiệp lấy `NMua_DChi` từ billing, dự phòng `address` cũ của yêu cầu; `validate()` dùng cùng thứ tự
+- [x] 2.3 Thêm cờ `personal` vào `BuyerSnapshot` (`to_array`/`from_array`, mặc định false cho snapshot cũ)
 
 ## 3. Checkout Classic và Blocks
 
