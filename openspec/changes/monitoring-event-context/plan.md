@@ -96,7 +96,7 @@ einv composer test:integration -- --filter <TestClass>
 - Test: `tests/integration/DraftPayloadLineFailureTest.php` (mới, extends `InvoiceWorkflowTestCase`; cách ép totals mismatch theo `DraftInvoiceWorkflowTest.php:256-266`)
 
 **Interfaces:**
-- Produces: `LineFailure`, `InvoiceDataError::$line` (xem Contracts).
+- Produces: `LineFailure`, `InvoiceDataError::$line_failure` (xem Contracts).
 
 - [ ] **Step 1: Viết test fail.** Mỗi test gọi `DraftPayloadBuilder::build()` trực tiếp và bắt `InvoiceDataError`.
   - `test_two_tax_rates_on_product_line`: sản phẩm SKU `AO-01`, dòng có thuế ở 2 rate ID. Assert:
@@ -114,7 +114,7 @@ einv composer test:integration -- --filter <TestClass>
 - [ ] **Step 2:** Chạy `einv composer test:integration -- --filter DraftPayloadLineFailureTest`. Kỳ vọng: FAIL.
 - [ ] **Step 3: Cài đặt.**
   - Tạo `LineFailure`. `from_item()` đọc `get_id()`, `get_type()`, và với `WC_Order_Item_Product` thì đọc thêm `get_product_id()`, `get_variation_id()`, SKU của product.
-  - `InvoiceDataError` nhận thêm `?LineFailure $line = null`.
+  - `InvoiceDataError` nhận thêm `?LineFailure $line_failure = null`.
   - `DraftPayloadBuilder::line()` dựng `$failure = LineFailure::from_item( $item )` **một lần ở đầu hàm**, trước mọi validation (thứ tự validation và lý do giữ nguyên).
   - Đổi chữ ký `fail()`, `rate()`, `whole_vnd()` theo Contracts; mọi lời gọi `fail()` theo dòng truyền `$failure`.
 - [ ] **Step 4:** Chạy lại lệnh ở Step 2, sau đó chạy `--filter DraftInvoiceWorkflowTest` để kiểm tra không có regression ở lý do lưu. Kỳ vọng: PASS.
@@ -217,7 +217,7 @@ einv composer test:integration -- --filter <TestClass>
 - Test: `tests/integration/Monitoring/WorkflowFailureDetailTest.php` (mới)
 
 **Interfaces:**
-- Consumes: `LineFailure`, `InvoiceDataError::$line` (Task 2); `FailureDetail`, `Monitor::with_failure_detail` (Task 3); needs-attention có context (Task 4).
+- Consumes: `LineFailure`, `InvoiceDataError::$line_failure` (Task 2); `FailureDetail`, `Monitor::with_failure_detail` (Task 3); needs-attention có context (Task 4).
 
 - [ ] **Step 1: Viết test fail.**
   - `test_tax_rate_count_error_on_product_line`: sản phẩm SKU `AO-01` có hai thuế suất, `complete_and_run`. Event có:
@@ -267,9 +267,9 @@ einv composer test:integration -- --filter <TestClass>
   - `test_action_without_an_order`: action `einvoice_matbao_recover_stuck_invoices` ném lỗi. Event có `contexts.action` và không có tag `order_id`.
 - [ ] **Step 2:** Chạy `einv composer test:integration -- --filter ExceptionContextTest`. Kỳ vọng: FAIL.
 - [ ] **Step 3: Cài đặt.**
-  - `CaughtFailure::report`: khi `null !== $order_id` thì `$contexts = static fn(): array => InvoiceContext::for_order( $order_id )`, ngược lại `$contexts = null`. Truyền vào `Monitor::capture_exception( $failure, $tags, $contexts )`. Không tra repository trực tiếp trong `$send`; closure chỉ được gọi bên trong guard.
+  - `CaughtFailure::report`: khi `null !== $order_id` thì `$contexts = static fn(): array => InvoiceContext::for_order_or_empty( $order_id )`, ngược lại `$contexts = null`. Truyền vào `Monitor::capture_exception( $failure, $tags, $contexts )`. Không tra repository trực tiếp trong `$send`; closure chỉ được gọi bên trong guard.
   - `ActionSchedulerTracing::on_begin` lưu `hook` và `order_id` (từ `$action->get_args()[0]` khi là int > 0, ngược lại null) vào `$runs` theo shape trong Contracts.
-  - `on_failed`: tags = `component` (+ `order_id` khi có); `$contexts = static fn(): array => array( 'action' => array( 'hook' => $run['hook'], 'action_id' => (int) $action_id ) ) + ( null === $order_id ? array() : InvoiceContext::for_order( $order_id ) )` (closure, chạy trong guard). Gọi `Monitor::capture_exception( $e, $tags, $contexts )` bên trong `Monitor::with_order_context( $order_id, … )` khi có đơn, nếu không thì gọi trực tiếp.
+  - `on_failed`: tags = `component` (+ `order_id` khi có); `$contexts = static fn(): array => array( 'action' => array( 'hook' => $run['hook'], 'action_id' => (int) $action_id ) ) + ( null === $order_id ? array() : InvoiceContext::for_order_or_empty( $order_id ) )` (closure, chạy trong guard). Gọi `Monitor::capture_exception( $e, $tags, $contexts )` bên trong `Monitor::with_order_context( $order_id, … )` khi có đơn, nếu không thì gọi trực tiếp.
 - [ ] **Step 4:** Chạy lại lệnh ở Step 2, sau đó chạy `--filter 'Tracing|WorkflowMonitoring'`. Kỳ vọng: PASS.
 - [ ] **Step 5:** Commit `feat(error-monitoring): order and action context on caught exceptions`.
 
@@ -381,3 +381,15 @@ einv composer test:integration -- --filter <TestClass>
 - Two tax rates on a product line → `DraftPayloadLineFailureTest::test_two_tax_rates_on_product_line`
 - Shipping line with fractional amount → `DraftPayloadLineFailureTest::test_shipping_line_with_fractional_amount` (+ `test_fractional_amount_keeps_tax_rate_ids`)
 - Totals mismatch → `DraftPayloadLineFailureTest::test_totals_mismatch_has_no_line`
+
+---
+
+## Contract deviations
+
+Các thay đổi so với Contracts ban đầu, phát sinh khi implement. Tất cả đều là contract nội bộ (không `public`), đã được cập nhật trong bảng Contracts ở trên.
+
+| Contract | Ban đầu | Thực tế | Lý do |
+|---|---|---|---|
+| `InvoiceDataError` | `public readonly ?LineFailure $line` | `public readonly ?LineFailure $line_failure` | `Exception::$line` là thuộc tính protected của PHP, không thể khai báo lại thành public readonly. |
+| `Monitor::with_failure_detail` | `( FailureDetail $detail, callable $callback )` | `( FailureDetail\|\Closure $detail, callable $callback )` | Dựng `FailureDetail` phải nằm trong try/catch của Monitor để lỗi dựng context không thoát ra luồng hóa đơn. |
+| `InvoiceContext` | chỉ `for_invoice`, `admin_path`, `for_order` | thêm `for_order_or_empty( int ): array` | Khi tra cứu hóa đơn ném lỗi, event gốc vẫn được gửi (không có context `invoice`) thay vì bị bỏ. |

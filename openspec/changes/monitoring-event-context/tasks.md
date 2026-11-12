@@ -10,7 +10,7 @@ Blocked by: none
 Blocked by: none
 
 - [x] 2.1 Thêm value object `src/Invoice/LineFailure.php` (item_id, item_type, product_id, variation_id, sku, name, tax_rate_ids; `from_item()`, `to_context()`)
-- [x] 2.2 `InvoiceDataError` nhận thêm `?LineFailure $line = null`; `DraftPayloadBuilder::line()` dựng `LineFailure` và truyền xuống `rate()` / `whole_vnd()` thay cho `$name`, mọi lỗi theo dòng mang `LineFailure`, lỗi không theo dòng thì không
+- [x] 2.2 `InvoiceDataError` nhận thêm `?LineFailure $line_failure = null`; `DraftPayloadBuilder::line()` dựng `LineFailure` và truyền xuống `rate()` / `whole_vnd()` thay cho `$name`, mọi lỗi theo dòng mang `LineFailure`, lỗi không theo dòng thì không
 - [x] 2.3 Test các scenario của draft-invoice-creation / Line details on line data errors (hai thuế suất trên dòng sản phẩm, dòng vận chuyển lẻ đồng, totals mismatch), và kiểm tra lý do lưu không đổi
 
 ## 3. Event context plumbing in monitoring

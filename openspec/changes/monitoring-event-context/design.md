@@ -69,7 +69,7 @@ Câu chữ có thể tinh chỉnh khi implement, nhưng thao tác (màn hình, n
 ### D2. Chi tiết lỗi: value object `FailureDetail` thay vì mảng tự do
 
 Thêm `Invoice\LineFailure` (readonly): `item_id`, `item_type`, `product_id`, `variation_id`, `sku`, `name`, `tax_rate_ids`. Có `to_context(): array` và `from_item( WC_Order_Item )`.
-- `InvoiceDataError` có thêm tham số tùy chọn `?LineFailure $line = null`. Mã lỗi theo dòng (`LINE_TYPE_UNSUPPORTED`, `LINE_AMOUNT_INVALID`, `AMOUNT_NOT_WHOLE_VND`, `LINE_TAX_RATE_COUNT`, `TAX_RATE_NOT_STORED`, `TAX_RATE_UNSUPPORTED`, `UNTAXED_LINE_WITH_TAX`) luôn mang `LineFailure`.
+- `InvoiceDataError` có thêm tham số tùy chọn `?LineFailure $line_failure = null` (không dùng `$line` vì `Exception::$line` là protected). Mã lỗi theo dòng (`LINE_TYPE_UNSUPPORTED`, `LINE_AMOUNT_INVALID`, `AMOUNT_NOT_WHOLE_VND`, `LINE_TAX_RATE_COUNT`, `TAX_RATE_NOT_STORED`, `TAX_RATE_UNSUPPORTED`, `UNTAXED_LINE_WITH_TAX`) luôn mang `LineFailure`.
 - `DraftPayloadBuilder::line()` dựng `LineFailure` một lần cho mỗi dòng, rồi truyền xuống `rate()` và `whole_vnd()` thay cho `$name` (tên lấy từ `$line->name`). Cách này không thêm tham số cho các hàm đó.
 - `MatbaoError` đã có `kind`, `http_status`, `api_code`, `target_sent`, nên không cần object mới. Context `matbao` được dựng từ nó.
 
