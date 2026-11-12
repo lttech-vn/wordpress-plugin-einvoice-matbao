@@ -103,6 +103,16 @@ final class SettingsFailureModesRestTest extends SettingsRestTestCase {
 		$this->assertStringContainsString( '&lt;script&gt;', $html );
 	}
 
+	public function test_lark_test_message_is_sent_while_the_switch_is_off(): void {
+		$this->htmx( 'POST', '/settings/lark', array( 'webhook_url' => self::LARK_WEBHOOK ) );
+		$this->http->respond_json( 'POST ' . (string) wp_parse_url( self::LARK_WEBHOOK, PHP_URL_PATH ), 200, array( 'code' => 0 ) );
+
+		$response = $this->htmx( 'POST', '/settings/lark/test' );
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertStringContainsString( 'data-einv-status="success"', $this->html( $response ) );
+	}
+
 	public function test_token_already_expired_is_not_cached(): void {
 		$this->http->respond_json(
 			'POST /api/auth/login',

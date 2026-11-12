@@ -327,7 +327,7 @@ final class SettingsController {
 	}
 
 	/**
-	 * Saves the Lark webhook, encrypted. Blank fields keep the stored values.
+	 * Saves the Lark switch and webhook, encrypted. Blank fields keep the stored values.
 	 *
 	 * @param WP_REST_Request $request Request.
 	 */
@@ -355,7 +355,9 @@ final class SettingsController {
 			return Fragment::error( __( 'Webhook phải là URL HTTPS của custom bot Lark (open.larksuite.com/open-apis/bot/v2/hook/...).', 'einvoice-matbao' ) );
 		}
 
+		// A blank URL with no stored webhook failed validation above, so enabling always has a webhook to send to.
 		$store->save_lark( new LarkWebhook( $url, $secret ) );
+		( new Settings() )->save_lark_enabled( '1' === self::raw_param( $request, 'enabled' ) );
 
 		return Fragment::success( __( 'Đã lưu webhook Lark (mã hóa).', 'einvoice-matbao' ) );
 	}

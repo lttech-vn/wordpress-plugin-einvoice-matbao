@@ -11,7 +11,7 @@ use LTTech\EinvoiceMatbao\Matbao\TemplateCache;
 
 /**
  * Default template, `MTChieu` prefix, walk-in buyer name, default unit and the delete-on-uninstall
- * switch, stored in one option.
+ * switch, the Lark and monitoring switches, stored in one option.
  * Secrets never go here; see CredentialStore.
  */
 final class Settings {
@@ -107,6 +107,29 @@ final class Settings {
 	 */
 	public function save_delete_data_on_uninstall( bool $enabled ): void {
 		$this->update( array( 'delete_data_on_uninstall' => $enabled ? '1' : '' ) );
+	}
+
+	/**
+	 * Whether Lark alerts are switched on. Until the switch is first saved it follows whether a
+	 * webhook is stored, so sites that already receive alerts keep receiving them.
+	 *
+	 * @param bool $webhook_saved Whether a Lark webhook is stored.
+	 */
+	public function lark_enabled( bool $webhook_saved ): bool {
+		return match ( $this->string_value( 'lark_enabled' ) ) {
+			'1'     => true,
+			'0'     => false,
+			default => $webhook_saved,
+		};
+	}
+
+	/**
+	 * Turns Lark alerts on or off. Stores an explicit value so the choice outlives the webhook default.
+	 *
+	 * @param bool $enabled Whether Lark alerts are on.
+	 */
+	public function save_lark_enabled( bool $enabled ): void {
+		$this->update( array( 'lark_enabled' => $enabled ? '1' : '0' ) );
 	}
 
 	/**
