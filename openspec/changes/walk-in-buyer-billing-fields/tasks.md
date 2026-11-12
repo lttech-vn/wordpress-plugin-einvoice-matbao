@@ -2,9 +2,9 @@
 
 Blocked by: none
 
-- [ ] 1.1 Thêm `BillingAddress` ghép địa chỉ billing (địa chỉ 1, địa chỉ 2, thành phố, tỉnh/thành) cho mảng posted và cho `WC_Order`
-- [ ] 1.2 Đổi `BuyerRules::validate()` bắt buộc địa chỉ billing (trống hoặc >400 ký tự báo lỗi) và đổi thông báo `address` nhắc nhập ở phần thanh toán
-- [ ] 1.3 Đổi `BuyerInput` / `BuyerRequestStore::from_input()` thôi ghi địa chỉ riêng (ghi chuỗi rỗng) nhưng `load()` vẫn đọc `address` cũ
+- [x] 1.1 Thêm `BillingAddress` ghép địa chỉ billing (địa chỉ 1, địa chỉ 2, thành phố, tỉnh/thành) cho mảng posted và cho `WC_Order`
+- [x] 1.2 Đổi `BuyerRules::validate()` bắt buộc địa chỉ billing (trống hoặc >400 ký tự báo lỗi) và đổi thông báo `address` nhắc nhập ở phần thanh toán
+- [x] 1.3 Đổi `BuyerInput` / `BuyerRequestStore::from_input()` thôi ghi địa chỉ riêng (ghi chuỗi rỗng) nhưng `load()` vẫn đọc `address` cũ
 
 ## 2. Snapshot đơn vãng lai và địa chỉ billing
 
