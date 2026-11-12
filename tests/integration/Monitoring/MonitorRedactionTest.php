@@ -453,11 +453,39 @@ final class MonitorRedactionTest extends WP_UnitTestCase {
 			$this->assertStringNotContainsString( str_replace( '/', '\\/', $dsn ), $body );
 			$this->assertStringNotContainsString( 'sentry.test', $body );
 			$this->assertStringNotContainsString( '"dsn"', $body );
-			// The public key may only appear as the trace.public_key member of the dynamic sampling context.
-			$this->assertStringNotContainsString( $key, str_replace( '"public_key":"' . $key . '"', '', $body ) );
+			// The public key may only appear at header.trace.public_key (dynamic sampling context).
+			$this->assertStringNotContainsString( $key, self::without_allowed_public_key( $body, $key ) );
 		}
 		foreach ( $this->http->raw_requests() as $request ) {
 			$this->assertStringContainsString( 'sentry_key=' . $key, $request['args']['headers']['X-Sentry-Auth'] );
 		}
+	}
+
+	/**
+	 * Envelope text with the one allowed occurrence of the key (header trace.public_key) removed.
+	 *
+	 * @param string $body Raw envelope.
+	 * @param string $key  Public key.
+	 */
+	private static function without_allowed_public_key( string $body, string $key ): string {
+		$lines  = explode( "\n", $body );
+		$header = json_decode( $lines[0], true );
+		if ( is_array( $header ) && is_array( $header['trace'] ?? null ) && ( $header['trace']['public_key'] ?? null ) === $key ) {
+			unset( $header['trace']['public_key'] );
+		}
+		$lines[0] = (string) wp_json_encode( $header );
+
+		return implode( "\n", $lines );
+	}
+
+	public function test_public_key_allowance_is_limited_to_the_trace_header_member(): void {
+		$key     = 'pk5entinel0000000000000000000000';
+		$allowed = '{"trace":{"public_key":"' . $key . '"}}' . "\n" . '{"type":"event"}' . "\n" . '{}';
+		$in_body = '{"trace":{"public_key":"' . $key . '"}}' . "\n" . '{"type":"event"}' . "\n" . '{"extra":{"public_key":"' . $key . '"}}';
+		$in_head = '{"extra":{"public_key":"' . $key . '"},"trace":{"public_key":"' . $key . '"}}' . "\n" . '{}';
+
+		$this->assertStringNotContainsString( $key, self::without_allowed_public_key( $allowed, $key ) );
+		$this->assertStringContainsString( $key, self::without_allowed_public_key( $in_body, $key ) );
+		$this->assertStringContainsString( $key, self::without_allowed_public_key( $in_head, $key ) );
 	}
 }

@@ -270,6 +270,8 @@ final class WpHttpClientTest extends WP_UnitTestCase {
 	public function test_malformed_envelope_header_is_not_sent(): void {
 		$this->assertSame( 0, $this->post_raw( "not json\n{}" ) );
 		$this->assertSame( 0, $this->post_raw( "[1,2]\n{}" ) );
+		$this->assertSame( 0, $this->post_raw( "[]\n{}" ) );
+		$this->assertSame( 0, $this->post_raw( "\"dsn\"\n{}" ) );
 
 		$this->assertSame( array(), $this->http->raw_requests() );
 		$this->assertFalse( get_option( Uninstaller::SENTRY_BACKOFF_OPTION ) );

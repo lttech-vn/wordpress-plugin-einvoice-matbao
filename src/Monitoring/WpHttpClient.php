@@ -109,7 +109,7 @@ final class WpHttpClient implements HttpClientInterface {
 		$line    = false === $newline ? $envelope : substr( $envelope, 0, $newline );
 		$rest    = false === $newline ? '' : substr( $envelope, $newline );
 		$header  = json_decode( $line, true );
-		if ( ! is_array( $header ) || ( array() !== $header && array_is_list( $header ) ) ) {
+		if ( ! is_array( $header ) || '{' !== substr( ltrim( $line ), 0, 1 ) ) {
 			return null;
 		}
 		if ( ! array_key_exists( 'dsn', $header ) ) {
