@@ -79,16 +79,23 @@ final class EventContextTest extends WP_UnitTestCase {
 	}
 
 	public function test_context_closure_failure_never_escapes(): void {
-		$id = Monitor::capture_exception(
-			new RuntimeException( 'x' ),
-			array(),
-			static function (): array {
-				throw new RuntimeException( 'boom' );
+		$id      = null;
+		$written = self::error_log_of(
+			static function () use ( &$id ): void {
+				$id = Monitor::capture_exception(
+					new RuntimeException( 'x' ),
+					array(),
+					static function (): array {
+						throw new RuntimeException( 'secret-buyer@example.vn' );
+					}
+				);
 			}
 		);
 
 		$this->assertNull( $id );
 		$this->assertSame( 0, $this->sink->request_count() );
+		$this->assertStringContainsString( 'einvoice-matbao: monitoring failed (RuntimeException).', $written );
+		$this->assertStringNotContainsString( 'secret-buyer', $written );
 	}
 
 	public function test_new_filter_tags_kept(): void {
@@ -112,16 +119,25 @@ final class EventContextTest extends WP_UnitTestCase {
 	}
 
 	public function test_for_matbao_builds_context_and_tag(): void {
-		$error  = new MatbaoError( MatbaoError::KIND_API, 'm', 306, 200, true );
-		$detail = FailureDetail::for_matbao( 7, InvoiceErrorCode::MATBAO_HTTP, $error );
+		$temporary = FailureDetail::for_matbao( 7, InvoiceErrorCode::MATBAO_HTTP_TEMPORARY, new MatbaoError( MatbaoError::KIND_HTTP, 'm', 306, 503, true ) );
 
-		$this->assertSame( 306, $detail->contexts['matbao']['api_code'] );
-		$this->assertSame( 'api', $detail->contexts['matbao']['kind'] );
-		$this->assertSame( InvoiceErrorCode::MATBAO_HTTP->is_auto_retryable(), $detail->contexts['matbao']['auto_retry'] );
-		$this->assertSame( array( 'matbao.api_code' => '306' ), $detail->tags );
+		$this->assertSame(
+			array(
+				'kind'        => 'http',
+				'http_status' => 503,
+				'api_code'    => 306,
+				'target_sent' => true,
+				'auto_retry'  => true,
+			),
+			$temporary->contexts['matbao']
+		);
+		$this->assertSame( array( 'matbao.api_code' => '306' ), $temporary->tags );
 
-		$none = FailureDetail::for_matbao( 7, InvoiceErrorCode::MATBAO_HTTP, new MatbaoError( MatbaoError::KIND_TRANSPORT, 'm' ) );
-		$this->assertSame( array(), $none->tags );
+		$rejected = FailureDetail::for_matbao( 7, InvoiceErrorCode::MATBAO_API, new MatbaoError( MatbaoError::KIND_API, 'm', null, 200, false ) );
+		$this->assertFalse( $rejected->contexts['matbao']['auto_retry'] );
+		$this->assertFalse( $rejected->contexts['matbao']['target_sent'] );
+		$this->assertNull( $rejected->contexts['matbao']['api_code'] );
+		$this->assertSame( array(), $rejected->tags );
 	}
 
 	public function test_failure_detail_scoped_to_callback(): void {
