@@ -2,8 +2,8 @@
 
 Blocked by: none
 
-- [ ] 1.1 Thêm `InvoiceErrorCode::hint()` theo bảng hướng dẫn trong design D1 (match đủ mọi case, chuỗi dịch được `einvoice-matbao`)
-- [ ] 1.2 Test trong `tests/integration/InvoiceErrorCodeTest.php`: mọi case có hint không rỗng; hint của `line_tax_rate_count`, `credentials_missing`, `unexpected` chứa đúng thao tác (failure-alerts / Resolution hint per error code)
+- [x] 1.1 Thêm `InvoiceErrorCode::hint()` theo bảng hướng dẫn trong design D1 (match đủ mọi case, chuỗi dịch được `einvoice-matbao`)
+- [x] 1.2 Test trong `tests/integration/InvoiceErrorCodeTest.php`: mọi case có hint không rỗng; hint của `line_tax_rate_count`, `credentials_missing`, `unexpected` chứa đúng thao tác (failure-alerts / Resolution hint per error code)
 
 ## 2. Line details on line data errors
 
