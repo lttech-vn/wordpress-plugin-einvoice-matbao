@@ -5,8 +5,8 @@
 > Overwritten on each apply iteration; iteration counter grows.
 
 **Change**: `sentry-observability`
-**Iteration**: `2`
-**Applied at**: `2026-11-12 07:20`
+**Iteration**: `3`
+**Applied at**: `2026-11-12 08:15`
 **Executor**: `subagent-driven-development`
 
 ---
@@ -22,8 +22,9 @@
 
 ## Commits
 
-- **Range**: `720fdd8..9c91781` (cộng commit receipt này)
-- **Count**: `44`
+- **Range**: `720fdd8..62135ee` (cộng commit receipt này)
+- **Count**: `51`
+- **Iteration 3 range**: `9d08646..62135ee` (4 commit: `aeaa637`, `558775f`, `46c387b`, `62135ee`)
 - **Iteration 2 range**: `fbbd74c..9c91781` (5 commit: `20e7a4a`, `df0fb4a`, `fe6baf6`, `70d1200`, `9c91781`)
 
 ---
@@ -40,6 +41,21 @@
 - Implementer: agent `general-purpose`, một implementer cho mỗi plan task, chạy tuần tự trong một worktree. Có ruling ghi trong ledger: T4 và T6 cùng dùng `tests/integration/Support` và cùng một Docker stack.
 - Task reviewer: agent `code-reviewer`, mỗi task một seat review gộp spec và quality, kèm fix loop.
 - Final whole-branch review: `code-reviewer` (`2eff26bd`) trên `720fdd8..a6ea8b6`, kết luận "With fixes", không có Critical. Đợt sửa đầu xử lý 4 finding Important; re-review `a26785cb` còn mở #2. Commit `7129806` và `2a42205` sửa #2; re-review `cced9300` không còn finding mở.
+
+## Iteration 3 (fix sau verify FAIL vòng 2)
+
+- CRITICAL (Spotlight bypass): `SentryBackend` đặt `'spotlight' => false` (`src/Monitoring/SentryBackend.php:397`). Regression `MonitorIsolationTest` bật `SENTRY_SPOTLIGHT`, kiểm tra Spotlight vẫn tắt và envelope vẫn đi qua HTTP sink. Commit `aeaa637`.
+- User duyệt mở rộng scope: `serve_html` chuyển sang priority 11 trên `rest_pre_serve_request`, chạy sau `rest_send_cors_headers`. Nhờ vậy hết PHP warning "Cannot modify header information" (có từ `main`) trên route REST của plugin khi request có `Origin`. Đã có regression về thứ tự hook và mục ghi chú trong proposal. Commit `558775f`.
+- Ghi lại cache E2E `settings.army.ts` (2 entry, không còn "Warning:", không credential). Commit `46c387b`.
+- `design.md` D5: public key chỉ được xuất hiện ở `X-Sentry-Auth` và `trace.public_key`; thêm `spotlight=false`. Commit `62135ee`.
+- Review `a74020ee`: không còn finding mở; đã đối chiếu thứ tự hook core WP 6.6–7.1.
+- Bằng chứng do implementer chạy (iteration-3-report):
+  - Stack latest: `composer check` 796 + 8 test.
+  - Stack min (WP 6.6.2 / PHP 8.2.25 / WC 9.8.7): `composer check` 796 + 8, có 1 skip đã có từ trước.
+  - E2E replay 78/78.
+  - Smoke zip đạt.
+  - `php -l` trên PHP 8.2 cho các file `src` thay đổi.
+- Controller tự kiểm: 8 file army-cache đều không chứa "Warning:" hay password. curl có header `Origin` trả 422, có `Access-Control-Allow-Origin` và `Content-Type: text/html`, không còn warning.
 
 ## Iteration 2 (fix sau verify FAIL vòng 1)
 
@@ -86,6 +102,8 @@ Tất cả là contract nội bộ (`public = no`), đã ghi trong mục Contrac
 - `Monitoring\TransportErrorData` (mới): quy tắc chung cho Mắt Bão và Lark, `cURL error 28` hoặc "timed out" → `error.type=timeout` → `deadline_exceeded`. (Final review #1)
 - `Monitor::reconfigure()` (mới): bỏ backend hiện tại mà không gửi gì; `save_monitoring` gọi sau khi lưu rồi mới xóa backoff. (Final review #2)
 - `WpHttpClient::sendRequest`: body gửi đi không còn nguyên văn như SDK tạo. Member `dsn` bị cắt khỏi header envelope, và header phải là JSON object, nếu không thì không gửi. Lý do: requirement "Sensitive data never sent" (verify iteration 1). (Iteration 2)
+- `SentryBackend` options: `spotlight => false` để SDK không gửi trực tiếp bằng cURL tới Spotlight, tránh đường vòng bỏ qua `WpHttpClient`. (Iteration 3)
+- `Plugin::boot`: `serve_html` đăng ký ở priority 11 thay vì 10 trên `rest_pre_serve_request`. Không phải contract của change; mở rộng scope theo quyết định của user. (Iteration 3)
 
 ## Rulings and deferred items (from the SDD ledger)
 
@@ -105,4 +123,4 @@ Tất cả là contract nội bộ (`public = no`), đã ghi trong mục Contrac
 
 ## Next step
 
-Run `/opsx-verify sentry-observability` (trong worktree này) cho iteration 2.
+Run `/opsx-verify sentry-observability` (trong worktree này) cho iteration 3.
