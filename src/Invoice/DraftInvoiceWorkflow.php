@@ -16,6 +16,7 @@ use LTTech\EinvoiceMatbao\Matbao\MatbaoError;
 use LTTech\EinvoiceMatbao\Matbao\MatbaoInvoice;
 use LTTech\EinvoiceMatbao\Matbao\TemplateCache;
 use LTTech\EinvoiceMatbao\Monitoring\CaughtFailure;
+use LTTech\EinvoiceMatbao\Monitoring\FailureDetail;
 use LTTech\EinvoiceMatbao\Monitoring\Monitor;
 use LTTech\EinvoiceMatbao\Settings;
 use WC_Order;
@@ -144,7 +145,7 @@ final class DraftInvoiceWorkflow {
 			$snapshot->payload_fields();
 		} catch ( InvoiceDataError $error ) {
 			if ( $repository->reserve( $order_id, $reference, $buyer_name, $error->error_code->kind()->status() ) ) {
-				self::record_error( $repository, $order_id, $error->error_code, $error->getMessage(), null, $error->error_code->kind()->status() );
+				self::record_data_error( $repository, $order_id, $error, null, $error->error_code->kind()->status() );
 			}
 			return;
 		}
@@ -436,7 +437,7 @@ final class DraftInvoiceWorkflow {
 		try {
 			$payload = $this->builder->build( $order, $invoice->reference, $snapshot->payload_fields(), $template, $issued_on );
 		} catch ( InvoiceDataError $error ) {
-			self::record_error( $this->repository, $order_id, $error->error_code, $error->getMessage(), null, InvoiceStatus::SENDING );
+			self::record_data_error( $this->repository, $order_id, $error, null, InvoiceStatus::SENDING );
 			return;
 		}
 
@@ -745,6 +746,20 @@ final class DraftInvoiceWorkflow {
 			$reason = $message;
 		}
 
+		Monitor::with_failure_detail(
+			FailureDetail::for_matbao( $invoice->order_id, $code, $error ),
+			fn() => $this->record_matbao_failure( $invoice, $code, $reason )
+		);
+	}
+
+	/**
+	 * Records a classified Mat Bao failure: final, retries used up, or the next retry.
+	 *
+	 * @param InvoiceRecord    $invoice Invoice.
+	 * @param InvoiceErrorCode $code    Error code the failure was classified as.
+	 * @param string           $reason  Vietnamese reason.
+	 */
+	private function record_matbao_failure( InvoiceRecord $invoice, InvoiceErrorCode $code, string $reason ): void {
 		if ( ! $code->is_auto_retryable() ) {
 			self::record_error( $this->repository, $invoice->order_id, $code, $reason, null, InvoiceStatus::SENDING );
 			return;
@@ -786,6 +801,28 @@ final class DraftInvoiceWorkflow {
 		if ( 0 === as_schedule_single_action( time() + $delay, self::ACTION, array( $invoice->order_id ), self::GROUP ) ) {
 			self::record_error( $this->repository, $invoice->order_id, InvoiceErrorCode::QUEUE_FAILED, __( 'Không xếp được lần thử lại vào hàng đợi; tác vụ quét sẽ thử lại.', 'einvoice-matbao' ), InvoiceStatus::PENDING, InvoiceStatus::PENDING );
 		}
+	}
+
+	/**
+	 * Records an invoice data error; the offending order line, when known, rides along to the
+	 * needs-attention event.
+	 *
+	 * @param InvoiceRepository $repository Invoice storage.
+	 * @param int               $order_id   Order ID.
+	 * @param InvoiceDataError  $error      The data error.
+	 * @param string|null       $status     InvoiceStatus to set instead of the one of the code's kind.
+	 * @param string|null       $from       Status this run holds the row in, for the status log only.
+	 */
+	private static function record_data_error( InvoiceRepository $repository, int $order_id, InvoiceDataError $error, ?string $status, ?string $from ): void {
+		if ( null === $error->line_failure ) {
+			self::record_error( $repository, $order_id, $error->error_code, $error->getMessage(), $status, $from );
+			return;
+		}
+
+		Monitor::with_failure_detail(
+			FailureDetail::for_line( $order_id, $error->error_code, $error->line_failure ),
+			static fn() => self::record_error( $repository, $order_id, $error->error_code, $error->getMessage(), $status, $from )
+		);
 	}
 
 	/**

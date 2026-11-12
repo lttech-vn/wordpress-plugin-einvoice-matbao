@@ -8,6 +8,7 @@
 namespace LTTech\EinvoiceMatbao\Monitoring;
 
 use LTTech\EinvoiceMatbao\Invoice\InvoiceErrorCode;
+use LTTech\EinvoiceMatbao\Invoice\LineFailure;
 use LTTech\EinvoiceMatbao\Matbao\MatbaoError;
 
 /**
@@ -58,5 +59,21 @@ final class FailureDetail {
 			),
 			$tags
 		);
+	}
+
+	/**
+	 * Detail of an order line that made the order data unusable.
+	 *
+	 * @param int              $order_id Order ID.
+	 * @param InvoiceErrorCode $code     Error code the failure was classified as.
+	 * @param LineFailure      $line     Offending line.
+	 */
+	public static function for_line( int $order_id, InvoiceErrorCode $code, LineFailure $line ): self {
+		$tags = array();
+		if ( $line->product_id > 0 ) {
+			$tags['product_id'] = (string) $line->product_id;
+		}
+
+		return new self( $order_id, $code, array( 'line' => $line->to_context() ), $tags );
 	}
 }
