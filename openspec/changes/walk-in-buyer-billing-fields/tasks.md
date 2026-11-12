@@ -32,5 +32,5 @@ Blocked by: 2
 
 Blocked by: 2, 3, 4
 
-- [ ] 5.1 Cập nhật/ thêm integration test (Classic, Blocks, snapshot, privacy) và unit test `checkout-rules.test.ts`; chạy `composer test`, `bun test assets/src`, phpcs, phpstan
-- [ ] 5.2 Cập nhật e2e `tests/e2e/army/checkout-validation.army.ts`, `docs/huong-dan-su-dung.md`, `docs/discovery.md`
+- [x] 5.1 Cập nhật/ thêm integration test (Classic, Blocks, snapshot, privacy) và unit test `checkout-rules.test.ts`; chạy `composer test`, `bun test assets/src`, phpcs, phpstan
+- [x] 5.2 Cập nhật e2e `tests/e2e/army/checkout-validation.army.ts`, `docs/huong-dan-su-dung.md`, `docs/discovery.md`
