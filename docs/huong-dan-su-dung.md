@@ -120,7 +120,7 @@ Muốn đặt riêng cho một sản phẩm, mở trang sửa sản phẩm, đi�
 
 Tạo **custom bot** trong group Lark nhận cảnh báo, dán **Webhook URL** và **Secret ký** (nếu bot bật ký), bấm **Lưu webhook** rồi **Gửi tin nhắn kiểm tra**. Webhook và secret được lưu mã hóa.
 
-Tin Lark chỉ gồm mã đơn, loại lỗi và đường dẫn tới đơn trong wp-admin, không có thông tin cá nhân người mua.
+Tin Lark chỉ gồm mã đơn, loại lỗi, **Cách xử lý** (hướng dẫn cụ thể cho loại lỗi đó) và đường dẫn tới đơn trong wp-admin, không có thông tin cá nhân người mua.
 
 ### Chạy thử trước khi dùng thật
 
@@ -221,7 +221,11 @@ Khi một hóa đơn cần người xử lý, plugin:
 
 Mỗi lỗi chỉ cảnh báo **một lần** cho mỗi đơn. Sau mỗi lần bạn bấm *Gửi lại*, lỗi đó có thể cảnh báo lại.
 
+Thông báo trong wp-admin cũng hiện dòng **Cách xử lý** cho từng đơn. Hướng dẫn này trùng với hướng dẫn trong hộp **Hóa đơn Mắt Bão** trên đơn và trang chi tiết hóa đơn, nên bạn có thể làm theo cùng một cách ở mọi nơi.
+
 ## Xử lý lỗi thường gặp
+
+Cách xử lý đầy đủ của mỗi lỗi giống nhau ở mọi nơi: hộp **Hóa đơn Mắt Bão** trên đơn, trang chi tiết hóa đơn, tin Lark và Sentry (context `invoice.hint`). Bảng dưới đây tóm tắt.
 
 | Lỗi hiển thị | Nguyên nhân | Cách xử lý |
 |---|---|---|
@@ -231,9 +235,10 @@ Mỗi lỗi chỉ cảnh báo **một lần** cho mỗi đơn. Sau mỗi lần b
 | Mắt Bão từ chối mẫu hóa đơn | Mẫu/ký hiệu không hợp lệ phía Mắt Bão | Kiểm tra mẫu trên Mắt Bão, chọn lại |
 | Tiền tệ không phải VND | Cửa hàng hoặc đơn dùng tiền tệ khác | Plugin chỉ hỗ trợ VND |
 | Số tiền không nguyên đồng | Có dòng tiền/thuế lẻ đồng | Sửa giá hoặc cấu hình thuế để ra số nguyên |
-| Thuế suất không hỗ trợ / Thiếu thuế suất đã lưu | Thuế khác 0/5/8/10%, hoặc dòng không lưu thuế | Sửa cấu hình thuế WooCommerce và đơn, rồi gửi lại |
+| Thuế suất không hỗ trợ / Thiếu thuế suất đã lưu | Thuế khác 0/5/8/10%, hoặc dòng không lưu thuế | Đổi thuế suất của dòng sang 0%, 5%, 8% hoặc 10%, rồi gửi lại. Nếu dòng chưa lưu thuế, bấm **Tính lại** trong đơn trước |
+| Dòng hàng có hai thuế suất | Lớp thuế của sản phẩm sinh ra hai thuế suất cho một dòng | Kiểm tra lớp thuế của sản phẩm và thuế trên dòng trong đơn, sửa cho còn đúng một thuế suất, rồi gửi lại |
 | Tổng tiền lệch tổng đơn hàng | Tổng các dòng không khớp tổng đơn | Kiểm tra phí, giảm giá, làm tròn của đơn |
-| Mã tham chiếu quá dài | Prefix + `WC` + mã đơn vượt 20 ký tự | Rút ngắn prefix |
+| Mã tham chiếu quá dài | Prefix + `WC` + mã đơn vượt 20 ký tự. Mã của đơn này đã cố định nên không gửi lại được | Xuất hóa đơn tay trên Mắt Bão. Rút ngắn prefix ở tab **Xuất hóa đơn** để các đơn sau không bị lỗi này |
 | Thông tin người mua không hợp lệ | Thông tin trên đơn sai định dạng khi hoàn thành | Sửa trên đơn, rồi gửi lại |
 | Thiếu khóa mã hóa để đọc CCCD / Không giải mã được CCCD | Thiếu hoặc đã đổi `EINVOICE_MATBAO_ENCRYPTION_KEY` | Khôi phục đúng khóa cũ trong `wp-config.php` |
 | Không kết nối được Mắt Bão / Mắt Bão tạm thời lỗi | Mạng hoặc Mắt Bão gián đoạn | Plugin tự thử lại; hết lượt thì gửi lại thủ công |
@@ -298,9 +303,15 @@ define( 'EINVOICE_MATBAO_SENTRY_ENABLED', true );
 - Thông tin đăng nhập và token Mắt Bão, webhook Lark, DSN.
 - Biến của stacktrace, cookie, header, request body, tên máy chủ.
 
+**Event gửi lên Sentry cho cảnh báo hóa đơn** có tiêu đề `Hóa đơn cần xử lý: <nhãn> – Đơn #<mã đơn>` và các ngữ cảnh:
+
+- `invoice`: mã đơn, ID hóa đơn, mã tham chiếu, trạng thái, mã lỗi, nhãn, cách xử lý, lý do lưu trên hóa đơn và đường dẫn admin tới đơn (chỉ path, không có host, nonce hay fragment);
+- `line` (chỉ khi lỗi theo dòng): dòng hàng gây lỗi gồm **tên sản phẩm**, SKU, mã sản phẩm và mã thuế. Tên sản phẩm đi qua bộ lọc như mọi dữ liệu khác, nên tên trùng tên người mua bị che;
+- `matbao` (chỉ khi Mắt Bão trả lỗi trong cùng request): loại lỗi, HTTP status, mã lỗi API và việc đã gửi tới Mắt Bão hay chưa.
+
 **Được gửi (đã che theo mẫu):** email, URL (chỉ giữ host của Mắt Bão), dãy 12 chữ số (CCCD), MST (10 chữ số, có thể kèm `-XXX`), `Bearer <token>`, và chuỗi liền từ 32 ký tự trở lên có chữ số (gồm `A-Z a-z 0-9 + = _ -`) được thay bằng `[filtered]`. Tên hook, tên route và mã lỗi không bị che vì không chứa chữ số kiểu này.
 
-**Tag được gửi (danh sách cố định):** `site`, `order_id`, `invoice.id`, `invoice.status`, `error_code`, `error_kind`, `matbao.env`, `component`. Tag khác bị bỏ.
+**Tag được gửi (danh sách cố định):** `site`, `order_id`, `invoice.id`, `invoice.status`, `error_code`, `error_kind`, `matbao.env`, `component`, `product_id` (khi lỗi ở dòng sản phẩm), `matbao.api_code` (khi Mắt Bão trả mã lỗi). Tag khác bị bỏ.
 
 ### Nhiều cửa hàng dùng chung một project Sentry
 
