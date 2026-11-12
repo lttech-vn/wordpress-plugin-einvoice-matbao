@@ -21,10 +21,12 @@ final class InvoiceDataError extends RuntimeException {
 	 *
 	 * @param InvoiceErrorCode $error_code Stable code.
 	 * @param string           $message    Vietnamese reason.
+	 * @param LineFailure|null $line_failure Offending order line, null when the error is not about one line.
 	 */
 	public function __construct(
 		public readonly InvoiceErrorCode $error_code,
 		string $message,
+		public readonly ?LineFailure $line_failure = null,
 	) {
 		parent::__construct( $message );
 	}
