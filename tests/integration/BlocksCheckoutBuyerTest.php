@@ -61,7 +61,7 @@ final class BlocksCheckoutBuyerTest extends InvoiceWorkflowTestCase {
 		$this->assertSame( 200, $response->get_status() );
 		$this->assertNotNull( $request );
 		$this->assertSame( 'individual', $request['type'] );
-		$this->assertSame( 'Số 1 Đường Thử, Quận Thử', $request['address'] );
+		$this->assertSame( '', $request['address'] );
 		$this->assertSame( '********1234', $request['id_mask'] );
 		$this->assertStringStartsWith( 'v1.', $request['id_encrypted'] );
 		$this->assertStringNotContainsString( self::ID_NUMBER, (string) wp_json_encode( $this->order_of( $response )->get_meta_data() ) );
@@ -109,7 +109,6 @@ final class BlocksCheckoutBuyerTest extends InvoiceWorkflowTestCase {
 		$response = $this->place_order(
 			array(
 				'request_invoice' => true,
-				'address'         => 'Số 1',
 			)
 		);
 
@@ -149,6 +148,30 @@ final class BlocksCheckoutBuyerTest extends InvoiceWorkflowTestCase {
 
 		$this->assertSame( 400, $response->get_status() );
 		$this->assertStringContainsString( 'khóa mã hóa', (string) $response->get_data()['message'] );
+	}
+
+	public function test_legacy_address_field_is_ignored(): void {
+		$this->with_encryption_key();
+
+		$response = $this->place_order( array( 'address' => 'Địa chỉ cũ từ script cũ' ) + $this->business() );
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertStringNotContainsString( 'Địa chỉ cũ', (string) wp_json_encode( $this->order_of( $response )->get_meta_data() ) );
+	}
+
+	public function test_a_ticked_request_without_a_billing_address_is_refused(): void {
+		$response = $this->place_order(
+			$this->business(),
+			array(
+				'address_1' => '',
+				'city'      => '',
+				'state'     => '',
+			)
+		);
+
+		$this->assertSame( 400, $response->get_status() );
+		$this->assertSame( 'einvoice_buyer_invalid', $response->get_data()['code'] );
+		$this->assertStringContainsString( 'thanh toán', (string) $response->get_data()['message'] );
 	}
 
 	public function test_extension_data_of_the_wrong_type_is_refused_by_the_schema(): void {
@@ -200,7 +223,8 @@ final class BlocksCheckoutBuyerTest extends InvoiceWorkflowTestCase {
 
 		$invoice = $this->sent_invoices()[0];
 		$this->assertSame( 'Nguyễn Văn A', $invoice['NMua_HVTNMHang'] );
-		$this->assertSame( 'Số 1 Đường Thử, Quận Thử', $invoice['NMua_DChi'] );
+		// Billing address as joined by BillingAddress (an unknown state code is kept as entered).
+		$this->assertSame( '1 Đường Thử, Hà Nội, HANOI', $invoice['NMua_DChi'] );
 		$this->assertSame( self::ID_NUMBER, $invoice['NMua_CCCDan'] );
 		$this->assertSame( '0900000001', $invoice['NMua_SDThoai'] );
 	}
@@ -305,6 +329,7 @@ final class BlocksCheckoutBuyerTest extends InvoiceWorkflowTestCase {
 
 	public function test_business_request_needs_no_contact_name(): void {
 		$order = new \WC_Order();
+		$order->set_billing_address_1( '1 Đường Thử' );
 		$order->set_billing_phone( '0900000001' );
 		$order->set_billing_email( 'buyer@example.invalid' );
 		$request = new WP_REST_Request( 'POST', '/wc/store/v1/checkout' );
@@ -417,7 +442,6 @@ final class BlocksCheckoutBuyerTest extends InvoiceWorkflowTestCase {
 		return array(
 			'request_invoice' => true,
 			'buyer_type'      => 'individual',
-			'address'         => 'Số 1 Đường Thử, Quận Thử',
 			'id_number'       => self::ID_NUMBER,
 		);
 	}
@@ -433,7 +457,6 @@ final class BlocksCheckoutBuyerTest extends InvoiceWorkflowTestCase {
 			'buyer_type'      => 'business',
 			'business_name'   => 'Doanh nghiệp Thử',
 			'tax_code'        => self::TAX_CODE,
-			'address'         => 'Số 2 Đường Thử, Quận Thử',
 		);
 	}
 

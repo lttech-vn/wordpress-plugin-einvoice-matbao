@@ -132,7 +132,6 @@ final class OrderRestBuyerPrivacyTest extends InvoiceWorkflowTestCase {
 		$_POST = array(
 			'einv_request_invoice' => '1',
 			'einv_buyer_type'      => 'individual',
-			'einv_address'         => 'Số 1 Đường Thử, Quận Thử',
 			'einv_id_number'       => self::ID_NUMBER,
 		);
 		$order = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
@@ -143,6 +142,7 @@ final class OrderRestBuyerPrivacyTest extends InvoiceWorkflowTestCase {
 			'billing_last_name'  => $order->get_billing_last_name(),
 			'billing_phone'      => $order->get_billing_phone(),
 			'billing_email'      => $order->get_billing_email(),
+			'billing_address_1'  => $order->get_billing_address_1(),
 		);
 		do_action( 'woocommerce_checkout_create_order', $order, $billing ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- fires a WooCommerce hook.
 		$order->save();

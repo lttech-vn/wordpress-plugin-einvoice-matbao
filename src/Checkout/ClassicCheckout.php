@@ -7,6 +7,7 @@
 
 namespace LTTech\EinvoiceMatbao\Checkout;
 
+use LTTech\EinvoiceMatbao\Buyer\BillingAddress;
 use LTTech\EinvoiceMatbao\Buyer\BuyerInput;
 use LTTech\EinvoiceMatbao\Buyer\BuyerRequestStore;
 use LTTech\EinvoiceMatbao\Buyer\BuyerRules;
@@ -96,7 +97,6 @@ final class ClassicCheckout {
 				<?php
 				self::text_field( 'einv_business_name', __( 'Tên doanh nghiệp', 'einvoice-matbao' ), BuyerRules::MAX_BUSINESS_NAME, 'business' );
 				self::text_field( 'einv_tax_code', __( 'Mã số thuế', 'einvoice-matbao' ), 14, 'business' );
-				self::text_field( 'einv_address', __( 'Địa chỉ xuất hóa đơn', 'einvoice-matbao' ), BuyerRules::MAX_ADDRESS, '' );
 				self::text_field( 'einv_id_number', __( 'Số CCCD', 'einvoice-matbao' ), 12, 'individual', false );
 				?>
 			</div>
@@ -166,7 +166,7 @@ final class ClassicCheckout {
 			trim( $billing( 'billing_first_name' ) . ' ' . $billing( 'billing_last_name' ) ),
 			self::posted( 'einv_business_name' ),
 			self::posted( 'einv_tax_code' ),
-			self::posted( 'einv_address' ),
+			BillingAddress::from_array( $data ),
 			self::posted( 'einv_id_number' ),
 			$billing( 'billing_phone' ),
 			$billing( 'billing_email' ),

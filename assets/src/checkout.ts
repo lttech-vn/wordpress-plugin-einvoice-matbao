@@ -97,7 +97,7 @@ function check(): Record<string, string> {
 /** Whether an event comes from a field the invoice request validates. */
 function isWatched(target: EventTarget | null): target is HTMLInputElement {
 	if (!(target instanceof HTMLInputElement)) return false;
-	return target.name.startsWith("einv_") || /^billing_(first_name|last_name|phone|email)$/.test(target.name);
+	return target.name.startsWith("einv_") || /^billing_(first_name|last_name|phone|email|address_1|address_2|city|state)$/.test(target.name);
 }
 
 document.addEventListener("change", (event) => {

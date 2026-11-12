@@ -73,7 +73,6 @@ final class PostDraftOrderChangeTest extends InvoiceWorkflowTestCase {
 		$_POST = $post ?? array(
 			'einv_request_invoice' => '1',
 			'einv_buyer_type'      => 'individual',
-			'einv_address'         => 'Số 1 Đường Thử, Quận Thử',
 			'einv_id_number'       => '000000001234',
 		);
 		$order = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
@@ -88,6 +87,7 @@ final class PostDraftOrderChangeTest extends InvoiceWorkflowTestCase {
 				'billing_last_name'  => $order->get_billing_last_name(),
 				'billing_phone'      => '0900000001',
 				'billing_email'      => $order->get_billing_email(),
+				'billing_address_1'  => $order->get_billing_address_1(),
 			)
 		);
 		// phpcs:enable
@@ -512,7 +512,6 @@ final class PostDraftOrderChangeTest extends InvoiceWorkflowTestCase {
 				'einv_buyer_type'      => 'business',
 				'einv_business_name'   => 'Doanh nghiệp Thử',
 				'einv_tax_code'        => '0000000000-001',
-				'einv_address'         => 'Số 2 Đường Thử, Quận Thử',
 			)
 		);
 		$order->update_status( 'completed' );

@@ -354,10 +354,10 @@ final class BuyerPersonalDataPrivacyTest extends InvoiceWorkflowTestCase {
 			array(
 				'einv_request_invoice' => '1',
 				'einv_buyer_type'      => 'individual',
-				'einv_address'         => $address,
 				'einv_id_number'       => self::ID_NUMBER,
 			),
-			$email
+			$email,
+			$address
 		);
 		$this->complete_and_run( $order );
 
@@ -373,7 +373,6 @@ final class BuyerPersonalDataPrivacyTest extends InvoiceWorkflowTestCase {
 		return array(
 			'einv_request_invoice' => '1',
 			'einv_buyer_type'      => 'individual',
-			'einv_address'         => 'Số 1 Đường Thử, Quận Thử',
 			'einv_id_number'       => self::ID_NUMBER,
 		);
 	}
@@ -413,7 +412,6 @@ final class BuyerPersonalDataPrivacyTest extends InvoiceWorkflowTestCase {
 			'einv_buyer_type'      => 'business',
 			'einv_business_name'   => 'Doanh nghiệp Thử',
 			'einv_tax_code'        => '0000000000-001',
-			'einv_address'         => 'Số 2 Đường Thử, Quận Thử',
 		);
 	}
 
@@ -421,20 +419,22 @@ final class BuyerPersonalDataPrivacyTest extends InvoiceWorkflowTestCase {
 	 * A guest order whose checkout request was stored by the order-creation hook.
 	 *
 	 * @param array<string, string> $post  Submitted `einv_*` fields.
-	 * @param string                $email Billing email.
+	 * @param string                $email   Billing email.
+	 * @param string                $address Billing address line 1.
 	 */
-	private function order_with_request( array $post, string $email ): WC_Order {
+	private function order_with_request( array $post, string $email, string $address = 'Số 1 Đường Thử, Quận Thử' ): WC_Order {
 		$_POST = $post;
 		$order = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
 		$order->set_billing_email( $email );
 		$order->set_billing_phone( '0900000001' );
-		$order->set_billing_address_1( $post['einv_address'] ?? '' );
+		$order->set_billing_address_1( $address );
 		$order->set_customer_id( 0 );
 		$billing = array(
 			'billing_first_name' => $order->get_billing_first_name(),
 			'billing_last_name'  => $order->get_billing_last_name(),
 			'billing_phone'      => $order->get_billing_phone(),
 			'billing_email'      => $email,
+			'billing_address_1'  => $order->get_billing_address_1(),
 		);
 		do_action( 'woocommerce_checkout_create_order', $order, $billing ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- fires a WooCommerce hook.
 		$order->save();

@@ -588,6 +588,7 @@ final class DraftInvoiceBuyerSnapshotTest extends InvoiceWorkflowTestCase {
 		$this->configure_matbao();
 		$_POST = $this->individual_post();
 		$order = $this->create_order( array( array( $this->create_product( 'Free', '0' ), 1 ) ) );
+		$order->set_billing_address_1( 'Số 1 Đường Thử, Quận Thử' );
 		do_action( 'woocommerce_checkout_create_order', $order, array( 'billing_phone' => '0900000001' ) + $this->billing_of( $order ) ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- fires a WooCommerce hook.
 		$order->set_billing_phone( '0900000001' );
 		$order->save();
@@ -683,6 +684,7 @@ final class DraftInvoiceBuyerSnapshotTest extends InvoiceWorkflowTestCase {
 			'billing_last_name'  => $order->get_billing_last_name(),
 			'billing_phone'      => $order->get_billing_phone(),
 			'billing_email'      => $order->get_billing_email(),
+			'billing_address_1'  => $order->get_billing_address_1(),
 		);
 	}
 
@@ -695,7 +697,6 @@ final class DraftInvoiceBuyerSnapshotTest extends InvoiceWorkflowTestCase {
 		return array(
 			'einv_request_invoice' => '1',
 			'einv_buyer_type'      => 'individual',
-			'einv_address'         => 'Số 1 Đường Thử, Quận Thử',
 			'einv_id_number'       => self::ID_NUMBER,
 		);
 	}
@@ -711,7 +712,6 @@ final class DraftInvoiceBuyerSnapshotTest extends InvoiceWorkflowTestCase {
 			'einv_buyer_type'      => 'business',
 			'einv_business_name'   => 'Doanh nghiệp Thử',
 			'einv_tax_code'        => '0000000000-001',
-			'einv_address'         => 'Số 2 Đường Thử, Quận Thử',
 		);
 	}
 
@@ -724,7 +724,7 @@ final class DraftInvoiceBuyerSnapshotTest extends InvoiceWorkflowTestCase {
 		$_POST = $post;
 		$order = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
 		$order->set_billing_phone( '0900000001' );
-		$order->set_billing_address_1( $post['einv_address'] ?? '' );
+		$order->set_billing_address_1( 'business' === ( $post['einv_buyer_type'] ?? '' ) ? 'Số 2 Đường Thử, Quận Thử' : 'Số 1 Đường Thử, Quận Thử' );
 		do_action( 'woocommerce_checkout_create_order', $order, $this->billing_of( $order ) ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- fires a WooCommerce hook.
 		$order->save();
 
