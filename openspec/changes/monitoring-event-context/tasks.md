@@ -26,9 +26,9 @@ Blocked by: none
 
 Blocked by: 1, 3
 
-- [ ] 4.1 Thêm `src/Monitoring/InvoiceContext.php`: dựng context `invoice` từ `InvoiceRecord` gồm `admin_path` (bỏ scheme/host/fragment, chỉ giữ `page`, `action`, `id`, `post`)
-- [ ] 4.2 `Monitor::capture_needs_attention`: message `Hóa đơn cần xử lý: <label> – Đơn #<id>`, fingerprint giữ nguyên, context `invoice` cùng `line`/`matbao` và tag khi có chi tiết khớp mã; lỗi khi dựng context không lan ra ngoài
-- [ ] 4.3 Test qua `SentrySink`: Readable title, Invoice context present, Admin path without sensitive parameters, Alert without failure detail (`queue_failed`), Context building fails, Same error code on two orders, Needs attention once per alert
+- [x] 4.1 Thêm `src/Monitoring/InvoiceContext.php`: dựng context `invoice` từ `InvoiceRecord` gồm `admin_path` (bỏ scheme/host/fragment, chỉ giữ `page`, `action`, `id`, `post`)
+- [x] 4.2 `Monitor::capture_needs_attention`: message `Hóa đơn cần xử lý: <label> – Đơn #<id>`, fingerprint giữ nguyên, context `invoice` cùng `line`/`matbao` và tag khi có chi tiết khớp mã; lỗi khi dựng context không lan ra ngoài
+- [x] 4.3 Test qua `SentrySink`: Readable title, Invoice context present, Admin path without sensitive parameters, Alert without failure detail (`queue_failed`), Context building fails, Same error code on two orders, Needs attention once per alert
 
 ## 5. Workflow passes failure detail
 
