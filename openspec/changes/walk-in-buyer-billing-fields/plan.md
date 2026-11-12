@@ -23,6 +23,7 @@
 | `BuyerSnapshotter::build()` | modified | vãng lai: `type=WALK_IN`, `fields` gồm `NMua_Ten`, `NMua_HVTNMHang`, `NMua_DChi`, `NMua_SDThoai`, `NMua_DCTDTu` chỉ khi hợp lệ/không trống, `personal=true` nếu có ít nhất một trường ngoài `NMua_Ten`-mặc-định; cá nhân/doanh nghiệp: `NMua_DChi` = billing nếu có, ngược lại `request['address']`, `personal=true` | no |
 | Store API extension `einvoice-matbao.address` | modified | vẫn khai báo `string|null`, `maxLength 400`; giá trị bị bỏ qua | **public** (REST schema; giữ để script cũ không nhận 400) |
 | Classic POST `einv_address` | modified | không còn render hay đọc | no |
+| Static `OrderState::encode()` buyer digest `b:` | modified (added during apply, internal; user decided no migration pre-release) | HMAC digest now also covers `billing_address_1`, `billing_address_2`, `billing_city`, `billing_state`, `billing_country` (each normalized by `self::text()`), so billing-address edits count as a buyer change | no |
 
 ---
 
