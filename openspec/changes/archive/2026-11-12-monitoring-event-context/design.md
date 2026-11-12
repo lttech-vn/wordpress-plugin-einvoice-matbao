@@ -62,7 +62,7 @@ Thêm `hint(): string` cạnh `label()` trong cùng enum, viết bằng `match` 
 | `matbao_duplicate_reference` | Mắt Bão đã có hóa đơn cùng mã tham chiếu. Bấm "Kiểm tra trạng thái" để đối chiếu, rồi "Gửi lại": hệ thống tra cứu và nhận nháp đã có, không tạo trùng. |
 | `matbao_lookup_mismatch` | Hóa đơn tìm thấy trên Mắt Bão không khớp đơn. Đối chiếu trực tiếp trên Mắt Bão theo mã tham chiếu, rồi xử lý tay. |
 | `queue_failed` | Không xếp được tác vụ nền. Kiểm tra Action Scheduler (Công cụ > Tác vụ đã lên lịch) rồi bấm "Gửi lại". |
-| `unexpected` | Lỗi không xác định. Bấm "Kiểm tra trạng thái" trên Mắt Bão trước khi bấm "Gửi lại", và xem event trên Rustrak. |
+| `unexpected` | Lỗi không xác định. Bấm "Kiểm tra trạng thái" trên Mắt Bão trước khi bấm "Gửi lại", và xem event trên máy chủ giám sát nếu đã bật. |
 
 Câu chữ có thể tinh chỉnh khi implement, nhưng thao tác (màn hình, nút) phải giữ như bảng. Test kiểm tra từ khóa thao tác cho các mã tiêu biểu (`line_tax_rate_count`, `credentials_missing`, `unexpected`), và kiểm tra mọi mã đều có hướng dẫn không rỗng.
 

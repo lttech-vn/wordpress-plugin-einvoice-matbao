@@ -289,7 +289,7 @@ enum InvoiceErrorCode: string {
 			self::MATBAO_DUPLICATE_REFERENCE => __( 'Mắt Bão đã có hóa đơn cùng mã tham chiếu. Bấm "Kiểm tra trạng thái" để đối chiếu, rồi "Gửi lại": hệ thống tra cứu và nhận nháp đã có, không tạo trùng.', 'einvoice-matbao' ),
 			self::MATBAO_LOOKUP_MISMATCH => __( 'Hóa đơn tìm thấy trên Mắt Bão không khớp đơn. Đối chiếu trực tiếp trên Mắt Bão theo mã tham chiếu, rồi xử lý tay.', 'einvoice-matbao' ),
 			self::QUEUE_FAILED => __( 'Không xếp được tác vụ nền. Kiểm tra Action Scheduler (Công cụ > Tác vụ đã lên lịch) rồi bấm "Gửi lại".', 'einvoice-matbao' ),
-			self::UNEXPECTED => __( 'Lỗi không xác định. Bấm "Kiểm tra trạng thái" trên Mắt Bão trước khi bấm "Gửi lại", và xem event trên Rustrak.', 'einvoice-matbao' ),
+			self::UNEXPECTED => __( 'Lỗi không xác định. Bấm "Kiểm tra trạng thái" trên Mắt Bão trước khi bấm "Gửi lại", và xem event trên máy chủ giám sát nếu đã bật.', 'einvoice-matbao' ),
 		};
 	}
 }
