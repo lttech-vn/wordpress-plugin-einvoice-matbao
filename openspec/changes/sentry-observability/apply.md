@@ -5,8 +5,8 @@
 > Overwritten on each apply iteration; iteration counter grows.
 
 **Change**: `sentry-observability`
-**Iteration**: `1`
-**Applied at**: `2026-11-12 02:15`
+**Iteration**: `2`
+**Applied at**: `2026-11-12 07:20`
 **Executor**: `subagent-driven-development`
 
 ---
@@ -22,8 +22,9 @@
 
 ## Commits
 
-- **Range**: `720fdd8..2a42205` (cộng commit receipt này)
-- **Count**: `37`
+- **Range**: `720fdd8..9c91781` (cộng commit receipt này)
+- **Count**: `44`
+- **Iteration 2 range**: `fbbd74c..9c91781` (5 commit: `20e7a4a`, `df0fb4a`, `fe6baf6`, `70d1200`, `9c91781`)
 
 ---
 
@@ -40,7 +41,17 @@
 - Task reviewer: agent `code-reviewer`, mỗi task một seat review gộp spec và quality, kèm fix loop.
 - Final whole-branch review: `code-reviewer` (`2eff26bd`) trên `720fdd8..a6ea8b6`, kết luận "With fixes", không có Critical. Đợt sửa đầu xử lý 4 finding Important; re-review `a26785cb` còn mở #2. Commit `7129806` và `2a42205` sửa #2; re-review `cced9300` không còn finding mở.
 
-## Verification evidence (controller)
+## Iteration 2 (fix sau verify FAIL vòng 1)
+
+- CRITICAL "Sensitive data never sent": SDK ghi DSN vào header của envelope. `WpHttpClient` giờ chỉ cắt đúng member `"dsn":…` khỏi header gốc, giữ nguyên byte của các member khác và của mọi item. Envelope không có `dsn` (client report) được gửi nguyên văn. Header không phải JSON object, hoặc không còn đúng nội dung sau khi cắt, thì không gửi. Commit `20e7a4a`, `70d1200`, `9c91781`.
+- Ruling: public key chỉ được phép xuất hiện ở `header.trace.public_key`. Đây là định danh giao thức, giá trị giống hệt key trong `X-Sentry-Auth`, không phải DSN. Test kiểm theo đúng đường dẫn này, có kèm negative test.
+- WARNING 3: scenario "Same error code on two orders" đổi từ `matbao_rejected` sang `matbao_http`. `design.md` D5 thêm ghi chú về header DSN. Commit `df0fb4a`.
+- Thêm test 0 request cho 3 cấu hình không hoạt động. Commit `fe6baf6`.
+- Review: `708b9273` → `cac2b503` → `c1987d7d`: không còn finding mở.
+- Rustrak thật (stack verify, mu-plugin ghi body thô): 4 envelope (event, transaction, 2 check-in), không envelope nào có khóa `dsn`. Rustrak nhận đủ cả 4. Dữ liệu thử đã dọn, stack verify đã tắt.
+- Controller chạy lại sau iteration 2: `composer test` integration `OK (794 tests, 4110 assertions)`, without-WooCommerce `OK (8 tests, 21 assertions)`; lint sạch; analyse `[OK] No errors`; `openspec validate --strict` hợp lệ; build + smoke exit 0 (zip 609 935 B, sha256 `fc6a4c90…de19f`).
+
+## Verification evidence (controller, iteration 1)
 
 - `composer test` trên stack latest (WP 7.1.4 / WC 11.2.1 / PHP 8.5): integration `OK (782 tests, 4055 assertions)`, without-WooCommerce `OK (8 tests, 21 assertions)`. `composer lint` sạch, `composer analyse` `[OK] No errors`.
 - `composer check` trên stack min (WP 6.6.2 / WC 9.8.7 / PHP 8.2), lần chạy ở Task 8: đạt. Có 1 skip có từ trước: test REST v4 (WC 9.8 không có `wc/v4`).
@@ -74,6 +85,7 @@ Tất cả là contract nội bộ (`public = no`), đã ghi trong mục Contrac
 - `Monitor::finish_transaction_for_http_status(int)` / `Backend::finish_transaction_for_http_status(int)` (mới): ánh xạ HTTP → status nằm trong `SentryBackend`, nên chỉ `SentryBackend` và `WpHttpClient` chạm tới SDK. (Final review #3)
 - `Monitoring\TransportErrorData` (mới): quy tắc chung cho Mắt Bão và Lark, `cURL error 28` hoặc "timed out" → `error.type=timeout` → `deadline_exceeded`. (Final review #1)
 - `Monitor::reconfigure()` (mới): bỏ backend hiện tại mà không gửi gì; `save_monitoring` gọi sau khi lưu rồi mới xóa backoff. (Final review #2)
+- `WpHttpClient::sendRequest`: body gửi đi không còn nguyên văn như SDK tạo. Member `dsn` bị cắt khỏi header envelope, và header phải là JSON object, nếu không thì không gửi. Lý do: requirement "Sensitive data never sent" (verify iteration 1). (Iteration 2)
 
 ## Rulings and deferred items (from the SDD ledger)
 
@@ -93,4 +105,4 @@ Tất cả là contract nội bộ (`public = no`), đã ghi trong mục Contrac
 
 ## Next step
 
-Run `/opsx-verify sentry-observability` (trong worktree này).
+Run `/opsx-verify sentry-observability` (trong worktree này) cho iteration 2.
