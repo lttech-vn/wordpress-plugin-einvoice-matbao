@@ -3,7 +3,7 @@
 // Every listener is delegated from `document` and every element is looked up on use, so a theme
 // or WooCommerce re-rendering the form (`updated_checkout`) never leaves stale listeners.
 
-import { validate, visibleErrors } from "./checkout-rules";
+import { errorKeyOf, isWatchedControl, validate, visibleErrors } from "./checkout-rules";
 
 interface CheckoutConfig {
 	messages: Record<string, string>;
@@ -94,10 +94,10 @@ function check(): Record<string, string> {
 	return errors;
 }
 
-/** Whether an event comes from a field the invoice request validates. */
-function isWatched(target: EventTarget | null): target is HTMLInputElement {
-	if (!(target instanceof HTMLInputElement)) return false;
-	return target.name.startsWith("einv_") || /^billing_(first_name|last_name|phone|email|address_1|address_2|city|state)$/.test(target.name);
+/** Whether an event comes from a field the invoice request validates (input or select). */
+function isWatched(target: EventTarget | null): target is HTMLInputElement | HTMLSelectElement {
+	if (!(target instanceof HTMLInputElement || target instanceof HTMLSelectElement)) return false;
+	return isWatchedControl(target);
 }
 
 document.addEventListener("change", (event) => {
@@ -112,8 +112,8 @@ document.addEventListener("change", (event) => {
 });
 
 document.addEventListener("focusout", (event) => {
-	if (!isWatched(event.target) || event.target.type === "radio" || event.target.type === "checkbox") return;
-	touched.add(event.target.name);
+	if (!isWatched(event.target) || (event.target instanceof HTMLInputElement && (event.target.type === "radio" || event.target.type === "checkbox"))) return;
+	touched.add(errorKeyOf(event.target.name));
 	check();
 });
 

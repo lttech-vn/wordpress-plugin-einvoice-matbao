@@ -62,3 +62,16 @@ export function visibleErrors(
 	if (submitted) return errors;
 	return Object.fromEntries(Object.entries(errors).filter(([name]) => touched.has(name)));
 }
+
+const ADDRESS_PARTS = new Set(["billing_address_1", "billing_address_2", "billing_city", "billing_state"]);
+
+/** Error/touched key of a control: all address components share the composed `billing_address_1` error. */
+export function errorKeyOf(name: string): string {
+	return ADDRESS_PARTS.has(name) ? "billing_address_1" : name;
+}
+
+/** Whether a control (input or select) is one the invoice request validates. */
+export function isWatchedControl(control: { tagName: string; name: string }): boolean {
+	if (control.tagName !== "INPUT" && control.tagName !== "SELECT") return false;
+	return control.name.startsWith("einv_") || /^billing_(first_name|last_name|phone|email|address_1|address_2|city|state)$/.test(control.name);
+}

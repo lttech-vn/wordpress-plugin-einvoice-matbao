@@ -153,10 +153,26 @@ final class BlocksCheckoutBuyerTest extends InvoiceWorkflowTestCase {
 	public function test_legacy_address_field_is_ignored(): void {
 		$this->with_encryption_key();
 
-		$response = $this->place_order( array( 'address' => 'Địa chỉ cũ từ script cũ' ) + $this->business() );
+		$response = $this->place_order( array( 'address' => 'LEGACY-ADDRESS-SENTINEL' ) + $this->business() );
+		$request  = ( new BuyerRequestStore() )->load( $this->order_of( $response ) );
 
-		$this->assertSame( 200, $response->get_status() );
-		$this->assertStringNotContainsString( 'Địa chỉ cũ', (string) wp_json_encode( $this->order_of( $response )->get_meta_data() ) );
+		$this->assertNotNull( $request );
+		$this->assertSame( '', $request['address'] );
+		$this->assertStringNotContainsString( 'LEGACY-ADDRESS-SENTINEL', (string) wp_json_encode( $this->order_of( $response )->get_meta_data() ) );
+	}
+
+	public function test_legacy_address_does_not_replace_an_empty_billing_address(): void {
+		$response = $this->place_order(
+			array( 'address' => '12 Đường Cũ, Hà Nội' ) + $this->business(),
+			array(
+				'address_1' => '',
+				'city'      => '',
+				'state'     => '',
+			)
+		);
+
+		$this->assertSame( 400, $response->get_status() );
+		$this->assertSame( 'einvoice_buyer_invalid', $response->get_data()['code'] );
 	}
 
 	public function test_a_ticked_request_without_a_billing_address_is_refused(): void {

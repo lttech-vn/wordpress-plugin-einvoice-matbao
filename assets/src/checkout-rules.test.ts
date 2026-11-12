@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { validate, visibleErrors } from "./checkout-rules";
+import { errorKeyOf, isWatchedControl, validate, visibleErrors } from "./checkout-rules";
 
 const messages = {
 	type: "type",
@@ -103,5 +103,22 @@ describe("visibleErrors", () => {
 
 	test("shows every error after a submit attempt", () => {
 		expect(visibleErrors(errors, new Set(), true)).toEqual(errors);
+	});
+});
+
+describe("checkout control helpers", () => {
+	test("maps every billing address component to the composed address error key", () => {
+		for (const name of ["billing_address_1", "billing_address_2", "billing_city", "billing_state"]) {
+			expect(errorKeyOf(name)).toBe("billing_address_1");
+		}
+		expect(errorKeyOf("billing_phone")).toBe("billing_phone");
+		expect(errorKeyOf("einv_tax_code")).toBe("einv_tax_code");
+	});
+
+	test("accepts inputs and selects for watched names only", () => {
+		expect(isWatchedControl({ tagName: "SELECT", name: "billing_state" })).toBe(true);
+		expect(isWatchedControl({ tagName: "INPUT", name: "einv_tax_code" })).toBe(true);
+		expect(isWatchedControl({ tagName: "INPUT", name: "billing_company" })).toBe(false);
+		expect(isWatchedControl({ tagName: "DIV", name: "billing_state" })).toBe(false);
 	});
 });
