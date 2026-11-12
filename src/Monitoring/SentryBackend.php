@@ -394,6 +394,7 @@ final class SentryBackend implements Backend {
 			'default_integrations'    => false,
 			'integrations'            => array(),
 			'send_default_pii'        => false,
+			'spotlight'               => false,
 			'server_name'             => '',
 			'enable_logs'             => true,
 			'traces_sample_rate'      => $this->config->traces_sample_rate,

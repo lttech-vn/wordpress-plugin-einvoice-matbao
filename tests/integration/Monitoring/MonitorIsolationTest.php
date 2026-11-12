@@ -99,6 +99,33 @@ final class MonitorIsolationTest extends WP_UnitTestCase {
 		$this->assertSame( $site_hub, SentrySdk::getCurrentHub() );
 	}
 
+	public function test_spotlight_env_never_bypasses_the_wordpress_http_client(): void {
+		$previous_server             = $_SERVER['SENTRY_SPOTLIGHT'] ?? null; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- test reads its own fixture.
+		$previous_env                = getenv( 'SENTRY_SPOTLIGHT' );
+		$_SERVER['SENTRY_SPOTLIGHT'] = '1';
+		putenv( 'SENTRY_SPOTLIGHT=1' ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.runtime_configuration_putenv -- simulates the hosting environment.
+
+		try {
+			$this->enable_monitoring();
+			Monitor::capture_exception( new RuntimeException( 'plugin failure' ) );
+			Monitor::flush();
+
+			$backend = ( new \ReflectionProperty( Monitor::class, 'backend' ) )->getValue();
+			$hub     = ( new \ReflectionProperty( $backend, 'hub' ) )->getValue( $backend );
+			$options = $hub->getClient()->getOptions();
+
+			$this->assertFalse( $options->isSpotlightEnabled() );
+			$this->assertCount( 1, $this->sink->events() );
+		} finally {
+			if ( null === $previous_server ) {
+				unset( $_SERVER['SENTRY_SPOTLIGHT'] );
+			} else {
+				$_SERVER['SENTRY_SPOTLIGHT'] = $previous_server;
+			}
+			putenv( false === $previous_env ? 'SENTRY_SPOTLIGHT' : 'SENTRY_SPOTLIGHT=' . $previous_env ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.runtime_configuration_putenv -- restoring.
+		}
+	}
+
 	public function test_unrelated_warning_not_captured(): void {
 		$swallowed = 0;
 		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_set_error_handler -- swallows the warning under test.
