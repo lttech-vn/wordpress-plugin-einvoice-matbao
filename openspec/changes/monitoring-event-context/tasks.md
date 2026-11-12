@@ -17,10 +17,10 @@ Blocked by: none
 
 Blocked by: none
 
-- [ ] 3.1 Mở rộng contract `Backend::capture_exception` / `capture_message` với `array $contexts`; `SentryBackend::capture()` đặt context trong `withScope`; sửa test double trong `tests/integration/Monitoring` / `Support`
-- [ ] 3.2 Thêm `product_id`, `matbao.api_code` vào `Scrubber::TAG_ALLOWLIST`; test "New filter tags kept" và "Filter wins over a new tag"
-- [ ] 3.3 Thêm `Monitor::with_failure_detail()` (stack theo request như `$order_contexts`, chi tiết gồm error code + `line` hoặc `matbao` context + tag tương ứng) và hàm đọc chi tiết khớp mã lỗi
-- [ ] 3.4 Test chi tiết không rò sang callback ngoài và không gắn vào mã lỗi khác (error-monitoring / Failure detail scoped to its order and code, ở mức Monitor)
+- [x] 3.1 Mở rộng contract `Backend::capture_exception` / `capture_message` với `array $contexts`; `SentryBackend::capture()` đặt context trong `withScope`; sửa test double trong `tests/integration/Monitoring` / `Support`
+- [x] 3.2 Thêm `product_id`, `matbao.api_code` vào `Scrubber::TAG_ALLOWLIST`; test "New filter tags kept" và "Filter wins over a new tag"
+- [x] 3.3 Thêm `Monitor::with_failure_detail()` (stack theo request như `$order_contexts`, chi tiết gồm error code + `line` hoặc `matbao` context + tag tương ứng) và hàm đọc chi tiết khớp mã lỗi
+- [x] 3.4 Test chi tiết không rò sang callback ngoài và không gắn vào mã lỗi khác (error-monitoring / Failure detail scoped to its order and code, ở mức Monitor)
 
 ## 4. Needs-attention event content
 
