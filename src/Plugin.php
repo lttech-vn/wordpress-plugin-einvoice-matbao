@@ -50,7 +50,7 @@ final class Plugin {
 		add_action( 'rest_api_init', array( Admin\SettingsController::class, 'register_routes' ) );
 		add_action( 'rest_api_init', array( Admin\InvoiceController::class, 'register_routes' ) );
 		add_action( 'rest_api_init', array( Uninstall\UninstallSettingsController::class, 'register_routes' ) );
-		add_filter( 'rest_pre_serve_request', array( Admin\SettingsController::class, 'serve_html' ), 10, 4 );
+		add_filter( 'rest_pre_serve_request', array( Admin\SettingsController::class, 'serve_html' ), 11, 4 ); // After rest_send_cors_headers (10): it must send headers before this echoes HTML.
 
 		if ( is_admin() ) {
 			Admin\SettingsPage::register();

@@ -12,7 +12,7 @@ Plugin đang nuốt lỗi bằng `error_log()` và chỉ báo ra ngoài qua Lark
 - Cron monitor: recovery sweep check-in lên monitor `einvoice-matbao-recovery-<host>` riêng cho từng site.
 - Riêng tư: mọi event, span, log và check-in đi qua bộ lọc. Bộ lọc bỏ dữ liệu người mua, credential, token, URL webhook và tham số hàm; message được che CCCD, MST, email, URL và token.
 - Đóng gói: zip phát hành đổi namespace vendor bằng PHP-Scoper để không xung đột với plugin khác.
-
+- Sửa luôn warning header có sẵn trên route REST của plugin (`serve_html` chạy sau CORS, priority 11), theo quyết định của user.
 **Tab cấu hình**
 - From: màn hình plugin có 5 tab `invoices`, `connection`, `invoicing`, `lark`, `advanced`.
 - To: thêm tab `monitoring` ("Giám sát lỗi") ngay trước `advanced`. Tab gồm form bật/tắt, DSN, `traces_sample_rate` và nút gửi event thử.
