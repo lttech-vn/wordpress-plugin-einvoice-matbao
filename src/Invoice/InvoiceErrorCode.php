@@ -250,4 +250,46 @@ enum InvoiceErrorCode: string {
 			self::UNEXPECTED            => __( 'Lỗi không xác định', 'einvoice-matbao' ),
 		};
 	}
+
+	/**
+	 * Resolution hint: what the admin does next, naming the screens and buttons as they appear in the UI.
+	 */
+	public function hint(): string {
+		return match ( $this ) {
+			self::CURRENCY_NOT_VND => __( 'Plugin chỉ xuất hóa đơn VND. Xuất tay trên Mắt Bão, hoặc đổi đơn sang VND rồi bấm "Gửi lại".', 'einvoice-matbao' ),
+			self::NO_LINES => __( 'Đơn không có dòng hàng. Thêm sản phẩm vào đơn rồi bấm "Gửi lại", hoặc bỏ qua nếu không cần hóa đơn.', 'einvoice-matbao' ),
+			self::LINE_TYPE_UNSUPPORTED => __( 'Đơn có loại dòng plugin không hỗ trợ. Xóa hoặc đổi dòng đó trong đơn rồi bấm "Gửi lại", hoặc xuất tay trên Mắt Bão.', 'einvoice-matbao' ),
+			self::LINE_AMOUNT_INVALID => __( 'Sửa số tiền âm hoặc số lượng của dòng bị nêu trong đơn rồi bấm "Gửi lại".', 'einvoice-matbao' ),
+			self::AMOUNT_NOT_WHOLE_VND => __( 'Sửa giá hoặc thuế của dòng bị nêu thành số nguyên đồng rồi bấm "Gửi lại".', 'einvoice-matbao' ),
+			self::LINE_TAX_RATE_COUNT => __( 'Kiểm tra lớp thuế của sản phẩm và thuế trên dòng trong đơn: mỗi dòng cần đúng một thuế suất GTGT. Sửa đơn rồi bấm "Gửi lại".', 'einvoice-matbao' ),
+			self::TAX_RATE_NOT_STORED => __( 'Tính lại thuế của đơn (nút "Tính lại" trong WooCommerce) rồi bấm "Gửi lại".', 'einvoice-matbao' ),
+			self::TAX_RATE_UNSUPPORTED => __( 'Đổi thuế suất của dòng sang 0%, 5%, 8% hoặc 10% rồi bấm "Gửi lại".', 'einvoice-matbao' ),
+			self::UNTAXED_LINE_WITH_TAX => __( 'Dòng không chịu thuế nhưng có tiền thuế: sửa trạng thái thuế hoặc bỏ tiền thuế của dòng rồi bấm "Gửi lại".', 'einvoice-matbao' ),
+			self::TOTALS_MISMATCH => __( 'Tính lại tổng đơn (nút "Tính lại") để tổng các dòng khớp tổng đơn rồi bấm "Gửi lại".', 'einvoice-matbao' ),
+			self::REFERENCE_TOO_LONG => __( 'Mã tham chiếu của đơn này đã cố định nên không thể gửi lại. Xuất tay trên Mắt Bão. Rút ngắn tiền tố ở tab "Xuất hóa đơn" để các đơn sau không bị lỗi này.', 'einvoice-matbao' ),
+			self::BUYER_INVALID => __( 'Sửa thông tin thanh toán của đơn theo các trường bị nêu rồi bấm "Gửi lại".', 'einvoice-matbao' ),
+			self::BUYER_SNAPSHOT_INVALID => __( 'Kiểm tra thông tin thanh toán của đơn rồi bấm "Gửi lại" để chụp lại thông tin người mua.', 'einvoice-matbao' ),
+			self::BUYER_ID_UNREADABLE => __( 'Khóa mã hóa đã đổi hoặc dữ liệu CCCD hỏng. Khôi phục khóa `EINVOICE_MATBAO_ENCRYPTION_KEY` cũ, hoặc xuất tay trên Mắt Bão.', 'einvoice-matbao' ),
+			self::BUYER_ID_KEY_MISSING => __( 'Khai báo `EINVOICE_MATBAO_ENCRYPTION_KEY` trong wp-config.php rồi bấm "Gửi lại".', 'einvoice-matbao' ),
+			self::CREDENTIALS_MISSING => __( 'Nhập tài khoản ở tab "Kết nối Mắt Bão", bấm "Kiểm tra kết nối" rồi bấm "Gửi lại".', 'einvoice-matbao' ),
+			self::TEMPLATE_MISSING => __( 'Chọn mẫu hóa đơn mặc định ở tab "Kết nối Mắt Bão" rồi bấm "Gửi lại".', 'einvoice-matbao' ),
+			self::TEMPLATE_UNAVAILABLE => __( 'Mẫu hóa đơn hết hiệu lực hoặc hết số. Chọn lại mẫu mặc định ở tab "Kết nối Mắt Bão" rồi bấm "Gửi lại".', 'einvoice-matbao' ),
+			self::TEMPLATE_REJECTED => __( 'Mắt Bão từ chối mẫu. Chọn lại mẫu mặc định ở tab "Kết nối Mắt Bão" rồi bấm "Gửi lại".', 'einvoice-matbao' ),
+			self::TEMPLATE_CHANGED => __( 'Kiểm tra trên Mắt Bão xem đã có hóa đơn với mẫu cũ chưa. Nếu chưa, dùng "Gửi lại" kèm xác nhận ở chi tiết hóa đơn.', 'einvoice-matbao' ),
+			self::ORDER_NOT_COMPLETED => __( 'Đơn không còn hoàn thành. Chuyển đơn về "Hoàn thành" nếu vẫn cần xuất hóa đơn.', 'einvoice-matbao' ),
+			self::ORDER_REFUNDED => __( 'Đơn đã hoàn tiền nên không xuất hóa đơn. Xử lý tay nếu vẫn cần.', 'einvoice-matbao' ),
+			self::ORDER_AMOUNTS_CHANGED => __( 'Số tiền đơn đổi sau khi có nháp. Sửa hoặc hủy nháp trực tiếp trên Mắt Bão cho khớp đơn.', 'einvoice-matbao' ),
+			self::ORDER_BUYER_CHANGED => __( 'Người mua đổi sau khi có nháp. Sửa thông tin người mua trên nháp trực tiếp trên Mắt Bão.', 'einvoice-matbao' ),
+			self::ORDER_REFUNDED_AFTER_DRAFT => __( 'Đơn hoàn tiền sau khi có nháp. Hủy hoặc điều chỉnh nháp trực tiếp trên Mắt Bão.', 'einvoice-matbao' ),
+			self::MATBAO_TRANSPORT => __( 'Không kết nối được Mắt Bão. Bấm "Kiểm tra kết nối" ở tab "Kết nối Mắt Bão", sau đó "Kiểm tra trạng thái" rồi "Gửi lại".', 'einvoice-matbao' ),
+			self::MATBAO_HTTP_TEMPORARY => __( 'Mắt Bão đang lỗi tạm thời. Chờ vài phút, bấm "Kiểm tra trạng thái" rồi "Gửi lại".', 'einvoice-matbao' ),
+			self::MATBAO_RESPONSE_UNREADABLE => __( 'Không đọc được phản hồi Mắt Bão. Bấm "Kiểm tra trạng thái" trước khi bấm "Gửi lại" để tránh tạo trùng.', 'einvoice-matbao' ),
+			self::MATBAO_HTTP => __( 'Mắt Bão trả lỗi HTTP. Bấm "Kiểm tra kết nối" ở tab "Kết nối Mắt Bão" rồi bấm "Gửi lại".', 'einvoice-matbao' ),
+			self::MATBAO_API => __( 'Đọc lý do Mắt Bão trả về, sửa dữ liệu hoặc cấu hình tương ứng rồi bấm "Gửi lại".', 'einvoice-matbao' ),
+			self::MATBAO_DUPLICATE_REFERENCE => __( 'Mắt Bão đã có hóa đơn cùng mã tham chiếu. Bấm "Kiểm tra trạng thái" để đối chiếu, rồi "Gửi lại": hệ thống tra cứu và nhận nháp đã có, không tạo trùng.', 'einvoice-matbao' ),
+			self::MATBAO_LOOKUP_MISMATCH => __( 'Hóa đơn tìm thấy trên Mắt Bão không khớp đơn. Đối chiếu trực tiếp trên Mắt Bão theo mã tham chiếu, rồi xử lý tay.', 'einvoice-matbao' ),
+			self::QUEUE_FAILED => __( 'Không xếp được tác vụ nền. Kiểm tra Action Scheduler (Công cụ > Tác vụ đã lên lịch) rồi bấm "Gửi lại".', 'einvoice-matbao' ),
+			self::UNEXPECTED => __( 'Lỗi không xác định. Bấm "Kiểm tra trạng thái" trên Mắt Bão trước khi bấm "Gửi lại", và xem event trên máy chủ giám sát nếu đã bật.', 'einvoice-matbao' ),
+		};
+	}
 }

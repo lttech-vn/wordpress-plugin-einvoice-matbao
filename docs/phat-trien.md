@@ -166,7 +166,8 @@ Mọi lý do không tạo được nháp được lưu trên dòng invoice dư�
 - Ghi một cảnh báo cho mỗi (đơn, mã lỗi, chu kỳ cảnh báo) vào option không autoload (`add_option` không làm gì khi tên đã có; race giữa hai writer tệ nhất gửi trùng một tin Lark).
 - Xếp tin Lark qua Action Scheduler (`einvoice_matbao_send_alert`) để lần chạy hóa đơn không phải chờ Lark.
 - Mỗi lần restart hóa đơn (admin gửi lại, đơn hủy rồi hoàn thành lại) tăng `alert_cycle`, kể cả khi dừng trước mọi attempt, nên cùng lỗi sẽ cảnh báo lại.
-- Tin Lark chỉ gồm số đơn, nhãn và mã lỗi, đường dẫn admin tới đơn.
+- Tin Lark gồm số đơn, nhãn, mã lỗi, hướng dẫn xử lý và đường dẫn admin tới đơn (`Cách xử lý: …`).
+- Hướng dẫn lấy từ `InvoiceErrorCode::hint()`, nguồn duy nhất cho tin Lark, admin notice, meta box đơn hàng, chi tiết hóa đơn và context `invoice.hint` của event giám sát. Mỗi mã lỗi mới phải có nhánh trong `match` của `hint()`; `match` không có `default`, nên thiếu nhánh sẽ ném `UnhandledMatchError` và `InvoiceErrorCodeTest::test_every_code_has_a_hint` bắt lỗi này.
 
 Lark là best-effort. Lỗi mạng, HTTP 5xx, 408 hoặc 429 được retry tối đa 3 lần sau 1, 5 và 15 phút; lỗi khác (4xx khác, webhook sai hoặc thiếu) không retry. Tin lỗi được log không có dữ liệu cá nhân và hiện thành ghi chú trong admin notice; không bao giờ đụng hóa đơn hay xếp action tạo nháp.
 
@@ -241,11 +242,14 @@ Code nằm trong `src/Monitoring/`. Tính năng mặc định tắt; cấu hình
                                                   WpHttpClient ──> wp_remote_post (timeout 3s, backoff 60s)
 ```
 
-- **`Monitor`** là facade duy nhất mà module nghiệp vụ gọi: `capture_exception`, `capture_needs_attention`, `log`, `start_transaction`/`finish_transaction`, `span`, `check_in`, `with_order_context`, `send_test_event`. Chỉ lỗi của chính phần đo bị nuốt (ghi tên class qua `InternalFailure`); `span()` và `with_order_context()` chạy callback của caller đúng một lần và ném lại exception nghiệp vụ nguyên vẹn.
+- **`Monitor`** là facade duy nhất mà module nghiệp vụ gọi: `capture_exception`, `capture_needs_attention`, `log`, `start_transaction`/`finish_transaction`, `span`, `check_in`, `with_order_context`, `with_failure_detail`, `failure_detail_for`, `send_test_event`. Chỉ lỗi của chính phần đo bị nuốt (ghi tên class qua `InternalFailure`); `span()` và `with_order_context()` chạy callback của caller đúng một lần và ném lại exception nghiệp vụ nguyên vẹn.
 - **`MonitoringConfig`** là value object cấu hình đã hiệu lực (cờ bật, DSN và nguồn `constant|ui|none`, sample rate, environment, release, site). `Monitor::is_active()` chỉ đọc cấu hình này, không tải SDK, và cache theo request. Hub Sentry chỉ được dựng lần gọi đầu tiên.
 - **`SentryBackend`** và **`WpHttpClient`** là hai lớp duy nhất tham chiếu namespace `Sentry\…`. `SentryBackend` dựng `Options` với `default_integrations=false`, `send_default_pii=false`, `server_name=''`, và một `Hub` riêng; không gọi `\Sentry\init()` và không dùng `Sentry\Logs\Logs`/`LogsAggregator` (chúng đọc hub toàn cục). Logs được buffer riêng (tối đa 100) và flush bằng `captureEvent`.
 - **`Scrubber`** (implement `Redactor`) lọc theo hai lớp: giá trị người mua đã biết (`with_order_context` nạp vào, chỉ giá trị ≥ 3 ký tự) và mẫu regex (email, URL, CCCD, MST, Bearer, chuỗi liền có chữ số). Tag đi qua allowlist `Scrubber::TAG_ALLOWLIST`. Frame `vars` trong stacktrace không nằm ở `Scrubber` mà bị xóa trong `before_send` của `SentryBackend`.
-- **`OrderRedaction`** gom giá trị người mua của đơn cho `with_order_context`; **`CaughtFailure`** là chỗ duy nhất cho mọi `catch` đang `error_log` (issue có tag `component`/`order_id` và log `error`).
+- **`OrderRedaction`** gom giá trị người mua của đơn cho `with_order_context`; **`CaughtFailure`** là chỗ duy nhất cho mọi `catch` đang `error_log` (issue có tag `component`/`order_id`, context `invoice` khi biết đơn và tìm được hóa đơn, và log `error`).
+- **`Backend::capture_exception` / `capture_message`** nhận thêm `array $contexts` (tên context ⇒ mảng scalar) sau `$known`. `SentryBackend` gọi `setContext()` cho từng context trong `withScope`; mọi context đi qua `Redactor::value()` như `extra`.
+- **`InvoiceContext`** dựng context `invoice` (dùng chung cho event needs-attention và `CaughtFailure`). **`FailureDetail`** là value object chi tiết lỗi, gắn với `(order_id, error_code)`. **`Invoice\LineFailure`** (readonly) mô tả dòng gây lỗi: `item_id`, `item_type`, `product_id`, `variation_id`, `sku`, `name`, `tax_rate_ids`; nằm ở `InvoiceDataError::$line_failure` và luôn có với mã lỗi theo dòng.
+- **`Scrubber::TAG_ALLOWLIST`** gồm `product_id` và `matbao.api_code` ngoài các tag cũ.
 - **`SentryDsn`** kiểm tra DSN (trim trước khi validate, `http|https`, có public key, project id số); **`MonitorSlug::for_host()`** tạo slug cron monitor ổn định và ≤ 50 ký tự.
 
 ### Điểm đo và vì sao chọn các hook đó
@@ -255,6 +259,23 @@ Code nằm trong `src/Monitoring/`. Tính năng mặc định tắt; cấu hình
 - **HTTP ra ngoài:** `MatbaoClient::request()` bọc span `http.client`; `LarkClient` dùng span mô tả `POST lark-webhook` không có URL, vì path webhook chứa token.
 - **Logs:** `InvoiceRepository` log `invoice status changed` sau mỗi lần đổi trạng thái thành công; `from` lấy từ trạng thái caller đang giữ, không SELECT lại.
 - **Issues:** `InvoiceAlerts::on_needs_attention` gọi `capture_needs_attention` sau dedup của `AlertStore`, nên mỗi (đơn, lỗi, chu kỳ) gửi một lần.
+
+### Hình dạng event needs-attention
+
+| Phần | Nội dung |
+|---|---|
+| `message` | `Hóa đơn cần xử lý: <nhãn> – Đơn #<id>` (level `warning`) |
+| Tag | `order_id`, `error_code`, `error_kind`, `invoice.status`, `site`; thêm `product_id` khi lỗi ở dòng sản phẩm và `matbao.api_code` khi Mắt Bão trả mã lỗi |
+| `contexts.invoice` | `order_id`, `invoice_id`, `reference`, `status`, `error_code`, `label`, `hint`, `status_reason`, `admin_path` |
+| `contexts.line` | Chỉ khi lỗi theo dòng xảy ra trong cùng request: `item_id`, `item_type`, `product_id`, `variation_id`, `sku`, `name`, `tax_rate_ids` |
+| `contexts.matbao` | Chỉ khi lỗi Mắt Bão xảy ra trong cùng request: loại lỗi, HTTP status, mã lỗi API, `target_sent`, có retry hay không |
+| Fingerprint | `['needs-attention', <code>]`, không đổi; message đổi không ảnh hưởng gom issue |
+
+- `admin_path` chỉ giữ path và các query `page`, `action`, `id`, `post` (bỏ scheme, host, nonce, fragment). ID 10 hoặc 12 chữ số vẫn bị `Scrubber` che, và bộ lọc được ưu tiên.
+- `contexts.line` và `contexts.matbao` chỉ tồn tại trong request có lỗi. `FailureDetail` được đăng ký bằng `Monitor::with_failure_detail()` quanh đúng lần `record_error()`, và gỡ ngay khi callback kết thúc; sweep xử lý nhiều đơn không làm rò chi tiết sang đơn khác. Cảnh báo `order_*_changed` phát trong lúc đó không bị gắn chi tiết vì khác mã lỗi.
+- Context của event (closure của capture needs-attention và `CaughtFailure`) chạy trong `Monitor::guard`: lỗi dựng context chỉ được `InternalFailure` ghi lại, còn trạng thái, mã lỗi và lịch retry của hóa đơn vẫn như khi giám sát tắt. `FailureDetail` được dựng trong `with_failure_detail()` với try/catch riêng: nếu lỗi thì ghi `InternalFailure`, và callback vẫn chạy đúng một lần nhưng không có phạm vi chi tiết (event không có `line`/`matbao`).
+- Action Scheduler: mọi exception của action được trace đều có context `action` (`hook`, `action_id`), kể cả action không liên quan đơn.
+- Chỉ khi tham số đầu tiên (`args[0]`) là số nguyên dương thì mới có tag `order_id`, context ngữ cảnh đơn, và exception được gửi trong `Monitor::with_order_context()` để `Scrubber` che giá trị người mua có trong message.
 
 ### Kiểm thử với `SentrySink`
 

@@ -42,12 +42,13 @@ final class AdminAlertNotice {
 			}
 
 			$items[] = sprintf(
-				'<li data-einv-alert="%1$s"><a href="%2$s">%3$s</a> – %4$s%5$s <a href="%6$s">%7$s</a></li>',
+				'<li data-einv-alert="%1$s"><a href="%2$s">%3$s</a> – %4$s%5$s <span class="einv-hint">%6$s</span> <a href="%7$s">%8$s</a></li>',
 				esc_attr( $alert['code'] ),
 				esc_url( $order->get_edit_order_url() ),
 				esc_html( '#' . $alert['order_id'] ),
 				esc_html( $code->label() ),
 				esc_html( self::lark_note( $alert['lark'] ) ),
+				esc_html( $code->hint() ),
 				esc_url( self::dismiss_url( $alert['order_id'] ) ),
 				esc_html__( 'Ẩn', 'einvoice-matbao' )
 			);

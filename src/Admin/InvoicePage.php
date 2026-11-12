@@ -221,6 +221,7 @@ final class InvoicePage {
 		$error = $invoice->error();
 
 		$status_label = __( 'Trạng thái', 'einvoice-matbao' );
+		$hint_label   = __( 'Cách xử lý', 'einvoice-matbao' );
 		$rows         = array(
 			__( 'Đơn hàng', 'einvoice-matbao' )           => '#' . $invoice->order_id,
 			'MTChieu'                                     => $invoice->reference,
@@ -231,6 +232,7 @@ final class InvoicePage {
 		);
 		if ( null !== $error ) {
 			$rows[ __( 'Mã lỗi', 'einvoice-matbao' ) ] = $error->value . ' – ' . $error->label();
+			$rows[ $hint_label ]                       = $error->hint();
 		}
 		if ( '' !== $invoice->status_reason ) {
 			$rows[ __( 'Lý do', 'einvoice-matbao' ) ] = Redactor::redact( $invoice->status_reason );
@@ -241,7 +243,8 @@ final class InvoicePage {
 		$html .= sprintf( '><button type="button" class="%1$s mb-3" hx-get="%2$s" hx-target="#einv-invoices">%3$s</button><dl class="m-0 grid grid-cols-[200px_1fr] gap-y-2 text-[14px]">', esc_attr( self::SECONDARY ), esc_url( rest_url( SettingsController::NAMESPACE . '/invoices' ) ), esc_html__( '‹ Danh sách', 'einvoice-matbao' ) );
 		foreach ( $rows as $label => $value ) {
 			$cell  = $label === $status_label ? self::badge( $invoice->status ) : esc_html( $value );
-			$html .= sprintf( '<dt class="%1$s">%2$s</dt><dd class="m-0 break-all">%3$s</dd>', esc_attr( self::MUTED ), esc_html( $label ), $cell );
+			$attr  = $label === $hint_label ? sprintf( ' data-einv-hint="%s"', esc_attr( $value ) ) : '';
+			$html .= sprintf( '<dt class="%1$s">%2$s</dt><dd class="m-0 break-all"%4$s>%3$s</dd>', esc_attr( self::MUTED ), esc_html( $label ), $cell, $attr );
 		}
 		$html .= '</dl>';
 

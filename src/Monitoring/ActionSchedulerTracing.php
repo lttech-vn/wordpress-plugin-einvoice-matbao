@@ -34,7 +34,7 @@ final class ActionSchedulerTracing {
 	/**
 	 * Runs in progress by action ID.
 	 *
-	 * @var array<int, array{recovery: bool, check_in: string|null, started: float}>
+	 * @var array<int, array{recovery: bool, check_in: string|null, started: float, hook: string, order_id: int|null}>
 	 */
 	private array $runs = array();
 
@@ -72,11 +72,14 @@ final class ActionSchedulerTracing {
 
 			$hook     = $action->get_hook();
 			$recovery = DraftInvoiceWorkflow::RECOVERY_ACTION === $hook;
+			$first    = $action->get_args()[0] ?? null;
 			Monitor::start_transaction( $hook, self::OP );
 			$this->runs[ (int) $action_id ] = array(
 				'recovery' => $recovery,
 				'check_in' => $recovery ? Monitor::check_in( 'in_progress' ) : null,
 				'started'  => microtime( true ),
+				'hook'     => $hook,
+				'order_id' => is_int( $first ) && $first > 0 ? $first : null,
 			);
 		} catch ( \Throwable $failure ) {
 			InternalFailure::report( $failure );
@@ -104,9 +107,37 @@ final class ActionSchedulerTracing {
 		}
 
 		if ( $error instanceof \Throwable ) {
-			Monitor::capture_exception( $error->getPrevious() ?? $error, array( 'component' => self::COMPONENT ) );
+			$this->report_failure( $error->getPrevious() ?? $error, (int) $action_id );
 		}
 		$this->close( (int) $action_id, false );
+	}
+
+	/**
+	 * Sends the exception with the action and, when the action concerns an order, the order context.
+	 *
+	 * @param \Throwable $failure   Exception thrown by the action.
+	 * @param int        $action_id Action ID.
+	 */
+	private function report_failure( \Throwable $failure, int $action_id ): void {
+		$hook     = $this->runs[ $action_id ]['hook'];
+		$order_id = $this->runs[ $action_id ]['order_id'];
+
+		$tags = array( 'component' => self::COMPONENT );
+		if ( null !== $order_id ) {
+			$tags['order_id'] = (string) $order_id;
+		}
+		$contexts = static fn(): array => array(
+			'action' => array(
+				'hook'      => $hook,
+				'action_id' => $action_id,
+			),
+		) + ( null === $order_id ? array() : InvoiceContext::for_order_or_empty( $order_id ) );
+
+		if ( null === $order_id ) {
+			Monitor::capture_exception( $failure, $tags, $contexts );
+			return;
+		}
+		Monitor::with_order_context( $order_id, static fn() => Monitor::capture_exception( $failure, $tags, $contexts ) );
 	}
 
 	/**

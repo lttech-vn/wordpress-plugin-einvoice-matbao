@@ -546,11 +546,11 @@ final class MonitorTest extends WP_UnitTestCase {
 	 */
 	private static function backend_failing_after_span_callable(): Backend {
 		return new class() implements Backend {
-			public function capture_exception( \Throwable $e, array $tags, array $known ): ?string {
+			public function capture_exception( \Throwable $e, array $tags, array $known, array $contexts ): ?string {
 				return null;
 			}
 
-			public function capture_message( string $msg, string $level, array $tags, array $fingerprint, array $known ): ?string {
+			public function capture_message( string $msg, string $level, array $tags, array $fingerprint, array $known, array $contexts ): ?string {
 				return null;
 			}
 
@@ -588,11 +588,11 @@ final class MonitorTest extends WP_UnitTestCase {
 	 */
 	private static function throwing_backend(): Backend {
 		return new class() implements Backend {
-			public function capture_exception( \Throwable $e, array $tags, array $known ): ?string {
+			public function capture_exception( \Throwable $e, array $tags, array $known, array $contexts ): ?string {
 				throw new RuntimeException( 'backend down' );
 			}
 
-			public function capture_message( string $msg, string $level, array $tags, array $fingerprint, array $known ): ?string {
+			public function capture_message( string $msg, string $level, array $tags, array $fingerprint, array $known, array $contexts ): ?string {
 				throw new RuntimeException( 'backend down' );
 			}
 

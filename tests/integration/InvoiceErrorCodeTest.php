@@ -134,6 +134,34 @@ final class InvoiceErrorCodeTest extends WP_UnitTestCase {
 		}
 	}
 
+	public function test_every_code_has_a_hint(): void {
+		foreach ( InvoiceErrorCode::cases() as $code ) {
+			$this->assertNotSame( '', trim( $code->hint() ), $code->value );
+		}
+	}
+
+	public function test_data_error_hint(): void {
+		$hint = InvoiceErrorCode::LINE_TAX_RATE_COUNT->hint();
+
+		$this->assertStringContainsString( 'thuế', $hint );
+		$this->assertStringContainsString( 'Gửi lại', $hint );
+	}
+
+	public function test_config_error_hint(): void {
+		$hint = InvoiceErrorCode::CREDENTIALS_MISSING->hint();
+
+		$this->assertStringContainsString( 'Kết nối Mắt Bão', $hint );
+		$this->assertStringContainsString( 'Kiểm tra kết nối', $hint );
+	}
+
+	public function test_uncertain_send_hint(): void {
+		$hint = InvoiceErrorCode::UNEXPECTED->hint();
+
+		$this->assertStringContainsString( 'Kiểm tra trạng thái', $hint );
+		$this->assertStringContainsString( 'Gửi lại', $hint );
+		$this->assertLessThan( strpos( $hint, 'Gửi lại' ), strpos( $hint, 'Kiểm tra trạng thái' ) );
+	}
+
 	/**
 	 * A duplicate reference has its own code and is retried, because the retry first looks the
 	 * invoice up by `MTChieu` and adopts the existing draft (DraftInvoiceRetryTest).

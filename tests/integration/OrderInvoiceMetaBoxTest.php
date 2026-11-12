@@ -9,6 +9,10 @@ namespace LTTech\EinvoiceMatbao\Tests\Integration;
 
 use Automattic\WooCommerce\Utilities\OrderUtil;
 use LTTech\EinvoiceMatbao\Admin\OrderInvoiceMetaBox;
+use LTTech\EinvoiceMatbao\Invoice\InvoiceErrorCode;
+use LTTech\EinvoiceMatbao\Invoice\InvoiceRepository;
+use LTTech\EinvoiceMatbao\Invoice\InvoiceStatus;
+use LTTech\EinvoiceMatbao\Tests\Integration\Support\HintText;
 use LTTech\EinvoiceMatbao\Tests\Integration\Support\InvoiceWorkflowTestCase;
 use WC_Order;
 
@@ -16,6 +20,8 @@ use WC_Order;
  * The meta box shows status, Mat Bao invoice ID and errors for HPOS and legacy order screens.
  */
 final class OrderInvoiceMetaBoxTest extends InvoiceWorkflowTestCase {
+
+	use HintText;
 
 	public function test_meta_box_is_registered_on_the_order_screen(): void {
 		global $wp_meta_boxes;
@@ -52,6 +58,21 @@ final class OrderInvoiceMetaBoxTest extends InvoiceWorkflowTestCase {
 
 		$this->assertStringContainsString( 'data-einv-invoice-status="failed"', $html );
 		$this->assertStringContainsString( '&lt;b&gt;Lỗi&lt;/b&gt; hệ thống', $html );
+	}
+
+	public function test_error_with_hint(): void {
+		$order      = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
+		$repository = new InvoiceRepository();
+		$this->assertTrue( $repository->reserve( $order->get_id(), 'WC' . $order->get_id(), 'Khách lẻ', InvoiceStatus::PENDING, '' ) );
+		$invoice = $repository->find_by_order( $order->get_id() );
+		$this->assertNotNull( $invoice );
+		$repository->record_error( $invoice->id, InvoiceErrorCode::LINE_TAX_RATE_COUNT, 'Dòng cần đúng một thuế suất', InvoiceStatus::NEEDS_ATTENTION );
+
+		$html = $this->render( $order );
+
+		$hint = InvoiceErrorCode::LINE_TAX_RATE_COUNT->hint();
+		$this->assertSame( $hint, $this->meta_box_hint_text( $html ) );
+		$this->assertStringContainsString( 'data-einv-hint="' . esc_attr( $hint ) . '"', $html );
 	}
 
 	public function test_zero_total_order_shows_the_skip_reason_and_no_create_button(): void {

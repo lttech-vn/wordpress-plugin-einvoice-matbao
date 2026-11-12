@@ -134,7 +134,8 @@ final class DraftPayloadBuilder {
 	 * @throws InvoiceDataError When the line has an unusable tax rate, a negative or fractional amount.
 	 */
 	private function line( WC_Order_Item $item, int $index, array $rates, string $default_unit ): ?array {
-		$name = $item->get_name();
+		$failure = LineFailure::from_item( $item );
+		$name    = $failure->name;
 		if ( $item instanceof WC_Order_Item_Product ) {
 			$quantity = (float) $item->get_quantity();
 			$net      = $item->get_total();
@@ -151,17 +152,17 @@ final class DraftPayloadBuilder {
 			$code     = '';
 			$unit     = $default_unit;
 		} else {
-			self::fail( InvoiceErrorCode::LINE_TYPE_UNSUPPORTED, __( 'Đơn hàng có loại dòng không hỗ trợ.', 'einvoice-matbao' ) );
+			self::fail( InvoiceErrorCode::LINE_TYPE_UNSUPPORTED, __( 'Đơn hàng có loại dòng không hỗ trợ.', 'einvoice-matbao' ), $failure );
 		}
 
-		$net = self::whole_vnd( $net, $name );
+		$net = self::whole_vnd( $net, $failure );
 		if ( $net < 0 || $quantity <= 0 ) {
 			/* translators: %s: order line name. */
-			self::fail( InvoiceErrorCode::LINE_AMOUNT_INVALID, sprintf( __( 'Dòng "%s" có số tiền âm hoặc số lượng không hợp lệ.', 'einvoice-matbao' ), $name ) );
+			self::fail( InvoiceErrorCode::LINE_AMOUNT_INVALID, sprintf( __( 'Dòng "%s" có số tiền âm hoặc số lượng không hợp lệ.', 'einvoice-matbao' ), $name ), $failure );
 		}
 
 		$line_taxes = is_array( $taxes['total'] ?? null ) ? array_filter( $taxes['total'], static fn( $amount ): bool => '' !== $amount && null !== $amount ) : array();
-		$tax        = self::whole_vnd( array_sum( array_map( 'floatval', $line_taxes ) ), $name );
+		$tax        = self::whole_vnd( array_sum( array_map( 'floatval', $line_taxes ) ), $failure );
 
 		if ( 0 === $net && 0 === $tax ) {
 			if ( ! $item instanceof WC_Order_Item_Product ) {
@@ -170,15 +171,15 @@ final class DraftPayloadBuilder {
 			// A free product line has no tax amount, so WooCommerce may store no rate for it.
 			$rate = $taxable ? 0 : self::TAX_RATE_NOT_TAXABLE;
 			if ( $taxable && 1 === count( $line_taxes ) ) {
-				$rate = $this->rate( $name, $line_taxes, $rates );
+				$rate = $this->rate( $failure, $line_taxes, $rates );
 			}
 		} else {
-			$rate = $taxable ? $this->rate( $name, $line_taxes, $rates ) : self::TAX_RATE_NOT_TAXABLE;
+			$rate = $taxable ? $this->rate( $failure, $line_taxes, $rates ) : self::TAX_RATE_NOT_TAXABLE;
 		}
 
 		if ( ! $taxable && 0 !== $tax ) {
 			/* translators: %s: order line name. */
-			self::fail( InvoiceErrorCode::UNTAXED_LINE_WITH_TAX, sprintf( __( 'Dòng "%s" không chịu thuế nhưng có tiền thuế.', 'einvoice-matbao' ), $name ) );
+			self::fail( InvoiceErrorCode::UNTAXED_LINE_WITH_TAX, sprintf( __( 'Dòng "%s" không chịu thuế nhưng có tiền thuế.', 'einvoice-matbao' ), $name ), $failure );
 		}
 
 		$line = array(
@@ -208,22 +209,23 @@ final class DraftPayloadBuilder {
 	/**
 	 * `TSuat` of a taxable line from the single WooCommerce rate stored on it.
 	 *
-	 * @param string                    $name       Line name, for the error message.
+	 * @param LineFailure               $line       Offending line; its name goes in the error message.
 	 * @param array<int|string, string> $line_taxes Tax amounts by rate ID.
 	 * @param array<int, string>        $rates      Stored rate percent by tax rate ID.
 	 * @throws InvoiceDataError When there is not exactly one rate or it is not 0, 5, 8 or 10.
 	 */
-	private function rate( string $name, array $line_taxes, array $rates ): int {
+	private function rate( LineFailure $line, array $line_taxes, array $rates ): int {
+		$name = $line->name;
 		if ( 1 !== count( $line_taxes ) ) {
 			/* translators: %s: order line name. */
-			self::fail( InvoiceErrorCode::LINE_TAX_RATE_COUNT, sprintf( __( 'Dòng "%s" cần đúng một thuế suất GTGT.', 'einvoice-matbao' ), $name ) );
+			self::fail( InvoiceErrorCode::LINE_TAX_RATE_COUNT, sprintf( __( 'Dòng "%s" cần đúng một thuế suất GTGT.', 'einvoice-matbao' ), $name ), $line );
 		}
 
 		$rate_id = (int) array_key_first( $line_taxes );
 		$percent = $rates[ $rate_id ] ?? '';
 		if ( '' === $percent ) {
 			/* translators: %s: order line name. */
-			self::fail( InvoiceErrorCode::TAX_RATE_NOT_STORED, sprintf( __( 'Không tìm thấy thuế suất đã lưu của dòng "%s".', 'einvoice-matbao' ), $name ) );
+			self::fail( InvoiceErrorCode::TAX_RATE_NOT_STORED, sprintf( __( 'Không tìm thấy thuế suất đã lưu của dòng "%s".', 'einvoice-matbao' ), $name ), $line );
 		}
 
 		foreach ( self::ALLOWED_TAX_RATES as $allowed ) {
@@ -239,7 +241,8 @@ final class DraftPayloadBuilder {
 				__( 'Thuế suất %1$s%% của dòng "%2$s" không thuộc 0%%, 5%%, 8%%, 10%%.', 'einvoice-matbao' ),
 				wc_format_localized_decimal( $percent ),
 				$name
-			)
+			),
+			$line
 		);
 	}
 
@@ -264,25 +267,26 @@ final class DraftPayloadBuilder {
 	 *
 	 * @param InvoiceErrorCode $code   Stable code (a data error).
 	 * @param string           $reason Vietnamese reason, without personal data.
+	 * @param LineFailure|null $line   Offending order line, null when not about one line.
 	 * @throws InvoiceDataError Always.
 	 */
-	private static function fail( InvoiceErrorCode $code, string $reason ): never {
-		throw new InvoiceDataError( $code, $reason ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- plain text, escaped where rendered.
+	private static function fail( InvoiceErrorCode $code, string $reason, ?LineFailure $line = null ): never {
+		throw new InvoiceDataError( $code, $reason, $line ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- plain text, escaped where rendered.
 	}
 
 	/**
 	 * An amount as whole VND, whatever the shop's `price_num_decimals`.
 	 *
 	 * @param string|int|float $amount Amount as stored by WooCommerce.
-	 * @param string           $name   Line name, for the error message.
+	 * @param LineFailure      $line   Offending line; its name goes in the error message.
 	 * @throws InvoiceDataError When the amount has a fractional part.
 	 */
-	private static function whole_vnd( string|int|float $amount, string $name ): int {
+	private static function whole_vnd( string|int|float $amount, LineFailure $line ): int {
 		$value   = (float) $amount;
 		$rounded = round( $value );
 		if ( abs( $value - $rounded ) >= self::AMOUNT_TOLERANCE ) {
 			/* translators: 1: order line name, 2: amount. */
-			self::fail( InvoiceErrorCode::AMOUNT_NOT_WHOLE_VND, sprintf( __( 'Dòng "%1$s" có số tiền %2$s không phải số nguyên đồng (VND).', 'einvoice-matbao' ), $name, wc_format_localized_decimal( (string) $value ) ) );
+			self::fail( InvoiceErrorCode::AMOUNT_NOT_WHOLE_VND, sprintf( __( 'Dòng "%1$s" có số tiền %2$s không phải số nguyên đồng (VND).', 'einvoice-matbao' ), $line->name, wc_format_localized_decimal( (string) $value ) ), $line );
 		}
 
 		return (int) $rounded;

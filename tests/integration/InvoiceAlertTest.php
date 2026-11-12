@@ -13,6 +13,7 @@ use LTTech\EinvoiceMatbao\Alert\AlertStore;
 use LTTech\EinvoiceMatbao\Alert\InvoiceAlerts;
 use LTTech\EinvoiceMatbao\CredentialStore;
 use LTTech\EinvoiceMatbao\Invoice\DraftInvoiceWorkflow;
+use LTTech\EinvoiceMatbao\Invoice\InvoiceErrorCode;
 use LTTech\EinvoiceMatbao\Invoice\InvoiceStatus;
 use LTTech\EinvoiceMatbao\Lark\LarkWebhook;
 use LTTech\EinvoiceMatbao\Tests\Integration\Support\FakeHttp;
@@ -99,6 +100,7 @@ final class InvoiceAlertTest extends InvoiceWorkflowTestCase {
 		$this->assertStringContainsString( 'notice-error', $html );
 		$this->assertStringContainsString( '#' . $order->get_id(), $html );
 		$this->assertStringContainsString( 'Mắt Bão trả lỗi HTTP', $html );
+		$this->assertStringContainsString( '<span class="einv-hint">' . esc_html( InvoiceErrorCode::MATBAO_HTTP->hint() ) . '</span>', $html );
 		$this->assertStringContainsString( esc_url( $order->get_edit_order_url() ), $html );
 	}
 
@@ -113,6 +115,7 @@ final class InvoiceAlertTest extends InvoiceWorkflowTestCase {
 		$text = $sent[0]['body']['content']['text'];
 		$this->assertStringContainsString( '#' . $order->get_id(), $text );
 		$this->assertStringContainsString( 'matbao_http', $text );
+		$this->assertStringContainsString( InvoiceErrorCode::MATBAO_HTTP->hint(), $text );
 		$this->assertStringContainsString( $order->get_edit_order_url(), $text );
 	}
 

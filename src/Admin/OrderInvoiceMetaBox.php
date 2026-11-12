@@ -99,6 +99,14 @@ final class OrderInvoiceMetaBox {
 				esc_html( $error->label() )
 			);
 		}
+		if ( null !== $error ) {
+			printf(
+				'<p class="einv-invoice-hint" data-einv-hint="%1$s"><strong>%2$s</strong> %3$s</p>',
+				esc_attr( $error->hint() ),
+				esc_html__( 'Cách xử lý:', 'einvoice-matbao' ),
+				esc_html( $error->hint() )
+			);
+		}
 		if ( '' !== $invoice->status_reason ) {
 			printf( '<p class="einv-invoice-reason">%s</p>', esc_html( $invoice->status_reason ) );
 		}

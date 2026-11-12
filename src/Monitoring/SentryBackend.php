@@ -182,27 +182,29 @@ final class SentryBackend implements Backend {
 	/**
 	 * Reports an exception as an issue.
 	 *
-	 * @param \Throwable           $e     Exception to report.
-	 * @param array<string, mixed> $tags  Event tags.
-	 * @param array<int, string>   $known Known personal values to mask.
+	 * @param \Throwable                          $e     Exception to report.
+	 * @param array<string, mixed>                $tags  Event tags.
+	 * @param array<int, string>                  $known Known personal values to mask.
+	 * @param array<string, array<string, mixed>> $contexts Context blocks by name.
 	 */
-	public function capture_exception( \Throwable $e, array $tags, array $known ): ?string {
-		return $this->capture( $tags, array(), $known, fn(): ?\Sentry\EventId => $this->hub->captureException( $e ) );
+	public function capture_exception( \Throwable $e, array $tags, array $known, array $contexts ): ?string {
+		return $this->capture( $tags, array(), $known, $contexts, fn(): ?\Sentry\EventId => $this->hub->captureException( $e ) );
 	}
 
 	/**
 	 * Reports a message as an issue.
 	 *
-	 * @param string               $msg         Message.
-	 * @param string               $level       Sentry severity.
-	 * @param array<string, mixed> $tags        Event tags.
-	 * @param array<int, string>   $fingerprint Grouping fingerprint.
-	 * @param array<int, string>   $known       Known personal values to mask.
+	 * @param string                              $msg         Message.
+	 * @param string                              $level       Sentry severity.
+	 * @param array<string, mixed>                $tags        Event tags.
+	 * @param array<int, string>                  $fingerprint Grouping fingerprint.
+	 * @param array<int, string>                  $known       Known personal values to mask.
+	 * @param array<string, array<string, mixed>> $contexts Context blocks by name.
 	 */
-	public function capture_message( string $msg, string $level, array $tags, array $fingerprint, array $known ): ?string {
+	public function capture_message( string $msg, string $level, array $tags, array $fingerprint, array $known, array $contexts ): ?string {
 		$severity = new Severity( $level );
 
-		return $this->capture( $tags, $fingerprint, $known, fn(): ?\Sentry\EventId => $this->hub->captureMessage( $msg, $severity ) );
+		return $this->capture( $tags, $fingerprint, $known, $contexts, fn(): ?\Sentry\EventId => $this->hub->captureMessage( $msg, $severity ) );
 	}
 
 	/**
@@ -410,17 +412,21 @@ final class SentryBackend implements Backend {
 	/**
 	 * Captures one issue with call-specific tags, fingerprint and known values.
 	 *
-	 * @param array<string, mixed>         $tags        Event tags.
-	 * @param array<int, string>           $fingerprint Grouping fingerprint.
-	 * @param array<int, string>           $known       Known personal values.
-	 * @param callable(): ?\Sentry\EventId $send        Capture call on the hub.
+	 * @param array<string, mixed>                $tags        Event tags.
+	 * @param array<int, string>                  $fingerprint Grouping fingerprint.
+	 * @param array<int, string>                  $known       Known personal values.
+	 * @param array<string, array<string, mixed>> $contexts Context blocks by name.
+	 * @param callable(): ?\Sentry\EventId        $send        Capture call on the hub.
 	 */
-	private function capture( array $tags, array $fingerprint, array $known, callable $send ): ?string {
+	private function capture( array $tags, array $fingerprint, array $known, array $contexts, callable $send ): ?string {
 		$event_id = $this->with_redactor(
 			$known,
 			fn(): ?\Sentry\EventId => $this->hub->withScope(
-				static function ( Scope $scope ) use ( $tags, $fingerprint, $send ): ?\Sentry\EventId {
+				static function ( Scope $scope ) use ( $tags, $fingerprint, $contexts, $send ): ?\Sentry\EventId {
 					$scope->setTags( array_map( 'strval', array_filter( $tags, 'is_scalar' ) ) );
+					foreach ( $contexts as $name => $context ) {
+						$scope->setContext( (string) $name, $context );
+					}
 					if ( array() !== $fingerprint ) {
 						$scope->setFingerprint( array_values( $fingerprint ) );
 					}
