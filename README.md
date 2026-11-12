@@ -12,6 +12,7 @@ Plugin dành riêng cho cửa hàng tại Việt Nam: tiền VND, thuế suất 
 - **Yêu cầu xuất hóa đơn ở checkout** cho cá nhân (CCCD) hoặc doanh nghiệp (MST), hỗ trợ Classic và Checkout Blocks. Khách không yêu cầu được xuất cho người mua vãng lai.
 - **Quản lý hóa đơn trong wp-admin:** tổng quan, danh sách, bộ lọc, lịch sử gửi, kiểm tra trạng thái, gửi lại.
 - **Cảnh báo** qua thông báo wp-admin và Lark.
+- **Giám sát lỗi (tùy chọn, mặc định tắt):** gửi lỗi, hiệu năng, log và cron monitor tới máy chủ Sentry của bạn, với dữ liệu người mua được che trước khi gửi.
 - **Bảo vệ dữ liệu:** credential và CCCD mã hóa, CCCD luôn được che, hỗ trợ xuất/xóa dữ liệu cá nhân của WordPress.
 
 Plugin **không** ký, phát hành, sửa hay hủy hóa đơn trên Mắt Bão.

@@ -228,6 +228,51 @@ Deactivate hủy mọi action đang xếp của plugin (group `einvoice-matbao`:
 
 Công tắc nằm ở phần **Gỡ plugin** trong tab **Nâng cao** (`POST settings/uninstall`): mặc định tắt, cần Administrator và nonce `wp_rest` như mọi route cài đặt, bật lên phải gõ `XOA HET DU LIEU`. Tắt không cần xác nhận. Hóa đơn trên Mắt Bão không bao giờ bị ảnh hưởng. Xóa meta trên shop rất lớn chạy một câu lệnh mỗi key, không chia batch.
 
+## Giám sát lỗi (module `Monitoring`)
+
+Code nằm trong `src/Monitoring/`. Tính năng mặc định tắt; cấu hình và cách bật xem [Hướng dẫn sử dụng](huong-dan-su-dung.md#giám-sát-lỗi-sentry).
+
+```text
+ Code nghiệp vụ / hook ──> Monitor (facade static) ──> Backend (interface)
+                                                         |
+                                                  SentryBackend (adapter duy nhất gọi Sentry\…)
+                                                         |  Redactor (Scrubber) lọc mọi dữ liệu trước khi vào Hub
+                                                         v
+                                                  WpHttpClient ──> wp_remote_post (timeout 3s, backoff 60s)
+```
+
+- **`Monitor`** là facade duy nhất mà module nghiệp vụ gọi: `capture_exception`, `capture_needs_attention`, `log`, `start_transaction`/`finish_transaction`, `span`, `check_in`, `with_order_context`, `send_test_event`. Chỉ lỗi của chính phần đo bị nuốt (ghi tên class qua `InternalFailure`); `span()` và `with_order_context()` chạy callback của caller đúng một lần và ném lại exception nghiệp vụ nguyên vẹn.
+- **`MonitoringConfig`** là value object cấu hình đã hiệu lực (cờ bật, DSN và nguồn `constant|ui|none`, sample rate, environment, release, site). `Monitor::is_active()` chỉ đọc cấu hình này, không tải SDK, và cache theo request. Hub Sentry chỉ được dựng lần gọi đầu tiên.
+- **`SentryBackend`** và **`WpHttpClient`** là hai lớp duy nhất tham chiếu namespace `Sentry\…`. `SentryBackend` dựng `Options` với `default_integrations=false`, `send_default_pii=false`, `server_name=''`, và một `Hub` riêng; không gọi `\Sentry\init()` và không dùng `Sentry\Logs\Logs`/`LogsAggregator` (chúng đọc hub toàn cục). Logs được buffer riêng (tối đa 100) và flush bằng `captureEvent`.
+- **`Scrubber`** (implement `Redactor`) lọc theo hai lớp: giá trị người mua đã biết (`with_order_context` nạp vào, chỉ giá trị ≥ 3 ký tự) và mẫu regex (email, URL, CCCD, MST, Bearer, chuỗi liền có chữ số). Tag đi qua allowlist `Scrubber::TAG_ALLOWLIST`. Frame `vars` trong stacktrace không nằm ở `Scrubber` mà bị xóa trong `before_send` của `SentryBackend`.
+- **`OrderRedaction`** gom giá trị người mua của đơn cho `with_order_context`; **`CaughtFailure`** là chỗ duy nhất cho mọi `catch` đang `error_log` (issue có tag `component`/`order_id` và log `error`).
+- **`SentryDsn`** kiểm tra DSN (trim trước khi validate, `http|https`, có public key, project id số); **`MonitorSlug::for_host()`** tạo slug cron monitor ổn định và ≤ 50 ký tự.
+
+### Điểm đo và vì sao chọn các hook đó
+
+- **Action Scheduler** (`ActionSchedulerTracing`): `action_scheduler_begin_execute`/`after_execute`/`failed_execution` mở transaction `queue.task` chỉ cho group `einvoice-matbao`, và gửi check-in cho hook `einvoice_matbao_recover_stuck_invoices`. Dùng `begin_execute` thay vì `before_execute` vì hook sau chạy trước khi Action Scheduler kiểm tra trạng thái pending. Đây là hook duy nhất cần cron monitor; không sửa `DraftInvoiceWorkflow::sweep()`.
+- **REST** (`RestTracing`): `rest_request_before_callbacks`/`rest_request_after_callbacks` cho route `einvoice-matbao/v1/*`, op `http.server`, tên là route pattern (không có query). Dùng cặp `rest_request_*_callbacks` vì `rest_post_dispatch` không chạy với `rest_do_request()` nội bộ. Dùng hook chuẩn của WP để không phải đụng từng controller.
+- **HTTP ra ngoài:** `MatbaoClient::request()` bọc span `http.client`; `LarkClient` dùng span mô tả `POST lark-webhook` không có URL, vì path webhook chứa token.
+- **Logs:** `InvoiceRepository` log `invoice status changed` sau mỗi lần đổi trạng thái thành công; `from` lấy từ trạng thái caller đang giữ, không SELECT lại.
+- **Issues:** `InvoiceAlerts::on_needs_attention` gọi `capture_needs_attention` sau dedup của `AlertStore`, nên mỗi (đơn, lỗi, chu kỳ) gửi một lần.
+
+### Kiểm thử với `SentrySink`
+
+Test tích hợp không gửi HTTP thật. `tests/integration/Support/SentrySink::install(FakeHttp $http, host, project)` đăng ký một Sentry giả trên `FakeHttp`, parse envelope và cho các assert:
+
+```php
+$sink = SentrySink::install( $this->http );
+$sink->respond_with( 429, array( 'retry-after' => '30' ) ); // hoặc fail_transport()
+// ... chạy luồng ...
+$this->assertCount( 1, $sink->events() );
+$this->assertSame( 1, $sink->request_count() );
+```
+
+- `events()`, `transactions()`, `logs()`, `check_ins()` trả các item đã parse; `raw_bodies()` và `envelope_headers()` cho test kiểm tra không lộ dữ liệu.
+- Hàng test bật giám sát dùng `MonitoringFixture::enable_monitoring()` (lưu DSN UI trỏ `sentry.test` project 3, bật cờ, reset `Monitor`). Gọi `reset_monitoring()` trong `tear_down()`.
+- Test thay redactor bằng bản ném lỗi để chứng minh event bị bỏ (không gửi) khi chính bộ lọc lỗi.
+- `MonitoringOverrides::allowed()` quyết định khi nào filter override cấu hình (chỉ trong test suite hoặc môi trường `local`/`development`); hàm thuần này có test ma trận đầu vào.
+
 ## Quy tắc tạo nháp và giới hạn đã biết
 
 - **Tiền nguyên VND:** dòng có net, tax hoặc total lẻ bị từ chối (`failed`), bất kể `price_num_decimals`. Fee và shipping 0 đồng bị bỏ khỏi hóa đơn; dòng sản phẩm miễn phí được gửi với `TSuat` theo tax status (`none` → -1, còn lại 0).
@@ -289,7 +334,14 @@ Mỗi mối quan tâm một workflow trong `.github/workflows/`:
 2. Tạo và đẩy tag: `git tag vX.Y.Z && git push origin vX.Y.Z` (`vX.Y.Z-rc.N` tạo prerelease).
 3. `release.yml` kiểm tag = header = hằng số, chạy các workflow assets, PHP và E2E làm cổng, build zip bằng `scripts/build-zip.sh`, cài zip vào WordPress + WooCommerce sạch (`scripts/smoke-zip.sh`), attest provenance và publish Release với ghi chú tự sinh, file zip và `.sha256`.
 
-Build local bằng `scripts/build-zip.sh` (cần bun, zip và Docker hoặc Composer); kết quả ở `dist/`.
+Build local bằng `scripts/build-zip.sh` (cần bun, zip, curl và Docker hoặc PHP ≥ 8.2 + Composer); kết quả ở `dist/`.
+
+- Thư viện đóng kèm (Sentry SDK, Guzzle PSR-7, Symfony, PSR) được `scripts/scope-vendor.sh` đổi namespace sang `LTTech\EinvoiceMatbao\Vendor\…` bằng PHP-Scoper (`scoper.inc.php`), để plugin khác mang bản Sentry/Guzzle riêng không xung đột. Phar PHP-Scoper ghim version + sha256 trong `scripts/php-scoper.sha256`; symbol WordPress/WooCommerce/Action Scheduler giữ nguyên, lấy từ `php-stubs/*` đúng version trong `composer.lock`.
+- Dev/test dùng `vendor/` chưa scope; chỉ zip phát hành được scope. `scripts/smoke-zip.sh` kiểm tra zip không còn namespace thư viện chưa prefix, kích hoạt được khi một mu-plugin đã nạp `Sentry\SentrySdk` và `GuzzleHttp\Psr7\Request` chưa scope, và gửi event, transaction, log, check-in thật tới một Sentry giả trong container.
+- Thứ tự build: `scripts/build-zip.sh` chạy `scope-vendor.sh` (phar PHP-Scoper ghim sha256, không thêm vào `composer.json`), dump lại autoload, và fail nếu registry rename lỗi. Chạy `scripts/smoke-zip.sh dist/einvoice-matbao-X.Y.Z.zip` để kiểm tra lại kết quả.
+- **Giới hạn đã biết:** cài từ source checkout (chưa scope) có thể xung đột nếu site đã nạp một bản Sentry SDK khác. Đây là giới hạn của bản source, không phải của zip phát hành.
+- **Giới hạn đã biết:** cài từ source checkout (chưa scope) trên site đã chạy Sentry: số lượng event bị plugin loại bỏ (client report) có thể được cộng vào client report của site. Chỉ là con số đếm, không chứa dữ liệu cá nhân; zip phát hành không bị ảnh hưởng.
+- Đổi DSN, cờ bật hoặc sample rate không cần build lại; mọi thứ chạy từ cấu hình lưu trong DB và hằng wp-config.
 
 ## Browser E2E và kiểm tra API demo Mắt Bão
 

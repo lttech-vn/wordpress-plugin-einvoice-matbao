@@ -417,6 +417,15 @@ add_action(
 			}
 		);
 
+		// Turns error monitoring off so a test starts from the default state.
+		$route(
+			'/monitoring/reset',
+			static function (): array {
+				( new \LTTech\EinvoiceMatbao\Settings() )->save_monitoring( false, 1.0 );
+				return array( 'ok' => true );
+			}
+		);
+
 		// Sets plugin settings. Body: any of prefix (with walk_in), template (form and series), unit.
 		$route(
 			'/settings',

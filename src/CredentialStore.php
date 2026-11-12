@@ -21,6 +21,7 @@ final class CredentialStore {
 
 	private const MATBAO = 'matbao';
 	private const LARK   = 'lark';
+	private const SENTRY = 'sentry';
 
 	/**
 	 * Creates the store.
@@ -42,6 +43,27 @@ final class CredentialStore {
 	 */
 	public function has_lark(): bool {
 		return isset( $this->stored()[ self::LARK ] );
+	}
+
+	/**
+	 * Whether a Sentry DSN has been saved (even if it cannot be decrypted now).
+	 */
+	public function has_sentry_dsn(): bool {
+		return isset( $this->stored()[ self::SENTRY ] );
+	}
+
+	/**
+	 * Decrypted Sentry DSN, or null when not saved or not decryptable with the current key.
+	 */
+	public function sentry_dsn(): ?string {
+		$fields = $this->decrypted( self::SENTRY );
+		if ( null === $fields ) {
+			return null;
+		}
+
+		$dsn = self::string_field( $fields, 'dsn' );
+
+		return '' === $dsn ? null : $dsn;
 	}
 
 	/**
@@ -106,6 +128,16 @@ final class CredentialStore {
 				'secret'      => $webhook->secret,
 			)
 		);
+	}
+
+	/**
+	 * Encrypts and saves the Sentry DSN.
+	 *
+	 * @param string $dsn DSN to store.
+	 * @throws MissingEncryptionKey When no usable key is configured.
+	 */
+	public function save_sentry_dsn( string $dsn ): void {
+		$this->save( self::SENTRY, array( 'dsn' => $dsn ) );
 	}
 
 	/**

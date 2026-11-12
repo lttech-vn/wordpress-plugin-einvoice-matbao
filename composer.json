@@ -4,7 +4,8 @@
 	"type": "wordpress-plugin",
 	"license": "GPL-2.0-or-later",
 	"require": {
-		"php": ">=8.2"
+		"php": ">=8.2",
+		"sentry/sentry": "^4.36"
 	},
 	"require-dev": {
 		"dealerdirect/phpcodesniffer-composer-installer": "^1.0",
@@ -36,7 +37,8 @@
 		"platform": {
 			"php": "8.2.0"
 		},
-		"sort-packages": true
+		"sort-packages": true,
+		"platform-check": false
 	},
 	"scripts": {
 		"lint": "phpcs",

@@ -101,6 +101,20 @@ final class UninstallTest extends WP_UnitTestCase {
 		$this->assertNull( AlertStore::get( AlertStore::key( $fixture['order']->get_id(), 'matbao_http', 0 ) ), 'Alert records (#7) are removed.' );
 	}
 
+	public function test_default_uninstall_removes_sentry_dsn_and_backoff(): void {
+		( new CredentialStore() )->save_sentry_dsn( 'https://k@sentry.test/3' );
+		( new Settings() )->save_monitoring( true, 0.5 );
+		update_option( 'einvoice_matbao_sentry_backoff_until', time() + 60, false );
+
+		Uninstaller::run();
+
+		$this->assertFalse( get_option( CredentialStore::OPTION ) );
+		$this->assertFalse( ( new CredentialStore() )->has_sentry_dsn() );
+		$this->assertNull( ( new CredentialStore() )->sentry_dsn() );
+		$this->assertFalse( get_option( 'einvoice_matbao_sentry_backoff_until' ) );
+		$this->assertTrue( ( new Settings() )->monitoring_enabled() );
+	}
+
 	public function test_delete_all_uninstall_removes_every_plugin_record(): void {
 		global $wpdb;
 		$fixture = $this->store_plugin_data();

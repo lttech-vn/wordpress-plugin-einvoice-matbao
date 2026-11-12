@@ -1,6 +1,6 @@
 {
   "schemaVersion": "trace-1",
-  "createdAt": "2026-11-06T16:22:59.805Z",
+  "createdAt": "2026-11-12T00:59:13.863Z",
   "payload": {
     "actions": [
       {
@@ -28,19 +28,16 @@
       "provider": "e2e-text-agent.chat",
       "model": "gpt-6-luna"
     },
-    "summary": "Clicked “Lưu kết nối”. The form displayed the notice: “Thành công: Đã lưu thông tin kết nối Mắt Bão (mã hóa).” The password remained masked as secure in the form.",
+    "summary": "Clicked “Lưu kết nối.” A success notice appeared below the form: “Thành công: Đã lưu thông tin kết nối Mắt Bão (mã hóa).” The password field was displayed as secure, not rendered back as plaintext.",
     "startPath": "/wp-admin/admin.php?page=einvoice-matbao-settings&tab=connection",
     "endPath": "/wp-admin/admin.php?page=einvoice-matbao-settings&tab=connection",
     "endAnchors": [
       {
         "role": "status",
         "name": "Thành công: Đã lưu thông tin kết nối Mắt Bão (mã hóa)."
-      },
-      {
-        "text": "Warning: Cannot modify header information - headers already sent by (output started at /var/www/html/wp-content/plugins/einvoice-matbao/src/Admin/SettingsController.php:121) in /var/www/html/wp-includes/rest-api.php on line 813 Warning: Cannot modify header information - headers already sent by (ou…"
       }
     ],
-    "endWaitMs": 120000,
+    "endWaitMs": 13089,
     "keyedBy": {
       "cacheSchema": "trace-1",
       "policyVersion": "conservative/6",

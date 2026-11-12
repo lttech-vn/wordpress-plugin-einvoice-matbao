@@ -7,6 +7,8 @@
 
 namespace LTTech\EinvoiceMatbao\Invoice;
 
+use LTTech\EinvoiceMatbao\Monitoring\Monitor;
+
 // phpcs:disable WordPress.DB.DirectDatabaseQuery -- custom tables (ADR 0002); status rows must never be served from a cache.
 
 /**
@@ -15,6 +17,9 @@ namespace LTTech\EinvoiceMatbao\Invoice;
  * hooks or two queue runners for the same order cannot both win.
  */
 final class InvoiceRepository {
+
+	/** `from` of a status log when the caller does not know the previous status. */
+	private const UNKNOWN_STATUS = 'unknown';
 
 	/**
 	 * Inserts the invoice row of an order unless one already exists.
@@ -70,7 +75,7 @@ final class InvoiceRepository {
 			)
 		);
 
-		return 1 === $updated;
+		return $this->changed( 1 === $updated, $invoice_id, $from, $to );
 	}
 
 	/**
@@ -96,7 +101,7 @@ final class InvoiceRepository {
 			)
 		);
 
-		return 1 === $updated;
+		return $this->changed( 1 === $updated, $invoice->id, $invoice->status, $to );
 	}
 
 	/**
@@ -126,7 +131,7 @@ final class InvoiceRepository {
 			)
 		);
 
-		return 1 === $updated;
+		return $this->changed( 1 === $updated, $invoice_id, $from, InvoiceStatus::PENDING );
 	}
 
 	/**
@@ -136,11 +141,13 @@ final class InvoiceRepository {
 	 * @param string               $status     InvoiceStatus.
 	 * @param string               $reason     Reason, or empty.
 	 * @param array<string, mixed> $fields     Other columns to set.
+	 * @param string|null          $from       Status the caller holds the row in (e.g. `sending` after its claim),
+	 *                                         for the status log only; null logs `unknown`. Never read back.
 	 */
-	public function update_status( int $invoice_id, string $status, string $reason = '', array $fields = array() ): void {
+	public function update_status( int $invoice_id, string $status, string $reason = '', array $fields = array(), ?string $from = null ): void {
 		global $wpdb;
 
-		$wpdb->update(
+		$updated = $wpdb->update(
 			Schema::invoice_table(),
 			array_merge(
 				array(
@@ -156,6 +163,11 @@ final class InvoiceRepository {
 			),
 			array( 'id' => $invoice_id )
 		);
+
+		// The UPDATE is unconditional, so a successful write is the transition; affected rows may be
+		// 0 when the row already had these values within the same second.
+		$error_code = $fields['error_code'] ?? '';
+		$this->changed( false !== $updated, $invoice_id, $from ?? self::UNKNOWN_STATUS, $status, is_string( $error_code ) ? $error_code : '' );
 	}
 
 	/**
@@ -254,8 +266,9 @@ final class InvoiceRepository {
 	 * @param string           $reason     Vietnamese reason, without secrets or personal data.
 	 * @param string|null      $status     InvoiceStatus instead of the one of the code's kind, e.g. `pending`
 	 *                                     while a retry waits or `needs_attention` once retries are used up.
+	 * @param string|null      $from       Status the caller holds the row in, for the status log only.
 	 */
-	public function record_error( int $invoice_id, InvoiceErrorCode $code, string $reason, ?string $status = null ): void {
+	public function record_error( int $invoice_id, InvoiceErrorCode $code, string $reason, ?string $status = null, ?string $from = null ): void {
 		$this->update_status(
 			$invoice_id,
 			$status ?? $code->kind()->status(),
@@ -263,7 +276,8 @@ final class InvoiceRepository {
 			array(
 				'error_code' => $code->value,
 				'error_kind' => $code->kind()->value,
-			)
+			),
+			$from
 		);
 	}
 
@@ -411,5 +425,34 @@ final class InvoiceRepository {
 		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE invoice_id = %d ORDER BY id', Schema::attempt_table(), $invoice_id ), ARRAY_A );
 
 		return is_array( $rows ) ? array_values( $rows ) : array();
+	}
+
+	/**
+	 * Logs a status change this call made; a write that lost or kept the status logs nothing.
+	 * Uses only what the caller knows (never reads the row), and Monitor::log() never throws, so
+	 * telemetry cannot add a query or break the write.
+	 *
+	 * @param bool   $made       Whether the write changed the row.
+	 * @param int    $invoice_id Invoice row ID.
+	 * @param string $from       Status before.
+	 * @param string $to         Status after.
+	 * @param string $error_code Recorded error code, or empty.
+	 * @return bool $made.
+	 */
+	private function changed( bool $made, int $invoice_id, string $from, string $to, string $error_code = '' ): bool {
+		if ( $made && $from !== $to ) {
+			Monitor::log(
+				'info',
+				'invoice status changed',
+				array(
+					'invoice.id' => $invoice_id,
+					'from'       => $from,
+					'to'         => $to,
+					'error_code' => $error_code,
+				)
+			);
+		}
+
+		return $made;
 	}
 }

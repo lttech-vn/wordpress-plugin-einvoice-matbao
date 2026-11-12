@@ -8,6 +8,8 @@
 namespace LTTech\EinvoiceMatbao\Matbao;
 
 use LTTech\EinvoiceMatbao\Encryption;
+use LTTech\EinvoiceMatbao\Monitoring\Monitor;
+use LTTech\EinvoiceMatbao\Monitoring\TransportErrorData;
 
 /**
  * Talks to Mat Bao through the WordPress HTTP API, which is the fake-able boundary in tests
@@ -253,7 +255,13 @@ final class MatbaoClient {
 			$args['body'] = (string) wp_json_encode( $body );
 		}
 
-		$response = wp_remote_request( $this->credentials->base_url() . $path, $args );
+		// The span names the path only: no query string, body or headers.
+		$response = Monitor::span(
+			'http.client',
+			$method . ' ' . explode( '?', $path, 2 )[0],
+			fn() => wp_remote_request( $this->credentials->base_url() . $path, $args ),
+			static fn( $result ): array => self::span_data( $result )
+		);
 
 		if ( is_wp_error( $response ) ) {
 			// The WP_Error message may echo request details; keep only its code.
@@ -279,6 +287,27 @@ final class MatbaoClient {
 		}
 
 		return $envelope['data'] ?? null;
+	}
+
+	/**
+	 * Span data of a Mat Bao response: HTTP status and Mat Bao `errorCode`, never the body.
+	 *
+	 * @param array<string, mixed>|\WP_Error $response Response of wp_remote_request().
+	 * @return array<string, int|string>
+	 */
+	private static function span_data( $response ): array {
+		if ( is_wp_error( $response ) ) {
+			return TransportErrorData::of( $response );
+		}
+
+		$data     = array( 'http.response.status_code' => (int) wp_remote_retrieve_response_code( $response ) );
+		$envelope = json_decode( wp_remote_retrieve_body( $response ), true );
+		$envelope = is_array( $envelope ) ? array_change_key_case( $envelope, CASE_LOWER ) : array();
+		if ( is_numeric( $envelope['errorcode'] ?? null ) ) {
+			$data['matbao.error_code'] = (int) $envelope['errorcode'];
+		}
+
+		return $data;
 	}
 
 	/**

@@ -257,6 +257,63 @@ Mỗi lỗi chỉ cảnh báo **một lần** cho mỗi đơn. Sau mỗi lần b
 
 Nếu WooCommerce bị tắt hoặc gỡ, plugin tự tắt ở lần mở wp-admin tiếp theo và hiện thông báo.
 
+## Giám sát lỗi (Sentry)
+
+Tính năng này là tùy chọn, **mặc định tắt**. Khi bật, plugin gửi tới máy chủ **Sentry** do bạn chọn (tự host hoặc dịch vụ Sentry):
+
+- **Lỗi (issues):** các exception mà plugin tự bắt được (plugin không cài trình xử lý warning/fatal PHP của site nên không gửi lỗi PHP khác), cùng cảnh báo "hóa đơn cần xử lý" (mức warning, mỗi đơn và mã lỗi một lần mỗi chu kỳ).
+- **Hiệu năng (performance):** thời gian tạo nháp, gọi API Mắt Bão và tác vụ nền.
+- **Log:** ví dụ mỗi lần đổi trạng thái hóa đơn.
+- **Cron monitor:** báo khi tác vụ phục hồi hóa đơn kẹt không chạy đúng lịch.
+
+### Bật giám sát
+
+1. Lấy DSN của project Sentry: có dạng `https://<public_key>@<host>/<project_id>`.
+2. Mở **WooCommerce → Hóa đơn Mắt Bão**, chọn tab **Giám sát lỗi**.
+3. Bật ô **Bật gửi lỗi, hiệu năng và log lên máy chủ Sentry**, nhập **DSN** (ô này hiển thị dạng mật khẩu và không hiện lại DSN đã lưu; để trống khi muốn giữ DSN cũ).
+4. Chỉnh **Tỉ lệ lấy mẫu hiệu năng** từ 0 đến 1 (mặc định 1 = ghi lại mọi giao dịch; site đông đơn nên giảm, ví dụ 0.2).
+5. Bấm **Lưu cấu hình**, rồi bấm **Gửi event thử**. Thành công sẽ hiện ID event; trên Sentry, event có nội dung "einvoice-matbao test event". Thất bại thì kiểm tra lại DSN và kết nối mạng từ máy chủ WordPress.
+
+DSN được lưu mã hóa bằng khóa `EINVOICE_MATBAO_ENCRYPTION_KEY`. Nếu đổi khóa, DSN đã lưu không đọc được và form sẽ yêu cầu nhập lại.
+
+### Cấu hình qua wp-config.php (tùy chọn)
+
+Hai hằng sau ghi đè giá trị trên trang cài đặt; khi có hằng, ô tương ứng trên trang chuyển sang chỉ đọc với nhãn "Đặt trong wp-config":
+
+```php
+define( 'EINVOICE_MATBAO_SENTRY_DSN', 'https://<public_key>@<host>/<project_id>' );
+define( 'EINVOICE_MATBAO_SENTRY_ENABLED', true );
+```
+
+- `EINVOICE_MATBAO_SENTRY_DSN` chỉ được dùng khi là DSN hợp lệ; DSN sai bị bỏ qua và trang cài đặt hiện cảnh báo.
+- **Đặt DSN trong hằng không tự bật giám sát.** Phải đặt `EINVOICE_MATBAO_SENTRY_ENABLED` là `true` hoặc bật công tắc trên trang.
+- `EINVOICE_MATBAO_SENTRY_ENABLED` đặt là `false` sẽ tắt giám sát, dù công tắc trên trang đang bật.
+- Giám sát cần extension PHP `mbstring`. Thiếu extension này thì giám sát tự tắt.
+
+### Dữ liệu được gửi và không gửi
+
+**Không bao giờ gửi:**
+
+- Thông tin người mua: tên, công ty, email, điện thoại, địa chỉ, MST, CCCD. Giá trị người mua đã biết trong đơn được che trước khi gửi.
+- Thông tin đăng nhập và token Mắt Bão, webhook Lark, DSN.
+- Biến của stacktrace, cookie, header, request body, tên máy chủ.
+
+**Được gửi (đã che theo mẫu):** email, URL (chỉ giữ host của Mắt Bão), dãy 12 chữ số (CCCD), MST (10 chữ số, có thể kèm `-XXX`), `Bearer <token>`, và chuỗi liền từ 32 ký tự trở lên có chữ số (gồm `A-Z a-z 0-9 + = _ -`) được thay bằng `[filtered]`. Tên hook, tên route và mã lỗi không bị che vì không chứa chữ số kiểu này.
+
+**Tag được gửi (danh sách cố định):** `site`, `order_id`, `invoice.id`, `invoice.status`, `error_code`, `error_kind`, `matbao.env`, `component`. Tag khác bị bỏ.
+
+### Nhiều cửa hàng dùng chung một project Sentry
+
+Mỗi site đăng ký monitor riêng với slug `einvoice-matbao-recovery-<host16>-<hash8>`, trong đó `<host16>` là phần đầu host viết thường (tối đa 16 ký tự) và `<hash8>` là 8 ký tự băm của host. Mọi event có tag `site` là host của site, nên có thể lọc theo từng cửa hàng trên cùng một project.
+
+### Khuyến nghị: dùng system cron thay WP-Cron
+
+Cron monitor chỉ đúng khi tác vụ phục hồi chạy đúng 15 phút một lần. WP-Cron chạy theo lượt truy cập, nên trên site ít khách có thể bị báo "missed check-in" giả. Trên site ít truy cập, hãy tắt WP-Cron tự động (`define( 'DISABLE_WP_CRON', true );`) và đặt cron thật của hệ thống gọi `wp-cron.php` mỗi 5 đến 15 phút.
+
+### Khi máy chủ Sentry không hoạt động
+
+Plugin chờ tối đa 3 giây cho mỗi lần gửi (2 giây để kết nối). Nếu gửi lỗi, timeout hoặc Sentry trả lỗi HTTP, plugin ngừng gửi trong 60 giây; nếu Sentry trả `429` có `Retry-After`, plugin chờ theo giá trị đó, tối đa 600 giây. Trong thời gian ngừng, dữ liệu giám sát bị bỏ, không xếp hàng. Luồng tạo hóa đơn vẫn chạy bình thường.
+
 ## Câu hỏi thường gặp
 
 **Plugin có tự ký và phát hành hóa đơn không?**

@@ -7,6 +7,9 @@
 
 namespace LTTech\EinvoiceMatbao\Lark;
 
+use LTTech\EinvoiceMatbao\Monitoring\Monitor;
+use LTTech\EinvoiceMatbao\Monitoring\TransportErrorData;
+
 /**
  * Minimal Lark custom bot client. Uses the WordPress HTTP API (fake-able in tests) and never
  * puts the webhook URL or secret into error messages.
@@ -41,14 +44,20 @@ final class LarkClient {
 			$body['sign']      = self::sign( $timestamp, $this->webhook->secret );
 		}
 
-		$response = wp_remote_post(
-			$this->webhook->webhook_url,
-			array(
-				'headers'     => array( 'Content-Type' => 'application/json' ),
-				'body'        => (string) wp_json_encode( $body ),
-				'timeout'     => self::TIMEOUT_SECONDS,
-				'redirection' => 0,
-			)
+		$args = array(
+			'headers'     => array( 'Content-Type' => 'application/json' ),
+			'body'        => (string) wp_json_encode( $body ),
+			'timeout'     => self::TIMEOUT_SECONDS,
+			'redirection' => 0,
+		);
+		// The webhook path is the token, so the span gets a fixed label instead of the URL.
+		$response = Monitor::span(
+			'http.client',
+			'POST lark-webhook',
+			fn() => wp_remote_post( $this->webhook->webhook_url, $args ),
+			static fn( $result ): array => is_wp_error( $result )
+				? TransportErrorData::of( $result )
+				: array( 'http.response.status_code' => (int) wp_remote_retrieve_response_code( $result ) )
 		);
 
 		if ( is_wp_error( $response ) ) {

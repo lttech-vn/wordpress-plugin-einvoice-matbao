@@ -7,6 +7,7 @@
 
 namespace LTTech\EinvoiceMatbao\Tests\Integration;
 
+use LTTech\EinvoiceMatbao\Admin\SettingsController;
 use LTTech\EinvoiceMatbao\Tests\Integration\Support\SettingsRestTestCase;
 
 /**
@@ -142,6 +143,16 @@ final class SettingsRestAccessTest extends SettingsRestTestCase {
 		$this->assertTrue( $served );
 		$this->assertStringContainsString( 'data-einv-status="error"', $output );
 		$this->assertStringNotContainsString( '{"code"', $output );
+	}
+
+	public function test_html_is_served_after_the_core_cors_headers(): void {
+		rest_get_server();
+		$core_priority = has_filter( 'rest_pre_serve_request', 'rest_send_cors_headers' );
+		$html_priority = has_filter( 'rest_pre_serve_request', array( SettingsController::class, 'serve_html' ) );
+
+		$this->assertIsInt( $core_priority );
+		$this->assertIsInt( $html_priority );
+		$this->assertGreaterThan( $core_priority, $html_priority, 'serve_html echoes output, so it must run after rest_send_cors_headers sends headers.' );
 	}
 
 	public function test_core_routes_are_still_served_as_json(): void {
