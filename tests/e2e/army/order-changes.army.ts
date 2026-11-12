@@ -58,7 +58,7 @@ describe("order changes after the draft", { serial: false, agent: "admin" }, () 
 	});
 
 	test("an administrator's buyer edit before the draft re-captures the snapshot (story 27)", async ({ app, browser }) => {
-		// The order is completed but its job has not run; the admin fixes the invoice address on the order screen.
+		// The order is completed but its job has not run; the admin fixes the billing name on the order screen.
 		const order = await seam({ app }, "/order", { ...lines("E2E-SVC"), request: { type: "business", business_name: "CÔNG TY SAI", tax_code: "0000000000", address: "1 Đường Sai" } });
 		await seam({ app }, `/status/${order.id}`, { status: "completed", run_queue: false });
 		await app.open(PAGES.order(Number(order.id)));
