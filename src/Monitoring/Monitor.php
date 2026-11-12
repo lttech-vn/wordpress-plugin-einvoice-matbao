@@ -114,19 +114,29 @@ final class Monitor {
 	 */
 	public static function capture_needs_attention( InvoiceRecord $i, InvoiceErrorCode $c ): void {
 		self::capture(
-			static fn( Backend $backend ): ?string => $backend->capture_message(
-				'Invoice needs attention: ' . $c->value,
-				'warning',
-				array(
+			static function ( Backend $backend ) use ( $i, $c ): ?string {
+				$contexts = array( 'invoice' => InvoiceContext::for_invoice( $i ) );
+				$tags     = array(
 					'order_id'       => (string) $i->order_id,
 					'error_code'     => $c->value,
 					'error_kind'     => $c->kind()->value,
 					'invoice.status' => $i->status,
-				),
-				array( 'needs-attention', $c->value ),
-				self::known_values(),
-				array()
-			)
+				);
+				$detail   = self::failure_detail_for( $i->order_id, $c );
+				if ( null !== $detail ) {
+					$contexts += $detail->contexts;
+					$tags     += $detail->tags;
+				}
+
+				return $backend->capture_message(
+					sprintf( 'Hóa đơn cần xử lý: %s – Đơn #%d', $c->label(), $i->order_id ),
+					'warning',
+					$tags,
+					array( 'needs-attention', $c->value ),
+					self::known_values(),
+					$contexts
+				);
+			}
 		);
 	}
 
