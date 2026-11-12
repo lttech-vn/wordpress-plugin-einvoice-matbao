@@ -159,11 +159,12 @@ final class InvoiceAlerts {
 		$order = wc_get_order( $order_id );
 
 		return sprintf(
-			/* translators: 1: order number, 2: alert type label, 3: error code, 4: admin link to the order. */
-			__( 'Hóa đơn cần xử lý – Đơn #%1$d – %2$s (%3$s) – %4$s', 'einvoice-matbao' ),
+			/* translators: 1: order number, 2: alert type label, 3: error code, 4: resolution hint, 5: admin link to the order. */
+			__( 'Hóa đơn cần xử lý – Đơn #%1$d – %2$s (%3$s) – Cách xử lý: %4$s – %5$s', 'einvoice-matbao' ),
 			$order_id,
 			null === $code ? $error_code : $code->label(),
 			$error_code,
+			null === $code ? __( 'mở đơn để xem chi tiết.', 'einvoice-matbao' ) : $code->hint(),
 			$order instanceof \WC_Order ? $order->get_edit_order_url() : ''
 		);
 	}
