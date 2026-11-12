@@ -7,6 +7,7 @@
 
 namespace LTTech\EinvoiceMatbao\Tests\Integration;
 
+use LTTech\EinvoiceMatbao\Settings;
 use LTTech\EinvoiceMatbao\Tests\Integration\Support\SettingsRestTestCase;
 
 /**
@@ -105,6 +106,7 @@ final class SettingsFailureModesRestTest extends SettingsRestTestCase {
 
 	public function test_lark_test_message_is_sent_while_the_switch_is_off(): void {
 		$this->htmx( 'POST', '/settings/lark', array( 'webhook_url' => self::LARK_WEBHOOK ) );
+		$this->assertFalse( ( new Settings() )->lark_enabled( true ), 'Saving without the checkbox switches Lark off.' );
 		$this->http->respond_json( 'POST ' . (string) wp_parse_url( self::LARK_WEBHOOK, PHP_URL_PATH ), 200, array( 'code' => 0 ) );
 
 		$response = $this->htmx( 'POST', '/settings/lark/test' );

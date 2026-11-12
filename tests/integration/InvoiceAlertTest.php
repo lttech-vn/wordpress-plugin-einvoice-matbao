@@ -471,11 +471,13 @@ final class InvoiceAlertTest extends InvoiceWorkflowTestCase {
 	}
 
 	public function test_missing_lark_configuration_is_not_retried(): void {
-		$this->failing_order();
+		$order = $this->failing_order();
 
 		$this->assertSame( 1, $this->run_alert_actions() );
 
 		$this->assertFalse( as_next_scheduled_action( InvoiceAlerts::SEND_ACTION ) );
+		$keys = AlertStore::keys_of_order( $order->get_id() );
+		$this->assertSame( 'disabled', AlertStore::get( $keys[0] )['lark'] ?? '', 'A site that never configured Lark has the switch off.' );
 	}
 
 	public function test_switched_off_lark_sends_nothing_and_marks_the_alert_disabled(): void {
@@ -545,6 +547,18 @@ final class InvoiceAlertTest extends InvoiceWorkflowTestCase {
 		$this->failing_order();
 		$this->assertSame( 1, $this->run_alert_actions() );
 		$this->assertCount( 1, $this->http->requests_to( $this->lark_route ) );
+	}
+
+	public function test_enabled_lark_without_a_webhook_is_not_configured_and_still_listed(): void {
+		( new Settings() )->save_lark_enabled( true );
+		$order = $this->failing_order();
+
+		$this->assertSame( 1, $this->run_alert_actions() );
+
+		$keys = AlertStore::keys_of_order( $order->get_id() );
+		$this->assertSame( 'not_configured', AlertStore::get( $keys[0] )['lark'] ?? '' );
+		$this->assertFalse( as_next_scheduled_action( InvoiceAlerts::SEND_ACTION ) );
+		$this->assertStringContainsString( 'Chưa cấu hình Lark nên chưa gửi tin', $this->notice_html() );
 	}
 
 	public function test_queue_exception_marks_the_alert_queue_failed(): void {

@@ -342,6 +342,14 @@ final class SettingsController {
 		$secret   = trim( self::raw_param( $request, 'secret' ) );
 
 		$clear_secret = '' !== self::raw_param( $request, 'clear_secret' );
+		$enabled      = '1' === self::raw_param( $request, 'enabled' );
+
+		// Turning alerts off needs no webhook, so it also works when the stored one cannot be decrypted.
+		if ( ! $enabled && '' === $url && '' === $secret && ! $clear_secret ) {
+			( new Settings() )->save_lark_enabled( false );
+
+			return Fragment::success( __( 'Đã tắt cảnh báo Lark. Webhook đã lưu được giữ nguyên.', 'einvoice-matbao' ) );
+		}
 
 		if ( '' === $url && null !== $previous ) {
 			$url = $previous->webhook_url;
@@ -357,7 +365,7 @@ final class SettingsController {
 
 		// A blank URL with no stored webhook failed validation above, so enabling always has a webhook to send to.
 		$store->save_lark( new LarkWebhook( $url, $secret ) );
-		( new Settings() )->save_lark_enabled( '1' === self::raw_param( $request, 'enabled' ) );
+		( new Settings() )->save_lark_enabled( $enabled );
 
 		return Fragment::success( __( 'Đã lưu webhook Lark (mã hóa).', 'einvoice-matbao' ) );
 	}

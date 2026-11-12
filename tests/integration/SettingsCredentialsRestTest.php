@@ -352,6 +352,28 @@ final class SettingsCredentialsRestTest extends SettingsRestTestCase {
 		$this->assertFalse( ( new CredentialStore() )->has_lark() );
 	}
 
+	public function test_lark_switch_can_be_turned_off_when_the_stored_webhook_is_unreadable(): void {
+		$this->with_encryption_key();
+		$this->htmx(
+			'POST',
+			'/settings/lark',
+			array(
+				'webhook_url' => self::LARK_WEBHOOK,
+				'enabled'     => '1',
+			)
+		);
+		remove_all_filters( 'einvoice_matbao_encryption_key' );
+		add_filter( 'einvoice_matbao_encryption_key', static fn(): string => 'another-key-material-0123456789abcdef' );
+		$this->assertTrue( ( new CredentialStore() )->has_lark() );
+		$this->assertNull( ( new CredentialStore() )->lark() );
+
+		$response = $this->htmx( 'POST', '/settings/lark', array( 'webhook_url' => '' ) );
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertFalse( ( new Settings() )->lark_enabled( true ) );
+		$this->assertTrue( ( new CredentialStore() )->has_lark(), 'The stored webhook is untouched.' );
+	}
+
 	public function test_stored_credentials_are_unreadable_with_a_different_key(): void {
 		$this->with_encryption_key();
 		$this->save_matbao_credentials();
