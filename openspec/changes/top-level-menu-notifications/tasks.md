@@ -1,8 +1,8 @@
 ## 1. Tab registry và alias
 
-- [ ] 1.1 `AdminTabs`: còn 5 tab (`invoices`, `connection`, `invoicing`, `notifications`, `advanced`); thêm `ALIASES` (`lark`, `monitoring` → `notifications`) và chuẩn hóa alias trong `resolve()` (khớp chính xác, phân biệt hoa thường)
-- [ ] 1.2 `SettingsController::show_tab()`: chuẩn hóa alias trước khi kiểm tra, key lạ vẫn trả 404 HTML
-- [ ] 1.3 Cập nhật `AdminTabsTest`, `SettingsTabsRestTest` cho 5 tab, alias và 404
+- [x] 1.1 `AdminTabs`: còn 5 tab (`invoices`, `connection`, `invoicing`, `notifications`, `advanced`); thêm `ALIASES` (`lark`, `monitoring` → `notifications`) và chuẩn hóa alias trong `resolve()` (khớp chính xác, phân biệt hoa thường)
+- [x] 1.2 `SettingsController::show_tab()`: chuẩn hóa alias trước khi kiểm tra, key lạ vẫn trả 404 HTML
+- [x] 1.3 Cập nhật `AdminTabsTest`, `SettingsTabsRestTest` cho 5 tab, alias và 404
 
 ## 2. Menu cấp cao nhất
 

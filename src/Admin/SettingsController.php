@@ -133,14 +133,14 @@ final class SettingsController {
 	/**
 	 * Serves the tab bar plus one tab panel, for htmx swaps into `#einv-tabs`.
 	 *
-	 * The key check is exact and case-sensitive, matching `AdminTabs::resolve()`.
+	 * The key check is exact and case-sensitive, matching `AdminTabs::canonical()`; legacy aliases open the notifications tab.
 	 *
 	 * @param WP_REST_Request $request Request.
 	 */
 	public function show_tab( WP_REST_Request $request ): WP_REST_Response {
-		$key = $request['tab'];
+		$key = AdminTabs::canonical( $request['tab'] );
 
-		if ( ! is_string( $key ) || ! array_key_exists( $key, AdminTabs::labels() ) ) {
+		if ( null === $key ) {
 			return Fragment::error( __( 'Không tìm thấy tab này.', 'einvoice-matbao' ), 404 );
 		}
 
