@@ -197,4 +197,71 @@ final class EventContextTest extends WP_UnitTestCase {
 			}
 		);
 	}
+
+	public function test_detail_closure_failure_runs_callback_once_without_scope(): void {
+		$runs    = 0;
+		$result  = null;
+		$written = self::error_log_of(
+			function () use ( &$runs, &$result ): void {
+				$result = Monitor::with_failure_detail(
+					static function (): FailureDetail {
+						throw new RuntimeException( 'secret-buyer@example.vn' );
+					},
+					function () use ( &$runs ): string {
+						++$runs;
+						$this->assertNull( Monitor::failure_detail_for( 10, InvoiceErrorCode::LINE_TAX_RATE_COUNT ) );
+
+						return 'done';
+					}
+				);
+			}
+		);
+
+		$this->assertSame( 1, $runs );
+		$this->assertSame( 'done', $result );
+		$this->assertStringContainsString( 'einvoice-matbao: monitoring failed (RuntimeException).', $written );
+		$this->assertStringNotContainsString( 'secret-buyer', $written );
+		$this->assertSame( 0, $this->sink->request_count() );
+	}
+
+	public function test_callback_exception_propagates_with_detail_closure(): void {
+		$detail = self::detail( 10, InvoiceErrorCode::LINE_TAX_RATE_COUNT );
+		$logged = self::error_log_of(
+			function () use ( $detail ): void {
+				try {
+					Monitor::with_failure_detail(
+						static fn(): FailureDetail => $detail,
+						static function (): never {
+							throw new RuntimeException( 'callback failed' );
+						}
+					);
+					$this->fail( 'The exception must propagate.' );
+				} catch ( RuntimeException $e ) {
+					$this->assertSame( 'callback failed', $e->getMessage() );
+				}
+			}
+		);
+
+		$this->assertSame( '', $logged, 'A callback exception is not a monitoring failure.' );
+		$this->assertNull( Monitor::failure_detail_for( 10, InvoiceErrorCode::LINE_TAX_RATE_COUNT ) );
+	}
+
+	public function test_detail_closure_not_called_when_monitoring_inactive(): void {
+		$this->reset_monitoring();
+		$built = 0;
+		$runs  = 0;
+
+		$result = Monitor::with_failure_detail(
+			static function () use ( &$built ): FailureDetail {
+				++$built;
+				return self::detail( 10, InvoiceErrorCode::LINE_TAX_RATE_COUNT );
+			},
+			static function () use ( &$runs ): int {
+				return ++$runs;
+			}
+		);
+
+		$this->assertSame( 0, $built );
+		$this->assertSame( 1, $result );
+	}
 }

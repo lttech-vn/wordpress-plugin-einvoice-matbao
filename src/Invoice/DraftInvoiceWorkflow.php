@@ -747,7 +747,7 @@ final class DraftInvoiceWorkflow {
 		}
 
 		Monitor::with_failure_detail(
-			FailureDetail::for_matbao( $invoice->order_id, $code, $error ),
+			fn(): FailureDetail => FailureDetail::for_matbao( $invoice->order_id, $code, $error ),
 			fn() => $this->record_matbao_failure( $invoice, $code, $reason )
 		);
 	}
@@ -820,7 +820,7 @@ final class DraftInvoiceWorkflow {
 		}
 
 		Monitor::with_failure_detail(
-			FailureDetail::for_line( $order_id, $error->error_code, $error->line_failure ),
+			static fn(): FailureDetail => FailureDetail::for_line( $order_id, $error->error_code, $error->line_failure ),
 			static fn() => self::record_error( $repository, $order_id, $error->error_code, $error->getMessage(), $status, $from )
 		);
 	}

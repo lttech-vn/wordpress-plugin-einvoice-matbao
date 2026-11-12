@@ -154,6 +154,7 @@ final class WorkflowFailureDetailTest extends InvoiceWorkflowTestCase {
 		$second = $this->create_order( array( array( $this->create_product( 'B', '100000' ), 1 ) ) );
 
 		$this->complete_and_run( $first );
+		$this->assertNull( Monitor::failure_detail_for( $first->get_id(), InvoiceErrorCode::LINE_TAX_RATE_COUNT ), 'The scope is closed once the first order is done.' );
 		$this->complete_and_run( $second );
 
 		Monitor::flush();

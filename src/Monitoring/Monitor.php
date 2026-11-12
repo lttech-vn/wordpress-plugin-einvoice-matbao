@@ -325,14 +325,27 @@ final class Monitor {
 	/**
 	 * Runs $callback with $detail available to the needs-attention event of the same order and code.
 	 *
-	 * @param FailureDetail $detail   Detail to expose while $callback runs.
-	 * @param callable      $callback Code to run; called exactly once.
+	 * A closure $detail runs inside the monitoring guard and only when monitoring is active; when
+	 * it fails, the failure is reported internally and $callback runs without a scope.
+	 *
+	 * @param FailureDetail|\Closure $detail   Detail, or a closure returning it (`Closure(): FailureDetail`).
+	 * @param callable               $callback Code to run; called exactly once.
 	 * @return mixed Result of $callback.
 	 * @throws \Throwable The exception of $callback, unchanged.
 	 */
-	public static function with_failure_detail( FailureDetail $detail, callable $callback ): mixed {
+	public static function with_failure_detail( FailureDetail|\Closure $detail, callable $callback ): mixed {
 		if ( null === self::backend_or_null() ) {
 			return $callback();
+		}
+
+		if ( $detail instanceof \Closure ) {
+			try {
+				$detail = $detail();
+			} catch ( \Throwable $failure ) {
+				InternalFailure::report( $failure );
+
+				return $callback();
+			}
 		}
 
 		self::$failure_details[] = $detail;
