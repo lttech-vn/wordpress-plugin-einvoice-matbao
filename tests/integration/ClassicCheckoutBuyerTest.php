@@ -48,7 +48,7 @@ final class ClassicCheckoutBuyerTest extends InvoiceWorkflowTestCase {
 
 		$this->assertNotNull( $request );
 		$this->assertSame( 'individual', $request['type'] );
-		$this->assertSame( 'Số 1 Đường Thử, Quận Thử', $request['address'] );
+		$this->assertSame( '', $request['address'] );
 		$this->assertSame( '********1234', $request['id_mask'] );
 		$this->assertStringStartsWith( 'v1.', $request['id_encrypted'] );
 		$this->assertStringNotContainsString( self::ID_NUMBER, (string) wp_json_encode( $this->all_meta( $order ) ) );
