@@ -11,6 +11,7 @@ use ActionScheduler;
 use LTTech\EinvoiceMatbao\Invoice\DraftInvoiceWorkflow;
 use LTTech\EinvoiceMatbao\Invoice\InvoiceStatus;
 use LTTech\EinvoiceMatbao\Monitoring\CaughtFailure;
+use LTTech\EinvoiceMatbao\Monitoring\Monitor;
 use LTTech\EinvoiceMatbao\Tests\Integration\Support\InvoiceWorkflowTestCase;
 use LTTech\EinvoiceMatbao\Tests\Integration\Support\MonitoringFixture;
 use LTTech\EinvoiceMatbao\Tests\Integration\Support\SentrySink;
@@ -79,7 +80,10 @@ final class ExceptionContextTest extends InvoiceWorkflowTestCase {
 
 		ActionScheduler::runner()->process_action( $id, 'einv-test' );
 
-		$this->assertGreaterThan( 0, $this->sink->request_count() );
+		$events = $this->sink->events();
+		$this->assertCount( 1, $events, 'The exception event itself must be delivered.' );
+		$this->assertSame( 'einvoice_matbao_create_draft', $events[0]['contexts']['action']['hook'] );
+		$this->assertSame( (int) $id, $events[0]['contexts']['action']['action_id'] );
 		foreach ( $this->sink->raw_bodies() as $body ) {
 			$this->assertStringNotContainsStringIgnoringCase( self::NAME, $body );
 			$this->assertStringNotContainsStringIgnoringCase( self::ADDRESS, $body );
@@ -123,18 +127,25 @@ final class ExceptionContextTest extends InvoiceWorkflowTestCase {
 		$order = $this->new_order();
 		$order->update_status( 'completed' );
 		// Armed after completion: WooCommerce's own emails read the same URL inside an output buffer.
+		$calls = 0;
 		add_filter(
 			'woocommerce_get_edit_order_url',
-			static function (): never {
+			static function () use ( &$calls ): never {
+				++$calls;
 				throw new RuntimeException( 'order url unavailable' ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- test fixture, never rendered.
 			}
 		);
 
 		$this->run_queued_draft_actions();
+		Monitor::flush();
 
+		$this->assertGreaterThan( 0, $calls, 'The context really failed to build.' );
 		$record = $this->invoice_of( $order );
 		$this->assertSame( InvoiceStatus::FAILED, $record?->status );
 		$this->assertSame( 'unexpected', $record->error_code );
+		$errors = array_values( array_filter( $this->sink->events(), static fn( array $e ): bool => 'error' === ( $e['level'] ?? 'error' ) ) );
+		$this->assertCount( 1, $errors, 'The original error event survives.' );
+		$this->assertArrayNotHasKey( 'invoice', $errors[0]['contexts'] ?? array() );
 	}
 
 	/**
