@@ -49,9 +49,9 @@ Blocked by: 3, 4
 
 Blocked by: 1
 
-- [ ] 7.1 `InvoiceAlerts::message()` thêm hướng dẫn vào tin Lark; `AdminAlertNotice` thêm hint vào mỗi mục
-- [ ] 7.2 `OrderInvoiceMetaBox` và chi tiết hóa đơn trong `InvoicePage` hiện dòng "Cách xử lý" kèm `data-einv-hint`
-- [ ] 7.3 Test trong `InvoiceAlertTest`, `OrderInvoiceMetaBoxTest`, `InvoiceAdminListRestTest`: Final error có hint, Administrator sees an error có hint, No personal data, Error with hint, Detail shown
+- [x] 7.1 `InvoiceAlerts::message()` thêm hướng dẫn vào tin Lark; `AdminAlertNotice` thêm hint vào mỗi mục
+- [x] 7.2 `OrderInvoiceMetaBox` và chi tiết hóa đơn trong `InvoicePage` hiện dòng "Cách xử lý" kèm `data-einv-hint`
+- [x] 7.3 Test trong `InvoiceAlertTest`, `OrderInvoiceMetaBoxTest`, `InvoiceAdminListRestTest`: Final error có hint, Administrator sees an error có hint, No personal data, Error with hint, Detail shown
 
 ## 8. Docs and end-to-end verification
 
