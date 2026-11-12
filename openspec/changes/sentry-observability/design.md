@@ -75,7 +75,7 @@ Spike ngày 2026-11-11 trên Rustrak 0.25.0 (project id 3): envelope `check_in` 
   - MST `\b\d{10}(-\d{3})?\b`;
   - `Bearer \S+`;
   - chuỗi liền `[A-Za-z0-9+=_-]{32,}` (không gồm `/`, để route pattern như `/einvoice-matbao/v1/settings/monitoring/test` không bị che) có ít nhất một chữ số (chuỗi không có chữ số như tên hook `einvoice_matbao_recover_stuck_invoices` là định danh code, giữ nguyên).
-- Header envelope do SDK chèn sau các callback `before_send*` có khóa `dsn` (DSN đầy đủ); `WpHttpClient` xóa khóa này khỏi dòng header đầu tiên trước khi gửi (không parse được thì không gửi). Chỉ `X-Sentry-Auth` mang public key, theo giao thức.
+- Header envelope do SDK chèn sau các callback `before_send*` có khóa `dsn` (DSN đầy đủ); `WpHttpClient` xóa khóa này khỏi dòng header đầu tiên trước khi gửi (không parse được thì không gửi). Public key chỉ được phép nằm ở `X-Sentry-Auth` và ở `trace.public_key` trong header envelope (dynamic sampling context); không nơi nào khác. Client luôn đặt `spotlight => false`: SDK đọc `SENTRY_SPOTLIGHT` từ môi trường và sẽ gửi envelope nguyên gốc (kèm `dsn`) qua cURL trực tiếp, bỏ qua `WpHttpClient`.
 - Xóa `vars` của mọi frame trong stacktrace; xóa `request`, `user`, `server_name`, `contexts.runtime`/`os` nếu có `hostname`.
 - Danh sách cho phép đối với tags: `site`, `order_id`, `invoice.id`, `invoice.status`, `error_code`, `error_kind`, `matbao.env`, `component`. Tag ngoài danh sách bị bỏ.
 - Lý do chọn che theo mẫu cộng allowlist tag thay vì bỏ hẳn message: message của Mắt Bão là manh mối chính để debug, còn spec `invoice-retry-dedup` đã có tiền lệ che CCCD.
