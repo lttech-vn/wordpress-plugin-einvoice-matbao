@@ -1,6 +1,6 @@
 <?php
 /**
- * Settings page under the WooCommerce menu.
+ * Settings page as a top-level admin menu.
  *
  * @package EinvoiceMatbao
  */
@@ -23,6 +23,12 @@ final class SettingsPage {
 
 	public const SLUG   = 'einvoice-matbao-settings';
 	public const HANDLE = 'einvoice-matbao-admin';
+
+	/** Hook suffix WordPress gives the top-level page; assets load only there. */
+	public const TOP_LEVEL_HOOK = 'toplevel_page_' . self::SLUG;
+
+	/** Menu position, right below WooCommerce. */
+	private const MENU_POSITION = 56;
 
 	/** Capability required for the page and every settings route. */
 	public const CAPABILITY = 'manage_options';
@@ -47,16 +53,17 @@ final class SettingsPage {
 	}
 
 	/**
-	 * Adds the submenu under WooCommerce.
+	 * Adds the top-level menu entry.
 	 */
 	public static function register_menu(): void {
-		add_submenu_page(
-			'woocommerce',
+		add_menu_page(
 			__( 'Hóa đơn Mắt Bão', 'einvoice-matbao' ),
 			__( 'Hóa đơn Mắt Bão', 'einvoice-matbao' ),
 			self::CAPABILITY,
 			self::SLUG,
-			array( self::class, 'render' )
+			array( self::class, 'render' ),
+			'dashicons-media-text',
+			self::MENU_POSITION
 		);
 	}
 
@@ -67,7 +74,7 @@ final class SettingsPage {
 	 * @param string $hook_suffix Current admin page hook.
 	 */
 	public static function enqueue_assets( string $hook_suffix ): void {
-		if ( 'woocommerce_page_' . self::SLUG !== $hook_suffix ) {
+		if ( self::TOP_LEVEL_HOOK !== $hook_suffix ) {
 			return;
 		}
 

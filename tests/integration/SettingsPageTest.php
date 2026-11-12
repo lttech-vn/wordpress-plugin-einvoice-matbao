@@ -13,14 +13,20 @@ use LTTech\EinvoiceMatbao\Admin\SettingsPage;
 use WP_UnitTestCase;
 
 /**
- * The settings page lives under WooCommerce, is scoped in #einv-app and wires htmx with the REST nonce.
+ * The settings page is a top-level menu, is scoped in #einv-app and wires htmx with the REST nonce.
  */
 final class SettingsPageTest extends WP_UnitTestCase {
 
 	public function tear_down(): void {
 		unset( $_GET['tab'] );
-		global $submenu, $_registered_pages, $_wp_submenu_nopriv;
-		unset( $submenu['woocommerce'], $submenu[''], $_wp_submenu_nopriv[''] );
+		global $menu, $submenu, $_registered_pages, $_wp_submenu_nopriv;
+		foreach ( (array) $menu as $position => $item ) {
+			if ( SettingsPage::SLUG === ( $item[2] ?? '' ) ) {
+				unset( $menu[ $position ] );
+			}
+		}
+		unset( $submenu['woocommerce'], $submenu[ SettingsPage::SLUG ], $submenu[''], $_wp_submenu_nopriv[''] );
+		unset( $_registered_pages[ SettingsPage::TOP_LEVEL_HOOK ] );
 		unset( $_registered_pages['admin_page_einvoice-matbao-invoices'] );
 		remove_all_actions( 'load-admin_page_einvoice-matbao-invoices' );
 		remove_all_filters( 'wp_redirect' );
@@ -31,20 +37,21 @@ final class SettingsPageTest extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
-	public function test_submenu_is_registered_under_woocommerce_for_administrators_only(): void {
+	public function test_menu_is_top_level_for_administrators_only(): void {
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
 
 		SettingsPage::register_menu();
 
-		global $submenu;
-		$entries = array_column( $submenu['woocommerce'] ?? array(), 1, 2 );
+		global $menu, $submenu;
+		$entries = array_column( $menu, 1, 2 );
 		$this->assertArrayHasKey( SettingsPage::SLUG, $entries );
 		$this->assertSame( 'manage_options', $entries[ SettingsPage::SLUG ] );
-		$titles = array_column( $submenu['woocommerce'], 0, 2 );
-		$this->assertSame( 'Hóa đơn Mắt Bão', $titles[ SettingsPage::SLUG ] );
+		$this->assertSame( 'Hóa đơn Mắt Bão', array_column( $menu, 3, 2 )[ SettingsPage::SLUG ] );
+		$this->assertArrayNotHasKey( SettingsPage::SLUG, array_column( $submenu['woocommerce'] ?? array(), 1, 2 ) );
 
 		InvoicePage::register_menu();
-		$this->assertArrayNotHasKey( InvoicePage::SLUG, array_column( $submenu['woocommerce'], 1, 2 ) );
+		$this->assertArrayNotHasKey( InvoicePage::SLUG, array_column( $menu, 1, 2 ) );
+		$this->assertArrayNotHasKey( InvoicePage::SLUG, array_column( $submenu['woocommerce'] ?? array(), 1, 2 ) );
 	}
 
 	public function test_old_invoices_page_redirects_to_invoices_tab(): void {
@@ -230,14 +237,19 @@ final class SettingsPageTest extends WP_UnitTestCase {
 		SettingsPage::enqueue_assets( 'dashboard' );
 		$this->assertFalse( wp_script_is( SettingsPage::HANDLE, 'enqueued' ) );
 		$this->assertFalse( wp_style_is( SettingsPage::HANDLE, 'enqueued' ) );
-		foreach ( array( 'woocommerce_page_', 'admin_page_' ) as $prefix ) {
+		foreach ( array( 'woocommerce_page_', 'admin_page_', 'toplevel_page_' ) as $prefix ) {
 			SettingsPage::enqueue_assets( $prefix . InvoicePage::SLUG );
 			$this->assertFalse( wp_script_is( SettingsPage::HANDLE, 'enqueued' ) );
 		}
 
-		SettingsPage::enqueue_assets( 'woocommerce_page_' . SettingsPage::SLUG );
+		SettingsPage::enqueue_assets( SettingsPage::TOP_LEVEL_HOOK );
 		$this->assertTrue( wp_script_is( SettingsPage::HANDLE, 'enqueued' ) );
 		$this->assertTrue( wp_style_is( SettingsPage::HANDLE, 'enqueued' ) );
+
+		wp_dequeue_script( SettingsPage::HANDLE );
+		SettingsPage::enqueue_assets( 'woocommerce_page_' . SettingsPage::SLUG );
+		$this->assertFalse( wp_script_is( SettingsPage::HANDLE, 'enqueued' ) );
+		SettingsPage::enqueue_assets( SettingsPage::TOP_LEVEL_HOOK );
 
 		$inline = implode( "\n", (array) wp_scripts()->get_data( SettingsPage::HANDLE, 'after' ) );
 		$this->assertStringContainsString( 'htmx:configRequest', $inline );

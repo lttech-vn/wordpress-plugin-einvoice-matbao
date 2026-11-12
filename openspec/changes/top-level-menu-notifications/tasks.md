@@ -6,8 +6,8 @@
 
 ## 2. Menu cấp cao nhất
 
-- [ ] 2.1 `SettingsPage::register_menu()` dùng `add_menu_page` (slug `einvoice-matbao-settings`, `manage_options`, vị trí 56, icon `dashicons-media-text`) và `enqueue_assets` so khớp hook `toplevel_page_einvoice-matbao-settings`
-- [ ] 2.2 Cập nhật `SettingsPageTest` (menu, quyền, asset) và kiểm tra redirect `InvoicePage` vẫn đúng
+- [x] 2.1 `SettingsPage::register_menu()` dùng `add_menu_page` (slug `einvoice-matbao-settings`, `manage_options`, vị trí 56, icon `dashicons-media-text`) và `enqueue_assets` so khớp hook `toplevel_page_einvoice-matbao-settings`
+- [x] 2.2 Cập nhật `SettingsPageTest` (menu, quyền, asset) và kiểm tra redirect `InvoicePage` vẫn đúng
 
 ## 3. Công tắc Lark
 
