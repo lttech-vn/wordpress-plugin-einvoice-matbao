@@ -6,9 +6,9 @@
 > Failed checks must be fixed in the corresponding artifact, then re-run verify.
 
 **Change**: `sentry-observability`
-**Verified at**: `2026-11-12 06:55`
-**Iteration**: `1`
-**Verifier**: parent session (lệnh chạy mới) + agent `code-reviewer` chỉ đọc, thu bằng chứng cho check 3–5 (`5d13d1d0`); parent đã đối chiếu lại các file được trích dẫn cho finding CRITICAL.
+**Verified at**: `2026-11-12 07:45`
+**Iteration**: `2`
+**Verifier**: parent session chạy lại lệnh mới (validate, `composer check`, E2E replay) + agent `code-reviewer` read-only thu bằng chứng delta cho check 3–5 (`64bfbd68`). Bằng chứng check 3–5 cho phần không đổi kế thừa từ iteration 1 (agent `5d13d1d0`) sau khi đối chiếu diff `fbbd74c..b577045`: chỉ `src/Monitoring/WpHttpClient.php` đổi trong `src/`.
 
 ---
 
@@ -57,7 +57,7 @@ exit 0
 | Performance tracing | ADDED | Pass | `src/Monitoring/ActionSchedulerTracing.php:44-82,127-138`; `src/Monitoring/RestTracing.php:51-137`; `src/Matbao/MatbaoClient.php:258-310`; `src/Lark/LarkClient.php:53-60` |
 | Structured logs | ADDED | Pass | `src/Invoice/InvoiceRepository.php:78,104,134,147-170,442-453`; `src/Monitoring/SentryBackend.php:324-343,370-379` |
 | Recovery sweep cron monitor | ADDED | Pass | `src/Monitoring/MonitorSlug.php:15-33`; `src/Monitoring/Monitor.php:28-35`; `src/Monitoring/ActionSchedulerTracing.php:73-79,127-138`; `src/Monitoring/SentryBackend.php:356-364,750-762` |
-| Sensitive data never sent | ADDED | **Fail** | Các payload đã được lọc (`src/Monitoring/Scrubber.php:29-86`, `src/Monitoring/SentryBackend.php:478-658`), nhưng **DSN đầy đủ vẫn được gửi tới server giám sát** trong header của mỗi envelope. SDK chèn header này ở `vendor/sentry/sentry/src/Serializer/PayloadSerializer.php:48-50`, sau mọi callback `before_send*`. `src/Monitoring/WpHttpClient.php:64-74,120` gửi body nguyên trạng. Requirement viết rõ "MUST NOT gửi tới server giám sát … DSN". |
+| Sensitive data never sent | ADDED | **Fail** | Đường gửi chính đã sửa: `src/Monitoring/WpHttpClient.php:64-78,107-152` chỉ cắt member `dsn` khỏi header, giữ nguyên các member khác và mọi item, header không hợp lệ thì không gửi; test `WpHttpClientTest.php:250-330`, `MonitorRedactionTest.php:433-489`. Rustrak thật nhận đủ 4 loại envelope, không còn `dsn`. **Còn một đường bypass:** SDK đọc `SENTRY_SPOTLIGHT` từ môi trường (`vendor/sentry/sentry/src/Options.php:1519,1606-1616`) và gửi envelope nguyên gốc, có `dsn`, qua cURL trực tiếp (`Transport/HttpTransport.php:72,197-219`, `Spotlight/SpotlightClient.php:28-42`). Đường này bỏ qua `WpHttpClient`. `src/Monitoring/SentryBackend.php:389-406` không tắt `spotlight`. |
 | Known buyer values redacted | ADDED | Pass | `src/Monitoring/OrderRedaction.php:29-85`; `src/Monitoring/Monitor.php:271-289`; `src/Monitoring/Scrubber.php:52-86`; `src/Monitoring/SentryBackend.php:223-226,292-301,329-336,445-452` |
 | Pattern masking | ADDED | Pass | `src/Monitoring/Scrubber.php:29-38,79-86,122-142`; `src/Monitoring/SentryBackend.php:523-528,729-731` |
 | Tag allowlist | ADDED | Pass | `src/Monitoring/Scrubber.php:19,111-114`; `src/Monitoring/SentryBackend.php:174-177,478-489` |
@@ -76,24 +76,18 @@ exit 0
 **Test command** (cwd worktree, stack `einv-sentry`: WP 7.1.4 / WC 11.2.1 / PHP 8.5.12):
 `docker compose exec -T -w /var/www/html/wp-content/plugins/einvoice-matbao wordpress composer check`
 
-**Result**:
-- exit 0
-- PHPCS sạch; PHPStan `[OK] No errors`; `Floor guard OK: json_validate rejected under PHP 8.2.`
-- PHPUnit integration `OK (782 tests, 4055 assertions)`; without-WooCommerce `OK (8 tests, 21 assertions)`
+**Result**: exit 0. PHPStan `[OK] No errors`; `Floor guard OK: json_validate rejected under PHP 8.2.`; PHPUnit integration `OK (794 tests, 4110 assertions)`; without-WooCommerce `OK (8 tests, 21 assertions)`.
 
-Lệnh chạy mới bổ sung:
-- `bun test`: 12 pass, 0 fail.
-- `scripts/build-zip.sh`: zip `einvoice-matbao-0.3.0.zip`, sha256 `7f62ecaa…7eb797`.
-- `scripts/smoke-zip.sh dist/einvoice-matbao-0.3.0.zip`: "Smoke test passed", exit 0.
+**E2E army replay** (chạy mới: `cd tests/e2e && bun run e2e:replay`, đã gỡ các biến API key): **exit 2, `Tests 2 failed | 76 passed (78)`**, `Cache 6 replayed · 2 handed off`. Hai test fail là `settings.army.ts > saves credentials encrypted…` và `> refuses incomplete credentials…`, lỗi `REPLAY_STALE` (end-mismatch). Trace (`test-results/runs/466d1a50901a`) cho thấy app chạy đúng: hiện thông báo "Thành công: Đã lưu thông tin kết nối Mắt Bão (mã hóa).". Cache không khớp vì end state đã ghi chứa dòng PHP warning `Cannot modify header information … (output started at …/src/Admin/SettingsController.php:126)`, còn sau iteration 2 dòng này là `:127`. Warning đã có sẵn trên `main`: cache trên `main` cũng chứa nó, và tôi tái hiện được bằng curl có header `Origin`. Nguyên nhân: `serve_html` (`src/Plugin.php:53`, priority 10) echo HTML trước khi `rest_send_cors_headers` (`wp-includes/rest-api.php:252,813`) gửi header.
 
-Không chạy lại E2E army và stack min trong invocation này. Hai mục đó lấy từ lần apply nên không được tính là bằng chứng của verify.
+Không chạy lại trong vòng này: `bun test`, build + smoke zip (controller đã chạy sau iteration 2: smoke đạt, zip 609 935 B), và stack min. Vì vậy stack min là **Not verified** cho iteration 2. Iteration 2 chỉ đổi `WpHttpClient`, dùng `str_starts_with`/`json_decode`, có sẵn trên PHP 8.2; `php -l` 8.2 đạt theo báo cáo implementer.
 
 Status: Pass = có test, assertion khớp THEN. Weak = có test nhưng thiếu một phần THEN hoặc tiền điều kiện. Missing = không có test trực tiếp.
 
 | Scenario | Test | Status |
 |---|---|---|
 | Fresh install | `MonitorTest::test_disabled_sends_nothing_and_loads_no_sdk`, `WorkflowMonitoringTest::test_disabled_behaviour_unchanged` | Weak (lỗi gây ở order watcher, không phải draft-send) |
-| Enabled without DSN | `MonitoringConfigTest::test_enabled_without_dsn_is_inactive` | Weak (chưa assert 0 HTTP) |
+| Enabled without DSN | `MonitorTest` (dataset `:636`, test `:651-665`, assert `request_count() === 0` và `raw_requests() === []`) | Pass |
 | Save valid settings | `SettingsMonitoringRestTest::test_save_valid_settings` | Pass |
 | Form after save | `SettingsMonitoringRestTest::test_form_never_renders_dsn` | Pass |
 | Invalid DSN | `SettingsMonitoringRestTest::test_invalid_dsn_rejected` | Pass |
@@ -104,8 +98,8 @@ Status: Pass = có test, assertion khớp THEN. Weak = có test nhưng thiếu m
 | Undecryptable stored DSN | `MonitoringConfigTest::test_undecryptable_stored_dsn`, `SettingsMonitoringRestTest::test_undecryptable_dsn_warns` | Weak (chưa assert 0 HTTP) |
 | Default uninstall removes DSN | `UninstallTest::test_default_uninstall_removes_sentry_dsn_and_backoff` | Pass |
 | DSN constant wins | `MonitorTest::test_dsn_routing` | Pass |
-| DSN constant alone does not enable | `MonitoringConfigTest::test_dsn_constant_alone_does_not_enable` | Weak (chưa assert 0 HTTP) |
-| Enabled constant false wins | `MonitoringConfigTest::test_enabled_constant_false_wins`, `SettingsMonitoringRestTest::test_constant_fields_readonly_and_ignored` | Weak (chưa assert 0 HTTP) |
+| DSN constant alone does not enable | `MonitorTest` (dataset `:637`, test `:651-665`) | Pass |
+| Enabled constant false wins | `MonitorTest` (dataset `:638`), `SettingsMonitoringRestTest::test_constant_fields_readonly_and_ignored` | Pass |
 | Overridden field ignored on save | `SettingsMonitoringRestTest::test_constant_fields_readonly_and_ignored` | Pass |
 | Invalid DSN constant | `MonitoringConfigTest::test_invalid_dsn_constant_falls_back`, `SettingsMonitoringRestTest::test_invalid_dsn_constant_warning` | Weak (chưa gửi event tới DSN UI) |
 | Server accepts | `SettingsMonitoringRestTest::test_test_event_success`, `tests/e2e/army/monitoring.army.ts` | Pass |
@@ -115,7 +109,7 @@ Status: Pass = có test, assertion khớp THEN. Weak = có test nhưng thiếu m
 | Conflicting libraries in release zip | `scripts/smoke-zip.sh` (chạy mới, đạt) | Pass |
 | Unexpected error while sending | `WorkflowMonitoringTest::test_unexpected_error_reported` | Pass |
 | Needs attention once per alert | `WorkflowMonitoringTest::test_needs_attention_once_per_alert` | Pass |
-| Same error code on two orders | `WorkflowMonitoringTest::test_same_code_two_orders_same_fingerprint` | Weak (spec ghi `matbao_rejected`, mã không tồn tại; test dùng `matbao_http`) |
+| Same error code on two orders | `WorkflowMonitoringTest::test_same_code_two_orders_same_fingerprint` (spec nay dùng `matbao_http`) | Pass |
 | Draft run traced | `TracingTest::test_draft_action_creates_transaction` | Pass |
 | Sampling off | `TracingTest::test_sampling_zero_still_reports_errors` | Pass |
 | Other plugin's action | `TracingTest::test_other_group_ignored` | Pass |
@@ -129,6 +123,7 @@ Status: Pass = có test, assertion khớp THEN. Weak = có test nhưng thiếu m
 | Token and tax code masked | `ScrubberTest::test_masks_patterns` | Pass |
 | Long identifier without digits kept | `ScrubberTest::test_long_identifiers_without_digits_are_kept`, `RecoveryMonitorTest::test_sweep_reports_in_progress_then_ok` | Pass |
 | Buyer data in exception message | `MonitorTest::test_capture_exception_scrubbed` | Pass |
+| (Sensitive data — DSN) | `MonitorRedactionTest::test_dsn_never_leaves_the_site_in_any_envelope`, `WpHttpClientTest` (strip/first/middle/last/client report/non-object) | Pass trên đường WpHttpClient; chưa có test cho Spotlight |
 | Lark webhook failure | `WorkflowMonitoringTest::test_lark_failure_has_no_webhook` | Pass |
 | Stack frame arguments | `MonitorTest::test_capture_exception_scrubbed` | Weak (tham số không phải buyer snapshot) |
 | Extra tag dropped | `MonitorTest::test_capture_exception_scrubbed`, `ScrubberTest::test_tags_allowlist` | Pass |
@@ -157,10 +152,12 @@ Status: Pass = có test, assertion khớp THEN. Weak = có test nhưng thiếu m
 - [ ] Decisions in design.md match the code
 - [x] Contracts in plan.md, with the Contract deviations recorded in apply.md, match the code (lệch nhỏ về tên tham số, xem bên dưới)
 
-Mọi entry trong Contracts và mọi mục "Contract deviations" của apply.md đều đã được đối chiếu với code. Bảng đầy đủ nằm trong báo cáo của agent `5d13d1d0`. Kết quả:
+Delta của iteration 2: mục deviation mới `WpHttpClient::sendRequest` (bỏ member `dsn`, header phải là JSON object) khớp với `WpHttpClient.php:70-78,107-152`. Mọi entry trong Contracts và mọi mục "Contract deviations" của apply.md đều đã được đối chiếu với code. Bảng đầy đủ nằm trong báo cáo của agent `5d13d1d0`. Kết quả:
 - Matched: D1, D2, D3, D6, D7; 2 hằng wp-config; 2 route REST; tab `monitoring`; các key settings/credentials/backoff option; `SentryDsn`, `Redactor`, `MonitoringOverrides`, `MonitoringConfig`, `Backend`, `Monitor`, `CaughtFailure`, `InvoiceRepository::update_status`/`record_error`, `WpHttpClient` (gồm `sendRequest`), `FakeHttp::raw_requests`, `SentrySink`, `CredentialStore`, `Settings`, `composer.json`; toàn bộ 11 mục deviation trong apply.md.
 
 **Drift warnings** (non-blocking):
+
+- D5 (`design.md:78`) ghi "chỉ X-Sentry-Auth mang public key". Điều này mâu thuẫn với ruling iteration 2 và test `MonitorRedactionTest.php:456-489`: public key cũng nằm ở `header.trace.public_key`.
 
 - D4: `src/Invoice/InvoiceRepository.php:167-170` vẫn log transition khi UPDATE không đổi dòng nào (`false !== $updated`). Ruling Task 4 chủ ý ghi transition theo trạng thái caller nắm giữ. Design và spec chưa nói rõ điều này.
 - D5: chỉ thị "mọi chuỗi đi qua bộ lọc" chưa phủ hết. Header envelope (DSN, xem CRITICAL) do SDK chèn sau bước lọc. Object `CheckIn` (`SentryBackend.php:356-364`) cũng không qua `scrub_event`, nhưng các trường của nó (slug, release, environment) chỉ sinh từ cấu hình.
@@ -175,7 +172,7 @@ Mọi entry trong Contracts và mọi mục "Contract deviations" của apply.md
 
 - [x] Working tree is clean (`git status --porcelain` không có dòng nào trước khi ghi receipt này)
 
-**Commit range**: `720fdd8..c2560dc` (38 commit trên nhánh `sentry-observability`, cộng commit receipt này)
+**Commit range**: `720fdd8..b577045` (iteration 2: `fbbd74c..b577045`), cộng commit receipt này. `git status --porcelain` sạch trước khi ghi receipt.
 
 ---
 
@@ -183,25 +180,26 @@ Mọi entry trong Contracts và mọi mục "Contract deviations" của apply.md
 
 ### CRITICAL
 
-1. **DSN đầy đủ bị gửi tới server giám sát trong header envelope** (requirement "Sensitive data never sent").
-   - Bằng chứng: `vendor/sentry/sentry/src/Serializer/PayloadSerializer.php:48-50` thêm `"dsn"` vào header của mọi envelope (trừ client report). `src/Monitoring/WpHttpClient.php:64-74,120` gửi body nguyên trạng.
-   - Ghi chú: public key vẫn phải có trong `X-Sentry-Auth`, vì đó là xác thực của giao thức. Trong lần verify thật trước đó, quét các event và transaction lưu trên Rustrak không thấy chuỗi DSN, nên Rustrak có vẻ không lưu hoặc không hiển thị header này. Dù vậy, DSN vẫn được truyền đi trong body.
-   - **Khuyến nghị (sửa bằng code):** trong `WpHttpClient::sendRequest`, xóa khóa `dsn` khỏi dòng JSON header đầu tiên của envelope trước khi gửi. Fail-closed: parse không được thì không gửi. Thêm regression trong `WpHttpClientTest` và một assertion trên raw body ở `MonitorTest`: không envelope nào chứa public key hay chuỗi DSN. Probe ngày 2026-11-12 cho thấy Rustrak nhận envelope không có header `dsn` (HTTP 200, check-in được ghi nhận; monitor thử `verify-probe-nodsn` đã xóa).
+1. **Spotlight bỏ qua bước lọc DSN** (requirement "Sensitive data never sent", "Isolated from the site's Sentry").
+   - Khi môi trường có `SENTRY_SPOTLIGHT`, client của plugin (`src/Monitoring/SentryBackend.php:389-406`) bật Spotlight theo mặc định của SDK. SDK gửi envelope nguyên gốc, có `dsn`, bằng cURL trực tiếp. Đường này không qua `WpHttpClient` nên không có timeout 3 giây và backoff.
+   - Thực tế đích của Spotlight là sidecar local chứ không phải server giám sát, nên có thể coi đây là WARNING. Tôi vẫn xếp CRITICAL vì nó phá cam kết cô lập và giới hạn timeout.
+   - **Khuyến nghị:** đặt `'spotlight' => false` trong options của `SentryBackend`. Thêm regression: bật `$_SERVER['SENTRY_SPOTLIGHT']='1'`, assert `$client->getOptions()->isSpotlightEnabled() === false`, và mọi envelope chỉ đi qua FakeHttp.
+
+2. **E2E replay fail 2 test (`REPLAY_STALE`)**, xem mục 4.
+   - **Khuyến nghị (bắt buộc cho CI):** chạy lại `bun run e2e:record` cho `army/settings.army.ts` và commit cache mới.
+   - **Khuyến nghị (gốc rễ, ngoài scope change này, cần user quyết):** đăng ký `serve_html` ở priority sau `rest_send_cors_headers` (ví dụ 11), để không còn PHP warning "Cannot modify header information" trên route của plugin. Khi đó cache không còn phụ thuộc số dòng.
 
 ### WARNING
 
-1. **Scenario "Template list stays with credentials" không có test trực tiếp.** Thêm một bước E2E trong `tests/e2e/army/settings.army.ts`: đổi cấu hình template của fake, lưu credential ở tab Kết nối, rồi assert danh sách mẫu tự tải lại mà không đổi tab hay bấm "Tải lại".
-2. **Các negative scenario mới chỉ kiểm `MonitoringConfig::active()`, chưa kiểm 0 request ra ngoài.** Gồm: Enabled without DSN, DSN constant alone, Enabled constant false, Undecryptable stored DSN, Missing mbstring. Ngoài ra Invalid DSN constant chưa kiểm định tuyến event. Khuyến nghị thêm assertion qua `Monitor` + `SentrySink` (`request_count() === 0`, hoặc event tới sink của DSN UI).
-3. **Spec dùng mã lỗi không tồn tại.** Scenario "Same error code on two orders" ghi `matbao_rejected`, còn `src/Invoice/InvoiceErrorCode.php` không có mã này. Đây là lỗi artifact: sửa scenario sang một mã thật (ví dụ `matbao_http`).
-4. **Một số fixture chưa đúng hoàn toàn với WHEN/THEN của scenario.** Gồm: tên người mua trong exception, địa chỉ bị Mắt Bão lặp lại trong log, tham số frame là buyer snapshot, lỗi của site đi tới DSN của site, assertion phủ định cho tab invoicing/advanced. Khuyến nghị bổ sung dữ liệu và assertion tại các test đã liệt kê ở mục 4.
-5. **Log trạng thái vẫn ghi khi UPDATE không đổi dòng nào** (D4). Cần chốt ngữ nghĩa "transition logic do caller ghi nhận" trong design và spec, rồi thêm test cho trường hợp không có dòng nào thay đổi.
-6. **Check-in không qua bộ lọc.** Thêm bước lọc hoặc allowlist cho các trường của `CheckIn` trong `before_send_check_in`, hoặc ghi rõ trong design rằng các trường này chỉ sinh từ cấu hình.
+1. **D5 ghi sai chỗ public key được phép xuất hiện.** Sửa `design.md:78`: public key được phép ở `X-Sentry-Auth` và `header.trace.public_key` (DSC), không ở chỗ nào khác.
+2. **Coverage còn từ iteration 1:** 10 Weak, 1 Missing ("Template list stays with credentials"). Danh sách và khuyến nghị giữ nguyên như vòng trước (mục 4).
+3. **Log khi UPDATE không đổi dòng nào** (D4) và **check-in không qua bộ lọc** (D5): giữ nguyên như iteration 1.
+4. **Stack min chưa được verify lại trong vòng này.** Chạy `composer check` với `docker/min.env` ở vòng verify sau.
 
 ### SUGGESTION
 
-1. Đồng bộ phần Contracts trong `plan.md` với signature thực tế: `static`, tên tham số, cách truyền `http_client` qua options, prefix slug dài 24 ký tự.
-2. Trong mục "Scenario → test" của `plan.md`, thay các tham chiếu chung chung bằng tên test thật, và thêm scenario "Long identifier without digits kept".
-3. Lần verify sau nên chạy lại E2E replay và `composer check` trên stack min, để có bằng chứng mới cho hai mục này.
+1. Trong `MonitorRedactionTest::test_dsn_never_leaves_the_site_in_any_envelope`, assert riêng từng loại envelope (event, transaction, log, check-in) thay vì tổng ≥ 4.
+2. Các suggestion về Contracts và mapping Scenario → test của iteration 1 vẫn còn hiệu lực.
 
 ---
 
@@ -211,11 +209,11 @@ Mọi entry trong Contracts và mọi mục "Contract deviations" của apply.md
 - [ ] PASS_WITH_WARNINGS: proceed, noting: —
 - [x] FAIL: fix the cause, then re-apply (iteration N+1)
 
-Lý do: còn 1 CRITICAL (requirement "Sensitive data never sent": DSN nằm trong header envelope). Lỗi này sửa được bằng code. Test chạy mới đều đạt.
+Lý do: còn CRITICAL Spotlight bypass, và E2E replay chạy mới có 2 test fail. Cả hai sửa được bằng code hoặc cache. `composer check` chạy mới đạt.
 
 **Next step**:
 
-Chạy `/opsx-apply sentry-observability` trong worktree. Lệnh sẽ nhận ra `FAIL` và chạy fix iteration 2: bỏ `dsn` khỏi header envelope trong `WpHttpClient`, viết test fail trước. Nên sửa luôn WARNING 3 (scenario `matbao_rejected` → mã có thật); các WARNING còn lại tùy chọn. Sau đó chạy `/opsx-verify` lại. Đây là vòng 1/5.
+Chạy `/opsx-apply sentry-observability` (iteration 3): tắt Spotlight kèm regression, ghi lại cache E2E `settings.army.ts`, sửa câu D5. Việc có sửa luôn warning header có sẵn (`serve_html` priority) trong change này hay không, tùy user quyết. Sau đó chạy `/opsx-verify`. Đây là vòng 2/5.
 
 > **Convergence loop reminder**:
 > - PASS / PASS_WITH_WARNINGS: `/opsx-continue` advances to the finalize artifact.
