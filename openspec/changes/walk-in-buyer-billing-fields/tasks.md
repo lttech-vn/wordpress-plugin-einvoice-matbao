@@ -26,7 +26,7 @@ Blocked by: 1
 
 Blocked by: 2
 
-- [ ] 4.1 `BuyerPersonalData`: `is_identified_buyer` và `personal_values` dùng cờ `personal` / loại cá nhân-doanh nghiệp thay cho `type !== WALK_IN`; exporter xuất tên, địa chỉ, SĐT, email của snapshot vãng lai có dữ liệu
+- [x] 4.1 `BuyerPersonalData`: `is_identified_buyer` và `personal_values` dùng cờ `personal` / loại cá nhân-doanh nghiệp thay cho `type !== WALK_IN`; exporter xuất tên, địa chỉ, SĐT, email của snapshot vãng lai có dữ liệu
 
 ## 5. Test, tài liệu
 
