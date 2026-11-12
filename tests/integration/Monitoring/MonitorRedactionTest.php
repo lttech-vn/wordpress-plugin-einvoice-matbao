@@ -431,6 +431,13 @@ final class MonitorRedactionTest extends WP_UnitTestCase {
 	}
 
 	public function test_dsn_never_leaves_the_site_in_any_envelope(): void {
+		$key            = 'pk5entinel0000000000000000000000';
+		$dsn            = 'https://' . $key . '@sentry.test/3';
+		$original       = self::$sink_dsn;
+		self::$sink_dsn = $dsn;
+		$this->enable_monitoring( 1.0 );
+		self::$sink_dsn = $original;
+
 		Monitor::capture_exception( new RuntimeException( 'boom' ) );
 		Monitor::start_transaction( 't', 'queue.task' );
 		Monitor::span( 'http.client', 'POST /x', static fn(): int => 1 );
@@ -442,12 +449,15 @@ final class MonitorRedactionTest extends WP_UnitTestCase {
 		$bodies = $this->sink->raw_bodies();
 		$this->assertGreaterThanOrEqual( 4, count( $bodies ) );
 		foreach ( $bodies as $body ) {
-			$this->assertStringNotContainsString( self::$sink_dsn, $body );
-			$this->assertStringNotContainsString( '@sentry.test', $body );
+			$this->assertStringNotContainsString( $dsn, $body );
+			$this->assertStringNotContainsString( str_replace( '/', '\\/', $dsn ), $body );
+			$this->assertStringNotContainsString( 'sentry.test', $body );
 			$this->assertStringNotContainsString( '"dsn"', $body );
+			// The public key may only appear as the trace.public_key member of the dynamic sampling context.
+			$this->assertStringNotContainsString( $key, str_replace( '"public_key":"' . $key . '"', '', $body ) );
 		}
 		foreach ( $this->http->raw_requests() as $request ) {
-			$this->assertStringContainsString( 'sentry_key=k', $request['args']['headers']['X-Sentry-Auth'] );
+			$this->assertStringContainsString( 'sentry_key=' . $key, $request['args']['headers']['X-Sentry-Auth'] );
 		}
 	}
 }

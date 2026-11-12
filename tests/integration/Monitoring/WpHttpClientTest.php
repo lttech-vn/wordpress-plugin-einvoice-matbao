@@ -287,4 +287,44 @@ final class WpHttpClientTest extends WP_UnitTestCase {
 
 		return self::client( self::T0 )->sendRequest( $request, new Options( array( 'dsn' => 'https://k@sentry.test/3' ) ) )->getStatusCode();
 	}
+
+	/**
+	 * Header line with the DSN member at different positions; other members carry escaped slashes and unicode.
+	 *
+	 * @return array<string, array{string, string}> Input header, expected header.
+	 */
+	public static function dsn_positions(): array {
+		$dsn = '"dsn":"https:\/\/k@sentry.test\/3"';
+		$sdk = '"sdk":{"name":"sentry.php\/\u0111","version":"1.0"}';
+		$etc = '"trace":{"public_key":"k","release":"app\/v1 \u0111"}';
+
+		return array(
+			'first'  => array( '{' . $dsn . ',' . $sdk . ',' . $etc . '}', '{' . $sdk . ',' . $etc . '}' ),
+			'middle' => array( '{' . $sdk . ',' . $dsn . ',' . $etc . '}', '{' . $sdk . ',' . $etc . '}' ),
+			'last'   => array( '{' . $sdk . ',' . $etc . ',' . $dsn . '}', '{' . $sdk . ',' . $etc . '}' ),
+			'only'   => array( '{' . $dsn . '}', '{}' ),
+		);
+	}
+
+	/**
+	 * Only the DSN member is cut out of the header line.
+	 *
+	 * @dataProvider dsn_positions
+	 *
+	 * @param string $header   Input header line.
+	 * @param string $expected Header line without the DSN member, bytes otherwise unchanged.
+	 */
+	public function test_only_the_dsn_member_is_removed( string $header, string $expected ): void {
+		$items = "{\"type\":\"event\"}\n{\"u\":\"a\\/b \\u0111\"}";
+		$this->post_raw( $header . "\n" . $items );
+
+		$this->assertSame( array( $expected . "\n" . $items ), $this->sink->raw_bodies() );
+	}
+
+	public function test_envelope_without_dsn_is_sent_unchanged(): void {
+		$body = "{\"sdk\":{\"name\":\"a\\/b\\u0111\"},\"x\":1.0}\n{\"type\":\"client_report\"}\n{\"timestamp\":1}";
+		$this->post_raw( $body );
+
+		$this->assertSame( array( $body ), $this->sink->raw_bodies() );
+	}
 }

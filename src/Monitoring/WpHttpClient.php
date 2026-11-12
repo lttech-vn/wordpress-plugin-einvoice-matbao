@@ -95,25 +95,61 @@ final class WpHttpClient implements HttpClientInterface {
 	}
 
 	/**
-	 * Removes the `dsn` key from the envelope header (first line); the SDK writes the full DSN there.
-	 * Every other header key and all item lines stay as they are. Authentication is the
-	 * `X-Sentry-Auth` header, which carries the public key only.
+	 * Removes the `dsn` member from the envelope header (first line); the SDK writes the full DSN there.
+	 * The member is cut out of the original bytes, so every other header member and all item lines stay
+	 * exactly as the SDK wrote them, and an envelope without a `dsn` member is returned as is.
+	 * Authentication is the `X-Sentry-Auth` header, which carries the public key only.
 	 *
 	 * @param string $envelope Serialized envelope.
-	 * @return string|null Envelope without the DSN, or null when the header is not a JSON object.
+	 * @return string|null Envelope without the DSN, or null (do not send) when the header is not a JSON
+	 *                     object or the member cannot be removed with a verified result.
 	 */
 	private static function without_dsn( string $envelope ): ?string {
 		$newline = strpos( $envelope, "\n" );
 		$line    = false === $newline ? $envelope : substr( $envelope, 0, $newline );
 		$rest    = false === $newline ? '' : substr( $envelope, $newline );
-		$header  = json_decode( $line );
-		if ( ! is_object( $header ) ) {
+		$header  = json_decode( $line, true );
+		if ( ! is_array( $header ) || ( array() !== $header && array_is_list( $header ) ) ) {
 			return null;
 		}
-		unset( $header->dsn );
-		$encoded = wp_json_encode( $header, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRESERVE_ZERO_FRACTION );
+		if ( ! array_key_exists( 'dsn', $header ) ) {
+			return $envelope;
+		}
+		unset( $header['dsn'] );
+		$stripped = self::cut_dsn_member( $line, $header );
 
-		return false === $encoded ? null : $encoded . $rest;
+		return null === $stripped ? null : $stripped . $rest;
+	}
+
+	/**
+	 * Cuts the `"dsn":"…"` member out of a header line and checks the result decodes to $expected.
+	 *
+	 * @param string               $line     Original header line.
+	 * @param array<string, mixed> $expected Decoded header without `dsn`.
+	 */
+	private static function cut_dsn_member( string $line, array $expected ): ?string {
+		$full = json_decode( $line, true );
+		$dsn  = is_array( $full ) ? ( $full['dsn'] ?? null ) : null;
+		if ( ! is_string( $dsn ) ) {
+			return null;
+		}
+		// The SDK serialises with escaped slashes and unescaped unicode (Sentry\Util\JSON); accept both slash forms.
+		foreach ( array( JSON_UNESCAPED_UNICODE, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ) as $flags ) {
+			$member = '"dsn":' . wp_json_encode( $dsn, $flags );
+			$at     = strpos( $line, $member );
+			if ( false === $at ) {
+				continue;
+			}
+			$end = $at + strlen( $member );
+			foreach ( array( array( $at, $end + 1 ), array( $at - 1, $end ), array( $at, $end ) ) as list( $from, $to ) ) {
+				$candidate = substr( $line, 0, max( 0, $from ) ) . substr( $line, $to );
+				if ( json_decode( $candidate, true ) === $expected ) {
+					return $candidate;
+				}
+			}
+		}
+
+		return null;
 	}
 
 	/**
