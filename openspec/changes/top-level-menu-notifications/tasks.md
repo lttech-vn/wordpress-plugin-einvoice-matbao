@@ -24,6 +24,6 @@
 
 ## 5. Tài liệu và kiểm chứng
 
-- [ ] 5.1 Cập nhật e2e: `tests/e2e/army/tabs.army.ts`, `settings.army.ts`, `monitoring.army.ts`, `support.ts` (URL `tab=lark`/`tab=monitoring`) và mô tả giao diện trong `tests/e2e/e2e.army.config.ts`
-- [ ] 5.2 Cập nhật `README.md`, `docs/phat-trien.md` và `docs/huong-dan-su-dung.md` (menu không còn dưới WooCommerce, tab Thông báo, công tắc Lark)
-- [ ] 5.3 Chạy phpcs, phpstan và bộ test tích hợp; ghi kết quả
+- [x] 5.1 Cập nhật e2e: `tests/e2e/army/tabs.army.ts`, `settings.army.ts`, `monitoring.army.ts`, `support.ts` (URL `tab=lark`/`tab=monitoring`) và mô tả giao diện trong `tests/e2e/e2e.army.config.ts`
+- [x] 5.2 Cập nhật `README.md`, `docs/phat-trien.md` và `docs/huong-dan-su-dung.md` (menu không còn dưới WooCommerce, tab Thông báo, công tắc Lark)
+- [x] 5.3 Chạy phpcs, phpstan và bộ test tích hợp; ghi kết quả

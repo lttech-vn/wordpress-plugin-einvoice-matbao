@@ -19,7 +19,7 @@ describe("settings page", { serial: false, agent: "admin" }, () => {
 		const sections: [string, string[]][] = [
 			["connection", ["Kết nối Mắt Bão", "Mẫu hóa đơn mặc định"]],
 			["invoicing", ["Mã tham chiếu và người mua vãng lai", "Đơn vị tính"]],
-			["lark", ["Cảnh báo Lark"]],
+			["notifications", ["Cảnh báo Lark", "Giám sát lỗi (Sentry)"]],
 		];
 		for (const [key, titles] of sections) {
 			await app.open(PAGES.tab(key));
