@@ -16,7 +16,7 @@ final class Scrubber implements Redactor {
 
 	public const FILTERED = '[filtered]';
 
-	public const TAG_ALLOWLIST = array( 'site', 'order_id', 'invoice.id', 'invoice.status', 'error_code', 'error_kind', 'matbao.env', 'component' );
+	public const TAG_ALLOWLIST = array( 'site', 'order_id', 'invoice.id', 'invoice.status', 'error_code', 'error_kind', 'matbao.env', 'component', 'product_id', 'matbao.api_code' );
 
 	/**
 	 * Known values shorter than this would mangle unrelated text.

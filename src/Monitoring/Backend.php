@@ -16,24 +16,26 @@ interface Backend {
 	/**
 	 * Reports an exception as an issue.
 	 *
-	 * @param \Throwable           $e     Exception to report.
-	 * @param array<string, mixed> $tags  Event tags (filtered by the allowlist).
-	 * @param array<int, string>   $known Known personal values to mask in this event.
+	 * @param \Throwable                          $e     Exception to report.
+	 * @param array<string, mixed>                $tags  Event tags (filtered by the allowlist).
+	 * @param array<int, string>                  $known Known personal values to mask in this event.
+	 * @param array<string, array<string, mixed>> $contexts Context blocks by name.
 	 * @return string|null Event ID, or null when nothing was sent.
 	 */
-	public function capture_exception( \Throwable $e, array $tags, array $known ): ?string;
+	public function capture_exception( \Throwable $e, array $tags, array $known, array $contexts ): ?string;
 
 	/**
 	 * Reports a message as an issue.
 	 *
-	 * @param string               $msg         Message.
-	 * @param string               $level       Sentry severity (`debug`, `info`, `warning`, `error`, `fatal`).
-	 * @param array<string, mixed> $tags        Event tags (filtered by the allowlist).
-	 * @param array<int, string>   $fingerprint Grouping fingerprint; empty for the default grouping.
-	 * @param array<int, string>   $known       Known personal values to mask in this event.
+	 * @param string                              $msg         Message.
+	 * @param string                              $level       Sentry severity (`debug`, `info`, `warning`, `error`, `fatal`).
+	 * @param array<string, mixed>                $tags        Event tags (filtered by the allowlist).
+	 * @param array<int, string>                  $fingerprint Grouping fingerprint; empty for the default grouping.
+	 * @param array<int, string>                  $known       Known personal values to mask in this event.
+	 * @param array<string, array<string, mixed>> $contexts Context blocks by name.
 	 * @return string|null Event ID, or null when nothing was sent.
 	 */
-	public function capture_message( string $msg, string $level, array $tags, array $fingerprint, array $known ): ?string;
+	public function capture_message( string $msg, string $level, array $tags, array $fingerprint, array $known, array $contexts ): ?string;
 
 	/**
 	 * Opens a transaction; an open one is closed first.

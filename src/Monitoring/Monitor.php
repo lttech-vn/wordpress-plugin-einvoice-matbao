@@ -80,14 +80,30 @@ final class Monitor {
 	private static array $order_contexts = array();
 
 	/**
+	 * Failure details of the enclosing with_failure_detail() calls, innermost last.
+	 *
+	 * @var list<FailureDetail>
+	 */
+	private static array $failure_details = array();
+
+	/**
 	 * Reports an exception as an issue.
 	 *
 	 * @param \Throwable           $e    Exception.
 	 * @param array<string, mixed> $tags Tags; only allow-listed ones are sent.
+	 * @param \Closure|null        $contexts Builds the context blocks (`Closure(): array<string, array<string, mixed>>`);
+	 *                                       it runs inside the guard, so a failure drops the event instead of escaping.
 	 * @return string|null Event ID, or null when nothing was sent.
 	 */
-	public static function capture_exception( \Throwable $e, array $tags = array() ): ?string {
-		return self::capture( static fn( Backend $backend ): ?string => $backend->capture_exception( $e, $tags, self::known_values() ) );
+	public static function capture_exception( \Throwable $e, array $tags = array(), ?\Closure $contexts = null ): ?string {
+		return self::capture(
+			static fn( Backend $backend ): ?string => $backend->capture_exception(
+				$e,
+				$tags,
+				self::known_values(),
+				null === $contexts ? array() : $contexts()
+			)
+		);
 	}
 
 	/**
@@ -108,7 +124,8 @@ final class Monitor {
 					'invoice.status' => $i->status,
 				),
 				array( 'needs-attention', $c->value ),
-				self::known_values()
+				self::known_values(),
+				array()
 			)
 		);
 	}
@@ -291,12 +308,52 @@ final class Monitor {
 	}
 
 	/**
+	 * Runs $callback with $detail available to the needs-attention event of the same order and code.
+	 *
+	 * @param FailureDetail $detail   Detail to expose while $callback runs.
+	 * @param callable      $callback Code to run; called exactly once.
+	 * @return mixed Result of $callback.
+	 * @throws \Throwable The exception of $callback, unchanged.
+	 */
+	public static function with_failure_detail( FailureDetail $detail, callable $callback ): mixed {
+		if ( null === self::backend_or_null() ) {
+			return $callback();
+		}
+
+		self::$failure_details[] = $detail;
+		$depth                   = count( self::$failure_details );
+		try {
+			return $callback();
+		} finally {
+			self::$failure_details = array_slice( self::$failure_details, 0, $depth - 1 );
+		}
+	}
+
+	/**
+	 * The innermost open failure detail of the order and error code.
+	 *
+	 * @internal Used by the needs-attention capture.
+	 *
+	 * @param int              $order_id Order ID.
+	 * @param InvoiceErrorCode $code     Error code.
+	 */
+	public static function failure_detail_for( int $order_id, InvoiceErrorCode $code ): ?FailureDetail {
+		foreach ( array_reverse( self::$failure_details ) as $detail ) {
+			if ( $detail->order_id === $order_id && $detail->code === $code ) {
+				return $detail;
+			}
+		}
+
+		return null;
+	}
+
+	/**
 	 * Sends the settings-page test event.
 	 *
 	 * @return string|null Event ID when the server accepted it.
 	 */
 	public static function send_test_event(): ?string {
-		return self::capture( static fn( Backend $backend ): ?string => $backend->capture_message( self::TEST_EVENT_MESSAGE, 'info', array(), array(), array() ) );
+		return self::capture( static fn( Backend $backend ): ?string => $backend->capture_message( self::TEST_EVENT_MESSAGE, 'info', array(), array(), array(), array() ) );
 	}
 
 	/**
@@ -340,6 +397,7 @@ final class Monitor {
 		self::$active            = null;
 		self::$transaction_depth = 0;
 		self::$order_contexts    = array();
+		self::$failure_details   = array();
 		self::$slug              = null === $b ? '' : MonitorSlug::for_host( MonitoringConfig::current()->site );
 	}
 
