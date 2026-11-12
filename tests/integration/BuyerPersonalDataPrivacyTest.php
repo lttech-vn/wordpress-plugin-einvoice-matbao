@@ -199,6 +199,49 @@ final class BuyerPersonalDataPrivacyTest extends InvoiceWorkflowTestCase {
 		$this->assertSame( array(), BuyerPersonalData::export( self::EMAIL, 1 )['data'] );
 	}
 
+	public function test_eraser_scrubs_walk_in_snapshot_values_that_billing_no_longer_holds(): void {
+		$this->configure_matbao();
+		$this->http->respond_json(
+			self::CREATE_ROUTE,
+			200,
+			array(
+				'errorCode' => 400,
+				'message'   => 'Lỗi người mua 12 Phố Cũ, Quận Một, 0911222333, old-buyer@example.invalid',
+				'data'      => null,
+				'success'   => false,
+			)
+		);
+		$order = $this->order_with_request( array(), 'old-buyer@example.invalid', '12 Phố Cũ, Quận Một' );
+		$order->set_billing_phone( '0911222333' );
+		$order->save();
+		( new BuyerSnapshotter() )->capture( $order, 'Khách hàng không lấy hóa đơn' );
+		$this->complete_and_run( $order );
+		// Billing moved on after the snapshot, so only the snapshot still holds the old values.
+		$order->set_billing_email( self::EMAIL );
+		$order->set_billing_phone( '0900000009' );
+		$order->set_billing_address_1( 'Địa chỉ mới' );
+		$order->save();
+
+		$invoice = $this->invoice_of( $order );
+		$this->assertNotNull( $invoice );
+		$attempts_before = count( $this->attempts_of( $invoice ) );
+		$before          = $this->stored_attempt_messages( $order );
+		foreach ( array( '12 Phố Cũ, Quận Một', '0911222333', 'old-buyer@example.invalid' ) as $value ) {
+			$this->assertStringContainsString( $value, $before );
+		}
+
+		BuyerPersonalData::erase( self::EMAIL, 1 );
+
+		$after = $this->stored_attempt_messages( $order );
+		foreach ( array( '12 Phố Cũ, Quận Một', '0911222333', 'old-buyer@example.invalid' ) as $value ) {
+			$this->assertStringNotContainsString( $value, $after );
+		}
+		$kept = $this->invoice_of( $order );
+		$this->assertSame( $invoice->status, $kept?->status );
+		$this->assertSame( $invoice->reference, $kept?->reference );
+		$this->assertCount( $attempts_before, $this->attempts_of( $kept ) );
+	}
+
 	public function test_walk_in_order_without_personal_data_is_not_anonymized(): void {
 		$this->configure_matbao();
 		$this->fake_create_invoice_ok();
