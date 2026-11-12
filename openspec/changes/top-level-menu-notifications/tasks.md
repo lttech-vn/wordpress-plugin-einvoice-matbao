@@ -13,8 +13,8 @@
 
 - [x] 3.1 `Settings::lark_enabled( bool $webhook_saved )` và `save_lark_enabled( bool )`: khóa `lark_enabled` trong option hiện có, `'1'`/`'0'`, chưa lưu thì theo `$webhook_saved`; test đơn vị cho site cũ, site mới, đã lưu
 - [x] 3.2 `SettingsController::save_lark()`: đọc checkbox `enabled`, từ chối bật khi chưa có webhook, tắt giữ nguyên webhook và secret; `test_lark()` không kiểm tra công tắc; test REST
-- [ ] 3.3 `InvoiceAlerts::deliver()`: công tắc tắt thì ghi `disabled`, không gọi Lark, không retry; không gửi bù; test cho tắt có và không có webhook
-- [ ] 3.4 `AdminAlertNotice::lark_note()`: thêm ghi chú "(Đã tắt cảnh báo Lark nên chưa gửi tin.)" cho `disabled`; test notice
+- [x] 3.3 `InvoiceAlerts::deliver()`: công tắc tắt thì ghi `disabled`, không gọi Lark, không retry; không gửi bù; test cho tắt có và không có webhook
+- [x] 3.4 `AdminAlertNotice::lark_note()`: thêm ghi chú "(Đã tắt cảnh báo Lark nên chưa gửi tin.)" cho `disabled`; test notice
 
 ## 4. Giao diện tab Thông báo
 
