@@ -15,6 +15,7 @@ use LTTech\EinvoiceMatbao\CredentialStore;
 use LTTech\EinvoiceMatbao\Invoice\InvoiceErrorCode;
 use LTTech\EinvoiceMatbao\Lark\LarkWebhook;
 use LTTech\EinvoiceMatbao\Monitoring\Monitor;
+use LTTech\EinvoiceMatbao\Tests\Integration\Support\HintText;
 use LTTech\EinvoiceMatbao\Tests\Integration\Support\InvoiceWorkflowTestCase;
 use LTTech\EinvoiceMatbao\Tests\Integration\Support\MonitoringFixture;
 use LTTech\EinvoiceMatbao\Tests\Integration\Support\SentrySink;
@@ -28,6 +29,7 @@ use WC_Tax;
  */
 final class SameHintEverywhereTest extends InvoiceWorkflowTestCase {
 
+	use HintText;
 	use MonitoringFixture;
 
 	/**
@@ -86,16 +88,16 @@ final class SameHintEverywhereTest extends InvoiceWorkflowTestCase {
 		// 2. Admin notice (escaped for HTML).
 		$this->assertStringContainsString( '<span class="einv-hint">' . esc_html( $hint ) . '</span>', $this->notice_html() );
 
-		// 3. Order meta box: text and attribute.
+		// 3. Order meta box: the visible text of the hint element, and its attribute.
 		$meta = $this->meta_box_html( $order );
+		$this->assertSame( $hint, $this->meta_box_hint_text( $meta ) );
 		$this->assertStringContainsString( 'data-einv-hint="' . esc_attr( $hint ) . '"', $meta );
-		$this->assertStringContainsString( esc_html( $hint ), $meta );
 
-		// 4. Invoice detail fragment, through the admin REST route.
+		// 4. Invoice detail fragment, through the admin REST route: the visible `<dd>` text, and its attribute.
 		$this->login_as( 'administrator' );
 		$detail = $this->html( $this->htmx( 'GET', '/invoices/' . $invoice->id ) );
+		$this->assertSame( $hint, $this->detail_hint_text( $detail ) );
 		$this->assertStringContainsString( 'data-einv-hint="' . esc_attr( $hint ) . '"', $detail );
-		$this->assertStringContainsString( esc_html( $hint ), $detail );
 
 		// 5. Monitoring event context, unescaped.
 		Monitor::flush();

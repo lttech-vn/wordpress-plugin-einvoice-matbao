@@ -12,6 +12,7 @@ use LTTech\EinvoiceMatbao\Admin\OrderInvoiceMetaBox;
 use LTTech\EinvoiceMatbao\Invoice\InvoiceErrorCode;
 use LTTech\EinvoiceMatbao\Invoice\InvoiceRepository;
 use LTTech\EinvoiceMatbao\Invoice\InvoiceStatus;
+use LTTech\EinvoiceMatbao\Tests\Integration\Support\HintText;
 use LTTech\EinvoiceMatbao\Tests\Integration\Support\InvoiceWorkflowTestCase;
 use WC_Order;
 
@@ -19,6 +20,8 @@ use WC_Order;
  * The meta box shows status, Mat Bao invoice ID and errors for HPOS and legacy order screens.
  */
 final class OrderInvoiceMetaBoxTest extends InvoiceWorkflowTestCase {
+
+	use HintText;
 
 	public function test_meta_box_is_registered_on_the_order_screen(): void {
 		global $wp_meta_boxes;
@@ -68,8 +71,8 @@ final class OrderInvoiceMetaBoxTest extends InvoiceWorkflowTestCase {
 		$html = $this->render( $order );
 
 		$hint = InvoiceErrorCode::LINE_TAX_RATE_COUNT->hint();
+		$this->assertSame( $hint, $this->meta_box_hint_text( $html ) );
 		$this->assertStringContainsString( 'data-einv-hint="' . esc_attr( $hint ) . '"', $html );
-		$this->assertStringContainsString( esc_html( $hint ), $html );
 	}
 
 	public function test_zero_total_order_shows_the_skip_reason_and_no_create_button(): void {

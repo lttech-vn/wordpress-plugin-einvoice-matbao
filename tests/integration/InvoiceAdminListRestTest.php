@@ -11,12 +11,15 @@ use LTTech\EinvoiceMatbao\Admin\InvoicePage;
 use LTTech\EinvoiceMatbao\Invoice\InvoiceErrorCode;
 use LTTech\EinvoiceMatbao\Invoice\InvoiceRepository;
 use LTTech\EinvoiceMatbao\Invoice\InvoiceStatus;
+use LTTech\EinvoiceMatbao\Tests\Integration\Support\HintText;
 use LTTech\EinvoiceMatbao\Tests\Integration\Support\SettingsRestTestCase;
 
 /**
  * Administrators list, filter, search and open invoices through htmx fragments; nobody else can.
  */
 final class InvoiceAdminListRestTest extends SettingsRestTestCase {
+
+	use HintText;
 
 	private const RAW_CCCD = '012345678901';
 
@@ -239,8 +242,8 @@ final class InvoiceAdminListRestTest extends SettingsRestTestCase {
 		$this->assertStringContainsString( 'Lỗi', $html );
 		$this->assertStringContainsString( 'data-einv-error-code="matbao_api"', $html );
 		$this->assertStringContainsString( ( InvoiceErrorCode::MATBAO_API )->label(), $html );
+		$this->assertSame( InvoiceErrorCode::MATBAO_API->hint(), $this->detail_hint_text( $html ) );
 		$this->assertStringContainsString( 'data-einv-hint="' . esc_attr( InvoiceErrorCode::MATBAO_API->hint() ) . '"', $html );
-		$this->assertStringContainsString( esc_html( InvoiceErrorCode::MATBAO_API->hint() ), $html );
 		$this->assertStringContainsString( '1 / C26TAT', $html );
 		$this->assertStringContainsString( 'Mắt Bão từ chối hóa đơn', $html );
 		$this->assertStringContainsString( 'data-einv-attempt="failed"', $html );
