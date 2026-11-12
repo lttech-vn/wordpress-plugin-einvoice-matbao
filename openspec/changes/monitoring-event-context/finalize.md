@@ -12,10 +12,10 @@
 
 - **Branch**: `feat/monitoring-event-context`
 - **Base branch**: `main`
-- **Final state**: `kept-open` (đã merge fast-forward cục bộ; chưa push, chưa có PR)
-- **PR URL**: `N/A`
+- **Final state**: `pr-updated`
+- **PR URL**: `https://github.com/lttech-vn/wordpress-plugin-einvoice-matbao/pull/46`
 
-Ghi chú lệch quy trình: các bước 10-12 của finalize (push nhánh, tạo PR, bình luận orientation) chưa chạy. `AGENTS.md` toàn cục yêu cầu user cho phép rõ trong chat trước khi push hoặc mở PR, và user chưa cho phép. Nhánh chưa có upstream. Khi được cho phép: push theo hướng dẫn trong `AGENTS.md` (repo thuộc `lttech-vn`, SSH mặc định có thể bị từ chối), tạo PR, rồi chạy bình luận orientation và cập nhật `PR comment status`.
+Ghi chú: user cho phép push và mở PR sau khi finalize ghi nhận. `gh` đang ở tài khoản `ttdua` không có quyền ghi vào `lttech-vn`, nên đã `gh auth switch` sang `naicoi92`; SSH mặc định vẫn bị từ chối nên push qua HTTPS với credential của `gh`. Nhánh đã push, PR #46 đã mở và bình luận orientation đã đăng.
 
 ---
 
@@ -30,7 +30,7 @@ Nhánh `monitoring-event-context` đã xóa bằng `git branch -d` sau khi xác 
 
 ## PR comment
 
-- **PR comment status**: `skipped (no PR)`
+- **PR comment status**: `posted`
 
 ---
 
@@ -52,4 +52,4 @@ Chạy lại trên kết quả merge tại repo chính (stack Docker riêng, đ�
 
 ## Next step
 
-Cần user cho phép push và mở PR. Sau đó: chờ code review, chạy `/opsx-archive` trên nhánh này, push các commit archive, rồi merge PR để đưa cả code và archive vào `main`.
+Chờ code review trên PR #46, chạy `/opsx-archive` trên nhánh này, push các commit archive, rồi merge PR để đưa cả code và archive vào `main`.
