@@ -2,7 +2,7 @@
 /**
  * Plugin Name:          Hóa đơn điện tử Mắt Bão
  * Description:          Tạo nháp hóa đơn GTGT trên Mắt Bão cho đơn hàng WooCommerce đã hoàn thành.
- * Version:              0.4.0
+ * Version:              0.5.0
  * Author:               LTTech
  * License:              GPL-2.0-or-later
  * License URI:          https://www.gnu.org/licenses/gpl-2.0.html
@@ -20,7 +20,7 @@
 defined( 'ABSPATH' ) || exit;
 
 define( 'EINVOICE_MATBAO_FILE', __FILE__ );
-define( 'EINVOICE_MATBAO_VERSION', '0.4.0' );
+define( 'EINVOICE_MATBAO_VERSION', '0.5.0' );
 
 if ( ! is_readable( __DIR__ . '/vendor/autoload.php' ) ) {
 	// A source checkout without `composer install`: stay inert instead of fataling.
