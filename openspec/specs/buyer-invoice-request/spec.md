@@ -32,6 +32,7 @@ Evidence: src/Buyer/BuyerRules.php:89-92, tests/integration/ClassicCheckoutBuyer
 
 ### Requirement: Individual buyer validation
 Hệ thống SHALL yêu cầu người mua cá nhân có họ tên billing, địa chỉ billing, số điện thoại Việt Nam hợp lệ và số CCCD gồm đúng 12 chữ số, trong giới hạn độ dài của Mắt Bão; lỗi hiển thị trước khi gửi đơn.
+Evidence: src/Buyer/BuyerRules.php:85-110, src/Buyer/BillingAddress.php:25-62, assets/src/checkout-rules.ts:19-55, tests/integration/ClassicCheckoutBuyerTest.php:57,95,117,127, tests/integration/BillingAddressTest.php:47,106
 
 #### Scenario: CCCD not 12 digits
 - **WHEN** người mua cá nhân nhập CCCD "123"
@@ -51,6 +52,7 @@ Hệ thống SHALL yêu cầu người mua cá nhân có họ tên billing, đ�
 
 ### Requirement: Business buyer validation
 Hệ thống SHALL yêu cầu người mua doanh nghiệp có tên doanh nghiệp, mã số thuế 10 hoặc 13 chữ số, địa chỉ billing, số điện thoại và email billing hợp lệ; không cần tên liên hệ và không cần khóa mã hóa; lỗi hiển thị trước khi gửi đơn.
+Evidence: src/Buyer/BuyerRules.php:85-130, assets/src/checkout-rules.ts:19-55, tests/integration/ClassicCheckoutBuyerTest.php:163,169,200,220, tests/integration/BlocksCheckoutBuyerTest.php:137
 
 #### Scenario: Malformed tax code
 - **WHEN** doanh nghiệp nhập MST "12"
@@ -82,6 +84,7 @@ Evidence: src/Buyer/BuyerRules.php:106-110, src/Checkout/ClassicCheckout.php:84,
 
 ### Requirement: Request stored on order with encrypted CCCD
 Hệ thống SHALL lưu yêu cầu xuất hóa đơn vào order meta `_einvoice_buyer_request` chỉ gồm các trường đặc thù của loại đã chọn (loại, tên doanh nghiệp, MST, CCCD), không còn ghi địa chỉ riêng; CCCD chỉ được lưu ở dạng mã hóa kèm bản mask lộ 4 số cuối, không bao giờ ở dạng rõ.
+Evidence: src/Buyer/BuyerRequestStore.php:34-60,73-90, tests/integration/BuyerRequestStoreTest.php:24,42,63
 
 #### Scenario: Individual stored
 - **WHEN** đơn cá nhân hợp lệ với CCCD 12 số được đặt
@@ -137,6 +140,7 @@ Evidence: src/Checkout/BlocksCheckout.php:121-126, tests/integration/BlocksCheck
 
 ### Requirement: Classic checkout fields
 Hệ thống SHALL hiển thị ở checkout Classic ô "Yêu cầu xuất hóa đơn", ẩn các trường cho tới khi tick, hiện trường theo loại người mua, và không bao giờ điền lại CCCD đã gửi.
+Evidence: src/Checkout/ClassicCheckout.php:67-105, assets/src/checkout.ts, tests/integration/ClassicCheckoutBuyerTest.php:321,330, tests/e2e/army/checkout-validation.army.ts
 
 #### Scenario: Hidden until ticked
 - **WHEN** trang checkout tải lần đầu
@@ -180,6 +184,7 @@ Evidence: src/Checkout/ClassicCheckout.php:45-59, tests/integration/ClassicCheck
 
 ### Requirement: Invoice address from billing
 Hệ thống SHALL lấy địa chỉ người mua (`NMua_DChi`) cho mọi loại người mua từ địa chỉ thanh toán (billing) của đơn, ghép theo thứ tự địa chỉ 1, địa chỉ 2, thành phố, tỉnh/thành bằng ", " và bỏ phần trống; hệ thống SHALL không còn ô "Địa chỉ xuất hóa đơn" riêng ở checkout Classic hoặc Blocks, và SHALL bỏ qua giá trị `address` mà script checkout cũ vẫn gửi mà không trả lỗi.
+Evidence: src/Buyer/BillingAddress.php:25-62, src/Checkout/ClassicCheckout.php:161-170, src/Checkout/BlocksCheckout.php:90,143, tests/integration/BillingAddressTest.php:47,106, tests/integration/BlocksCheckoutBuyerTest.php:153,164,178, tests/integration/ClassicCheckoutBuyerTest.php:330
 
 #### Scenario: Address composed from billing
 - **WHEN** billing có địa chỉ 1 "12 Nguyễn Huệ", thành phố "Quận 1", tỉnh/thành "TP. Hồ Chí Minh" và địa chỉ 2 trống

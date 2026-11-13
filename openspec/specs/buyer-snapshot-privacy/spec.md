@@ -8,6 +8,7 @@ Snapshot người mua, bảo vệ CCCD, privacy exporter/eraser và che dữ li�
 
 ### Requirement: Buyer snapshot per buyer type
 Hệ thống SHALL chụp snapshot người mua vào order meta `_einvoice_buyer_snapshot` khi đơn completed, và payload hóa đơn chỉ chứa các trường người mua tương ứng với loại người mua; địa chỉ `NMua_DChi` của cá nhân và doanh nghiệp lấy từ địa chỉ billing, và chỉ khi billing không có địa chỉ mới dùng địa chỉ đã lưu trong yêu cầu của đơn đặt trước thay đổi này.
+Evidence: src/Buyer/BuyerSnapshotter.php:99-217, src/Buyer/BuyerSnapshot.php:36,79,99, tests/integration/DraftInvoiceBuyerSnapshotTest.php:35,54,92,239
 
 #### Scenario: Walk-in buyer
 - **WHEN** đơn không có yêu cầu xuất hóa đơn được gửi
@@ -83,6 +84,7 @@ Evidence: src/Buyer/OrderRestPrivacy.php:22-68, tests/integration/OrderRestBuyer
 
 ### Requirement: Privacy exporter
 Hệ thống SHALL cung cấp WordPress personal-data exporter xuất dữ liệu xuất hóa đơn theo email (billing email hoặc tài khoản cùng email), gồm tên, MST, địa chỉ, điện thoại, email, `MTChieu`, trạng thái và CCCD dạng mask; đơn vãng lai có thông tin billing trong snapshot cũng được xuất.
+Evidence: src/Privacy/BuyerPersonalData.php:209-274, tests/integration/BuyerPersonalDataPrivacyTest.php:60,165,338
 
 #### Scenario: Export customer orders
 - **WHEN** xuất dữ liệu cho email của một đơn cá nhân
@@ -98,6 +100,7 @@ Hệ thống SHALL cung cấp WordPress personal-data exporter xuất dữ liệ
 
 ### Requirement: Privacy eraser
 Hệ thống SHALL cung cấp WordPress personal-data eraser chạy trước eraser của WooCommerce, xóa yêu cầu và snapshot người mua của các đơn thuộc email được yêu cầu, ẩn danh tên người mua và dữ liệu cá nhân trong lý do lỗi và attempt; đơn vãng lai có thông tin billing trong snapshot cũng được xóa snapshot và ẩn danh như đơn cá nhân.
+Evidence: src/Privacy/BuyerPersonalData.php:177-195,285-320, tests/integration/BuyerPersonalDataPrivacyTest.php:104,184,202,245
 
 #### Scenario: Erase an order with a draft
 - **WHEN** xóa dữ liệu cho email của đơn đã `draft_created`
@@ -137,6 +140,7 @@ Evidence: src/Privacy/BuyerPersonalData.php:56,163-167, tests/integration/BuyerP
 
 ### Requirement: Walk-in buyer billing fields
 Hệ thống SHALL, với người mua vãng lai, đưa vào snapshot họ tên (`NMua_Ten`, `NMua_HVTNMHang`), địa chỉ (`NMua_DChi`), số điện thoại (`NMua_SDThoai`) và email (`NMua_DCTDTu`) lấy từ billing của đơn tại thời điểm chụp; trường trống hoặc sai định dạng bị bỏ qua, địa chỉ vượt 400 ký tự bị cắt, và `NMua_Ten` dùng tên vãng lai đã cấu hình khi billing không có tên.
+Evidence: src/Buyer/BuyerSnapshotter.php:133-205, src/Buyer/BuyerSnapshot.php:36, tests/integration/DraftInvoiceBuyerSnapshotTest.php:92,116,134,157,189
 
 #### Scenario: Billing complete
 - **WHEN** đơn không có yêu cầu xuất hóa đơn nhưng billing có tên, địa chỉ, số điện thoại hợp lệ và email hợp lệ
