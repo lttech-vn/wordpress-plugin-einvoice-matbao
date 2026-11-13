@@ -1,6 +1,6 @@
 {
   "schemaVersion": "trace-1",
-  "createdAt": "2026-11-06T16:18:25.060Z",
+  "createdAt": "2026-11-13T01:52:28.406Z",
   "payload": {
     "actions": [
       {
@@ -13,13 +13,23 @@
         "checked": true
       },
       {
-        "name": "tap",
-        "summary": "tap radio \"Doanh nghiệp\" in \"Xuất hóa đơn cho\"",
+        "name": "check",
+        "summary": "check radio \"Doanh nghiệp\" in \"Xuất hóa đơn cho\"",
         "target": {
           "role": "radio",
           "name": "Doanh nghiệp",
           "within": "Xuất hóa đơn cho"
-        }
+        },
+        "checked": true
+      },
+      {
+        "name": "type",
+        "summary": "type \"CÔNG TY TNHH THỬ NGHIỆM E2E нет? \" into textbox \"Tên doanh nghiệp\"",
+        "target": {
+          "role": "textbox",
+          "name": "Tên doanh nghiệp"
+        },
+        "value": "CÔNG TY TNHH THỬ NGHIỆM E2E нет? "
       },
       {
         "name": "type",
@@ -38,15 +48,6 @@
           "name": "Mã số thuế"
         },
         "value": "0000000000"
-      },
-      {
-        "name": "type",
-        "summary": "type \"2 Đường Thử Nghiệm, Quận 3, TP HCM\" into textbox \"Địa chỉ xuất hóa đơn\"",
-        "target": {
-          "role": "textbox",
-          "name": "Địa chỉ xuất hóa đơn"
-        },
-        "value": "2 Đường Thử Nghiệm, Quận 3, TP HCM"
       }
     ],
     "executor": {
@@ -56,8 +57,8 @@
     "recordedFor": {
       "testId": "army/checkout-invoice.army.ts::checkout%20invoice%20request::classic%20checkout%2C%20business%20buyer%3A%20completed%20order%20gets%20a%20draft",
       "targetId": "chromium",
-      "instructionDigest": "640260540f852a790ebd09a4fec7439a111cbd9dfb55d1121f7a2be79164102e",
-      "paramsDigest": "d7b22ba18bb730a293bd6b43c0693a31d085e203f5ae8d805dc9afbc80d4f002",
+      "instructionDigest": "724981a42a6d42aed5444f0c7d7a222d0ce36ff32a6258b48673d84590de69d8",
+      "paramsDigest": "15faf4771a7e17d7f269dbb864e979c1010f625f1b6039060ee043902e711d31",
       "callIndex": 0,
       "agent": "default"
     },
@@ -65,7 +66,7 @@
       "provider": "e2e-text-agent.chat",
       "model": "gpt-6-luna"
     },
-    "summary": "Checked “Yêu cầu xuất hóa đơn,” selected “Doanh nghiệp,” and verified the business name, tax code, and invoice address fields are filled with the provided values.",
+    "summary": "Checked “Yêu cầu xuất hóa đơn,” selected “Doanh nghiệp,” and verified the business name is “CÔNG TY TNHH THỬ NGHIỆM E2E” and tax code is “0000000000.” Stopped without placing the order.",
     "startPath": "/?pagename=classic-checkout",
     "endPath": "/?pagename=classic-checkout",
     "endAnchors": [
@@ -111,7 +112,7 @@
         "name": "Yêu cầu xuất hóa đơn"
       }
     ],
-    "endWaitMs": 12901,
+    "endWaitMs": 13847,
     "keyedBy": {
       "cacheSchema": "trace-1",
       "policyVersion": "conservative/6",
