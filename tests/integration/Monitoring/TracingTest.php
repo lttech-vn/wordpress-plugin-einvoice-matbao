@@ -123,7 +123,7 @@ final class TracingTest extends InvoiceWorkflowTestCase {
 		$this->enable_monitoring();
 		$this->login_as( 'administrator' );
 
-		$response = $this->htmx( 'GET', '/tabs/lark', array( 'secret' => 'query-value' ) );
+		$response = $this->htmx( 'GET', '/tabs/connection', array( 'secret' => 'query-value' ) );
 		$this->assertSame( 200, $response->get_status() );
 		rest_do_request( new WP_REST_Request( 'GET', '/wp/v2/types' ) );
 
@@ -142,7 +142,7 @@ final class TracingTest extends InvoiceWorkflowTestCase {
 		$this->enable_monitoring();
 		$this->login_as( 'administrator' );
 
-		$this->htmx( 'GET', '/tabs/lark' );
+		$this->htmx( 'GET', '/tabs/connection' );
 		$this->htmx( 'POST', '/settings/monitoring/test' );
 
 		$names = array_column( $this->sink->transactions(), 'transaction' );
@@ -159,10 +159,10 @@ final class TracingTest extends InvoiceWorkflowTestCase {
 		$this->enable_monitoring();
 		wp_set_current_user( 0 );
 
-		$response = $this->htmx( 'GET', '/tabs/lark' );
+		$response = $this->htmx( 'GET', '/tabs/connection' );
 		$this->assertSame( 401, $response->get_status() );
 		$this->login_as( 'shop_manager' );
-		$response = $this->htmx( 'GET', '/tabs/lark' );
+		$response = $this->htmx( 'GET', '/tabs/connection' );
 		$this->assertSame( 403, $response->get_status() );
 
 		$transactions = $this->sink->transactions();
@@ -174,10 +174,10 @@ final class TracingTest extends InvoiceWorkflowTestCase {
 
 	public function test_rest_response_returned_unchanged(): void {
 		$this->login_as( 'administrator' );
-		$disabled = $this->html( $this->htmx( 'GET', '/tabs/lark' ) );
+		$disabled = $this->html( $this->htmx( 'GET', '/tabs/connection' ) );
 
 		$this->enable_monitoring();
-		$enabled = $this->html( $this->htmx( 'GET', '/tabs/lark' ) );
+		$enabled = $this->html( $this->htmx( 'GET', '/tabs/connection' ) );
 
 		$this->assertSame( $this->without_nonces( $disabled ), $this->without_nonces( $enabled ) );
 	}
@@ -244,7 +244,7 @@ final class TracingTest extends InvoiceWorkflowTestCase {
 		Monitor::reset_for_tests();
 
 		$this->complete_and_run( $this->new_order() );
-		$this->htmx( 'GET', '/tabs/lark' );
+		$this->htmx( 'GET', '/tabs/connection' );
 		Monitor::flush();
 
 		$this->assertSame( 0, $this->sink->request_count() );

@@ -17,6 +17,7 @@ use LTTech\EinvoiceMatbao\Lark\LarkClient;
 use LTTech\EinvoiceMatbao\Lark\LarkError;
 use LTTech\EinvoiceMatbao\Monitoring\CaughtFailure;
 use LTTech\EinvoiceMatbao\Monitoring\Monitor;
+use LTTech\EinvoiceMatbao\Settings;
 
 /**
  * Only listens to the workflow's hooks; it never changes an invoice or queues a draft action.
@@ -90,7 +91,8 @@ final class InvoiceAlerts {
 	 */
 	public static function send( string $key ): void {
 		$alert = AlertStore::get( $key );
-		if ( null === $alert || 'sent' === $alert['lark'] ) {
+		// A disabled alert stays disabled: switching Lark on later only affects new alerts.
+		if ( null === $alert || in_array( $alert['lark'], array( 'sent', 'disabled' ), true ) ) {
 			return;
 		}
 
@@ -105,7 +107,13 @@ final class InvoiceAlerts {
 	 */
 	private static function deliver( string $key, array $alert ): void {
 		try {
-			$webhook = ( new CredentialStore() )->lark();
+			$store = new CredentialStore();
+			if ( ! ( new Settings() )->lark_enabled( $store->has_lark() ) ) {
+				AlertStore::set( $key, 'lark', 'disabled' );
+				return;
+			}
+
+			$webhook = $store->lark();
 			if ( null === $webhook ) {
 				AlertStore::set( $key, 'lark', 'not_configured' );
 				return;

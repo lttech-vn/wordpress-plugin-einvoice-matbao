@@ -31,7 +31,7 @@ PHP 8.2+, WordPress 6.6+, WooCommerce 9.8+, tiền tệ cửa hàng là VND, WP-
    define( 'EINVOICE_MATBAO_ENCRYPTION_KEY', '<chuỗi ngẫu nhiên, tối thiểu 32 ký tự>' );
    ```
 
-4. Mở **WooCommerce → Hóa đơn Mắt Bão**: nhập kết nối Mắt Bão, kiểm tra kết nối, chọn mẫu hóa đơn mặc định.
+4. Mở menu **Hóa đơn Mắt Bão** (mục chính của wp-admin): nhập kết nối Mắt Bão, kiểm tra kết nối, chọn mẫu hóa đơn mặc định.
 5. Chạy thử với môi trường **Demo**, rồi chuyển sang **Production**.
 
 Chi tiết từng bước, quy trình hằng ngày và xử lý lỗi: **[Hướng dẫn sử dụng](docs/huong-dan-su-dung.md)**.

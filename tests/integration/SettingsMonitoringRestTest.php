@@ -23,7 +23,7 @@ final class SettingsMonitoringRestTest extends SettingsRestTestCase {
 
 	use MonitoringFixture;
 
-	private const DSN = 'https://secretpubkey@rustrak.ltt.onl/3';
+	private const DSN = 'https://secretpubkey@sentry.example.com/3';
 
 	/**
 	 * Sink of the DSN saved through the form.
@@ -35,7 +35,7 @@ final class SettingsMonitoringRestTest extends SettingsRestTestCase {
 	public function set_up(): void {
 		parent::set_up();
 		$this->login_as( 'administrator' );
-		$this->sink = SentrySink::install( $this->http, 'rustrak.ltt.onl', 3 );
+		$this->sink = SentrySink::install( $this->http, 'sentry.example.com', 3 );
 	}
 
 	public function tear_down(): void {
@@ -86,7 +86,7 @@ final class SettingsMonitoringRestTest extends SettingsRestTestCase {
 
 		$tab = $this->tab_html();
 
-		$this->assertStringContainsString( 'rustrak.ltt.onl · project 3', $tab );
+		$this->assertStringContainsString( 'sentry.example.com · project 3', $tab );
 		$this->assertStringNotContainsString( 'secretpubkey', $tab . $html );
 	}
 

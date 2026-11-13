@@ -15,19 +15,48 @@ use LTTech\EinvoiceMatbao\Tests\Integration\Support\SettingsRestTestCase;
 final class SettingsTabsRestTest extends SettingsRestTestCase {
 
 	/**
-	 * The six tab keys.
+	 * The five tab keys.
 	 *
 	 * @return array<string, array{string}>
 	 */
 	public static function tab_keys(): array {
 		return array(
-			'invoices'   => array( 'invoices' ),
-			'connection' => array( 'connection' ),
-			'invoicing'  => array( 'invoicing' ),
+			'invoices'      => array( 'invoices' ),
+			'connection'    => array( 'connection' ),
+			'invoicing'     => array( 'invoicing' ),
+			'notifications' => array( 'notifications' ),
+			'advanced'      => array( 'advanced' ),
+		);
+	}
+
+	/**
+	 * Legacy tab keys that are aliases of the notifications tab.
+	 *
+	 * @return array<string, array{string}>
+	 */
+	public static function legacy_keys(): array {
+		return array(
 			'lark'       => array( 'lark' ),
 			'monitoring' => array( 'monitoring' ),
-			'advanced'   => array( 'advanced' ),
 		);
+	}
+
+	/**
+	 * Legacy keys return the notifications tab with that tab marked as current.
+	 *
+	 * @dataProvider legacy_keys
+	 *
+	 * @param string $key Legacy tab key.
+	 */
+	public function test_legacy_tab_keys_return_the_notifications_tab( string $key ): void {
+		$this->login_as( 'administrator' );
+
+		$response = $this->htmx( 'GET', '/tabs/' . $key );
+		$html     = $this->html( $response );
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertStringContainsString( 'data-einv-tab="notifications"', $html );
+		$this->assertMatchesRegularExpression( '/<a [^>]*data-einv-tab-link="notifications"[^>]*aria-current="page"/', $html );
 	}
 
 	/**

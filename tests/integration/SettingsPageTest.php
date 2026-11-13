@@ -9,18 +9,27 @@ namespace LTTech\EinvoiceMatbao\Tests\Integration;
 
 use LTTech\EinvoiceMatbao\Admin\AdminTabs;
 use LTTech\EinvoiceMatbao\Admin\InvoicePage;
+use LTTech\EinvoiceMatbao\CredentialStore;
+use LTTech\EinvoiceMatbao\Lark\LarkWebhook;
+use LTTech\EinvoiceMatbao\Settings;
 use LTTech\EinvoiceMatbao\Admin\SettingsPage;
 use WP_UnitTestCase;
 
 /**
- * The settings page lives under WooCommerce, is scoped in #einv-app and wires htmx with the REST nonce.
+ * The settings page is a top-level menu, is scoped in #einv-app and wires htmx with the REST nonce.
  */
 final class SettingsPageTest extends WP_UnitTestCase {
 
 	public function tear_down(): void {
 		unset( $_GET['tab'] );
-		global $submenu, $_registered_pages, $_wp_submenu_nopriv;
-		unset( $submenu['woocommerce'], $submenu[''], $_wp_submenu_nopriv[''] );
+		global $menu, $submenu, $_registered_pages, $_wp_submenu_nopriv;
+		foreach ( (array) $menu as $position => $item ) {
+			if ( SettingsPage::SLUG === ( $item[2] ?? '' ) ) {
+				unset( $menu[ $position ] );
+			}
+		}
+		unset( $submenu['woocommerce'], $submenu[ SettingsPage::SLUG ], $submenu[''], $_wp_submenu_nopriv[''] );
+		unset( $_registered_pages[ SettingsPage::TOP_LEVEL_HOOK ] );
 		unset( $_registered_pages['admin_page_einvoice-matbao-invoices'] );
 		remove_all_actions( 'load-admin_page_einvoice-matbao-invoices' );
 		remove_all_filters( 'wp_redirect' );
@@ -31,20 +40,21 @@ final class SettingsPageTest extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
-	public function test_submenu_is_registered_under_woocommerce_for_administrators_only(): void {
+	public function test_menu_is_top_level_for_administrators_only(): void {
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
 
 		SettingsPage::register_menu();
 
-		global $submenu;
-		$entries = array_column( $submenu['woocommerce'] ?? array(), 1, 2 );
+		global $menu, $submenu;
+		$entries = array_column( $menu, 1, 2 );
 		$this->assertArrayHasKey( SettingsPage::SLUG, $entries );
 		$this->assertSame( 'manage_options', $entries[ SettingsPage::SLUG ] );
-		$titles = array_column( $submenu['woocommerce'], 0, 2 );
-		$this->assertSame( 'Hóa đơn Mắt Bão', $titles[ SettingsPage::SLUG ] );
+		$this->assertSame( 'Hóa đơn Mắt Bão', array_column( $menu, 3, 2 )[ SettingsPage::SLUG ] );
+		$this->assertArrayNotHasKey( SettingsPage::SLUG, array_column( $submenu['woocommerce'] ?? array(), 1, 2 ) );
 
 		InvoicePage::register_menu();
-		$this->assertArrayNotHasKey( InvoicePage::SLUG, array_column( $submenu['woocommerce'], 1, 2 ) );
+		$this->assertArrayNotHasKey( InvoicePage::SLUG, array_column( $menu, 1, 2 ) );
+		$this->assertArrayNotHasKey( InvoicePage::SLUG, array_column( $submenu['woocommerce'] ?? array(), 1, 2 ) );
 	}
 
 	public function test_old_invoices_page_redirects_to_invoices_tab(): void {
@@ -85,7 +95,7 @@ final class SettingsPageTest extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'hx-post="' . esc_url( rest_url( 'einvoice-matbao/v1/settings/matbao' ) ) . '"', $connection );
 		$this->assertStringContainsString( 'hx-post="' . esc_url( rest_url( 'einvoice-matbao/v1/settings/matbao/test' ) ) . '"', $connection );
 
-		$lark = SettingsPage::render_tabs( 'lark' );
+		$lark = SettingsPage::render_tabs( 'notifications' );
 		$this->assertStringContainsString( 'hx-post="' . esc_url( rest_url( 'einvoice-matbao/v1/settings/lark/test' ) ) . '"', $lark );
 
 		$this->assertStringContainsString( 'Khách hàng không lấy hóa đơn', SettingsPage::render_tabs( 'invoicing' ) );
@@ -102,21 +112,50 @@ final class SettingsPageTest extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( 'id="einv-mst"', $page );
 	}
 
-	public function test_deep_link_renders_the_lark_tab(): void {
+	/**
+	 * The notifications tab and its two legacy keys.
+	 *
+	 * @return array<string, array{string}>
+	 */
+	public static function notification_keys(): array {
+		return array(
+			'notifications' => array( 'notifications' ),
+			'lark'          => array( 'lark' ),
+			'monitoring'    => array( 'monitoring' ),
+		);
+	}
+
+	/**
+	 * Deep links, including the legacy keys, render the notifications tab with both cards.
+	 *
+	 * @dataProvider notification_keys
+	 *
+	 * @param string $key Tab key in the URL.
+	 */
+	public function test_deep_link_renders_the_notifications_tab( string $key ): void {
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
-		$_GET['tab'] = 'lark';
+		$_GET['tab'] = $key;
 
 		$page = get_echo( array( SettingsPage::class, 'render' ) );
 
-		$this->assertStringContainsString( 'data-einv-tab="lark"', $page );
+		$this->assertStringContainsString( 'data-einv-tab="notifications"', $page );
+		$this->assertMatchesRegularExpression( '/<a [^>]*data-einv-tab-link="notifications"[^>]*aria-current="page"/', $page );
 		$this->assertStringContainsString( 'id="einv-lark-webhook"', $page );
+		$this->assertStringContainsString( 'id="einv-sentry-dsn"', $page );
 		$this->assertStringNotContainsString( 'id="einv-invoices"', $page );
+	}
+
+	public function test_tab_bar_has_five_tabs_with_notifications_before_advanced(): void {
+		$html = SettingsPage::render_tabs( 'invoices' );
+
+		preg_match_all( '/data-einv-tab-link="([a-z]+)"/', $html, $found );
+		$this->assertSame( array( 'invoices', 'connection', 'invoicing', 'notifications', 'advanced' ), $found[1] );
 	}
 
 	public function test_unknown_tab_falls_back_to_invoices(): void {
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
 
-		foreach ( array( 'foo', 'LARK', array( 'lark' ) ) as $value ) {
+		foreach ( array( 'foo', 'LARK', array( 'lark' ), 'lark1' ) as $value ) {
 			$_GET['tab'] = $value;
 			$page        = get_echo( array( SettingsPage::class, 'render' ) );
 			$this->assertStringContainsString( 'data-einv-tab="invoices"', $page );
@@ -155,18 +194,32 @@ final class SettingsPageTest extends WP_UnitTestCase {
 		$this->assertLessThan( strpos( $page, 'id="einv-tabs"' ), strpos( $page, 'EINVOICE_MATBAO_ENCRYPTION_KEY' ) );
 	}
 
-	public function test_monitoring_tab_contents(): void {
-		$html = SettingsPage::render_tabs( 'monitoring' );
+	public function test_notifications_tab_contents(): void {
+		$html = SettingsPage::render_tabs( 'notifications' );
 
-		$this->assertStringContainsString( 'data-einv-tab="monitoring"', $html );
+		$this->assertStringContainsString( 'data-einv-tab="notifications"', $html );
+		$this->assertStringContainsString( 'hx-post="' . esc_url( rest_url( 'einvoice-matbao/v1/settings/lark' ) ) . '"', $html );
+		$this->assertStringContainsString( 'Bật cảnh báo Lark', $html );
+		$this->assertSame( 2, substr_count( $html, 'class="einv-result"' ), 'Each card has its own result area.' );
+		$this->assertStringNotContainsString( 'id="einv-mst"', $html );
 		$this->assertStringContainsString( 'hx-post="' . esc_url( rest_url( 'einvoice-matbao/v1/settings/monitoring' ) ) . '"', $html );
 		$this->assertStringContainsString( 'hx-post="' . esc_url( rest_url( 'einvoice-matbao/v1/settings/monitoring/test' ) ) . '"', $html );
 		$this->assertStringContainsString( 'name="enabled"', $html );
 		$this->assertStringContainsString( 'name="dsn"', $html );
 		$this->assertStringContainsString( 'name="traces_sample_rate"', $html );
 		$this->assertStringContainsString( 'Gửi event thử', $html );
-		$this->assertStringNotContainsString( 'settings/lark', $html );
-		$this->assertStringNotContainsString( 'einv-lark-webhook', $html );
+	}
+
+	public function test_lark_switch_is_checked_for_a_site_with_a_saved_webhook_and_unchecked_for_a_new_site(): void {
+		add_filter( 'einvoice_matbao_encryption_key', static fn(): string => 'test-only-key-material-0123456789abcdef' );
+		$this->assertDoesNotMatchRegularExpression( '/name="enabled"[^>]*checked[^>]*>\s*Bật cảnh báo Lark/s', SettingsPage::render_tabs( 'notifications' ) );
+
+		( new CredentialStore() )->save_lark( new LarkWebhook( 'https://open.larksuite.com/open-apis/bot/v2/hook/fake', '' ) );
+		$this->assertMatchesRegularExpression( '/id="einv-lark-enabled"[^>]*checked/', SettingsPage::render_tabs( 'notifications' ) );
+
+		( new Settings() )->save_lark_enabled( false );
+		$this->assertDoesNotMatchRegularExpression( '/id="einv-lark-enabled"[^>]*checked/', SettingsPage::render_tabs( 'notifications' ) );
+		remove_all_filters( 'einvoice_matbao_encryption_key' );
 	}
 
 	public function test_tabs_group_the_existing_forms(): void {
@@ -179,6 +232,7 @@ final class SettingsPageTest extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'settings/invoicing', $invoicing );
 		$this->assertStringContainsString( 'settings/unit', $invoicing );
 		$this->assertStringNotContainsString( 'settings/lark', $invoicing );
+		$this->assertStringNotContainsString( 'einv-sentry-dsn', $invoicing );
 
 		$this->assertStringContainsString( 'data-einv-section="uninstall"', SettingsPage::render_tabs( 'advanced' ) );
 	}
@@ -190,10 +244,10 @@ final class SettingsPageTest extends WP_UnitTestCase {
 	 */
 	public static function config_tabs(): array {
 		return array(
-			'connection' => array( 'connection' ),
-			'invoicing'  => array( 'invoicing' ),
-			'lark'       => array( 'lark' ),
-			'advanced'   => array( 'advanced' ),
+			'connection'    => array( 'connection' ),
+			'invoicing'     => array( 'invoicing' ),
+			'notifications' => array( 'notifications' ),
+			'advanced'      => array( 'advanced' ),
 		);
 	}
 
@@ -230,14 +284,19 @@ final class SettingsPageTest extends WP_UnitTestCase {
 		SettingsPage::enqueue_assets( 'dashboard' );
 		$this->assertFalse( wp_script_is( SettingsPage::HANDLE, 'enqueued' ) );
 		$this->assertFalse( wp_style_is( SettingsPage::HANDLE, 'enqueued' ) );
-		foreach ( array( 'woocommerce_page_', 'admin_page_' ) as $prefix ) {
+		foreach ( array( 'woocommerce_page_', 'admin_page_', 'toplevel_page_' ) as $prefix ) {
 			SettingsPage::enqueue_assets( $prefix . InvoicePage::SLUG );
 			$this->assertFalse( wp_script_is( SettingsPage::HANDLE, 'enqueued' ) );
 		}
 
-		SettingsPage::enqueue_assets( 'woocommerce_page_' . SettingsPage::SLUG );
+		SettingsPage::enqueue_assets( SettingsPage::TOP_LEVEL_HOOK );
 		$this->assertTrue( wp_script_is( SettingsPage::HANDLE, 'enqueued' ) );
 		$this->assertTrue( wp_style_is( SettingsPage::HANDLE, 'enqueued' ) );
+
+		wp_dequeue_script( SettingsPage::HANDLE );
+		SettingsPage::enqueue_assets( 'woocommerce_page_' . SettingsPage::SLUG );
+		$this->assertFalse( wp_script_is( SettingsPage::HANDLE, 'enqueued' ) );
+		SettingsPage::enqueue_assets( SettingsPage::TOP_LEVEL_HOOK );
 
 		$inline = implode( "\n", (array) wp_scripts()->get_data( SettingsPage::HANDLE, 'after' ) );
 		$this->assertStringContainsString( 'htmx:configRequest', $inline );

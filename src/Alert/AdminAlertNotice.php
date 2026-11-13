@@ -118,6 +118,7 @@ final class AdminAlertNotice {
 		return match ( $state ) {
 			'failed', 'queue_failed' => ' ' . __( '(Không gửi được tin Lark.)', 'einvoice-matbao' ),
 			'not_configured'         => ' ' . __( '(Chưa cấu hình Lark nên chưa gửi tin.)', 'einvoice-matbao' ),
+			'disabled'               => ' ' . __( '(Đã tắt cảnh báo Lark nên chưa gửi tin.)', 'einvoice-matbao' ),
 			default                  => '',
 		};
 	}

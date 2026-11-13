@@ -1,6 +1,6 @@
 <?php
 /**
- * Settings page under the WooCommerce menu.
+ * Settings page as a top-level admin menu.
  *
  * @package EinvoiceMatbao
  */
@@ -23,6 +23,12 @@ final class SettingsPage {
 
 	public const SLUG   = 'einvoice-matbao-settings';
 	public const HANDLE = 'einvoice-matbao-admin';
+
+	/** Hook suffix WordPress gives the top-level page; assets load only there. */
+	public const TOP_LEVEL_HOOK = 'toplevel_page_' . self::SLUG;
+
+	/** Menu position, right below WooCommerce. */
+	private const MENU_POSITION = 56;
 
 	/** Capability required for the page and every settings route. */
 	public const CAPABILITY = 'manage_options';
@@ -47,16 +53,17 @@ final class SettingsPage {
 	}
 
 	/**
-	 * Adds the submenu under WooCommerce.
+	 * Adds the top-level menu entry.
 	 */
 	public static function register_menu(): void {
-		add_submenu_page(
-			'woocommerce',
+		add_menu_page(
 			__( 'Hóa đơn Mắt Bão', 'einvoice-matbao' ),
 			__( 'Hóa đơn Mắt Bão', 'einvoice-matbao' ),
 			self::CAPABILITY,
 			self::SLUG,
-			array( self::class, 'render' )
+			array( self::class, 'render' ),
+			'dashicons-media-text',
+			self::MENU_POSITION
 		);
 	}
 
@@ -67,7 +74,7 @@ final class SettingsPage {
 	 * @param string $hook_suffix Current admin page hook.
 	 */
 	public static function enqueue_assets( string $hook_suffix ): void {
-		if ( 'woocommerce_page_' . self::SLUG !== $hook_suffix ) {
+		if ( self::TOP_LEVEL_HOOK !== $hook_suffix ) {
 			return;
 		}
 
@@ -137,12 +144,11 @@ final class SettingsPage {
 		}
 
 		$panel = match ( $tab ) {
-			'connection' => self::render_connection_panel(),
-			'invoicing'  => self::render_invoicing_panel(),
-			'lark'       => self::render_lark_panel(),
-			'monitoring' => self::render_monitoring_panel(),
-			'advanced'   => UninstallSettingsController::render_section(),
-			default      => InvoicePage::render_panel(),
+			'connection'    => self::render_connection_panel(),
+			'invoicing'     => self::render_invoicing_panel(),
+			'notifications' => self::render_lark_panel() . self::render_monitoring_panel(),
+			'advanced'      => UninstallSettingsController::render_section(),
+			default         => InvoicePage::render_panel(),
 		};
 		if ( 'invoices' !== $tab ) {
 			$panel = '<div class="max-w-3xl">' . $panel . '</div>';
@@ -292,6 +298,13 @@ final class SettingsPage {
 					<h2 class="<?php echo esc_attr( self::TITLE ); ?>"><?php esc_html_e( 'Cảnh báo Lark', 'einvoice-matbao' ); ?></h2>
 					<p class="<?php echo esc_attr( self::HELP ); ?> mb-4"><?php esc_html_e( 'Webhook của custom bot Lark trong group nhận cảnh báo. Webhook và secret được lưu mã hóa và không hiển thị lại.', 'einvoice-matbao' ); ?></p>
 					<form hx-post="<?php echo esc_url( rest_url( SettingsController::NAMESPACE . '/settings/lark' ) ); ?>" hx-target="next .einv-result" class="space-y-4">
+						<div>
+							<label class="flex items-center gap-2 text-[14px] text-einv-ink">
+								<input id="einv-lark-enabled" type="checkbox" name="enabled" value="1" <?php checked( ( new Settings() )->lark_enabled( $store->has_lark() ) ); ?> />
+								<?php esc_html_e( 'Bật cảnh báo Lark', 'einvoice-matbao' ); ?>
+							</label>
+							<p class="<?php echo esc_attr( self::HELP ); ?>"><?php esc_html_e( 'Tắt thì không gửi tin tới Lark nhưng vẫn giữ webhook đã lưu.', 'einvoice-matbao' ); ?></p>
+						</div>
 						<div>
 							<label class="<?php echo esc_attr( self::LABEL ); ?>" for="einv-lark-webhook"><?php esc_html_e( 'Webhook URL', 'einvoice-matbao' ); ?></label>
 							<input id="einv-lark-webhook" name="webhook_url" type="password" autocomplete="off" class="<?php echo esc_attr( self::FIELD ); ?>" value="" placeholder="<?php echo esc_attr( $store->has_lark() ? __( 'Đã lưu, để trống nếu không đổi', 'einvoice-matbao' ) : 'https://open.larksuite.com/open-apis/bot/v2/hook/…' ); ?>" />

@@ -16,13 +16,13 @@ use PHPUnit\Framework\TestCase;
 final class SentryDsnTest extends TestCase {
 
 	public function test_parses_valid_dsn(): void {
-		$dsn = SentryDsn::parse( 'https://abc123@rustrak.ltt.onl/3' );
+		$dsn = SentryDsn::parse( 'https://abc123@sentry.example.com/3' );
 
 		$this->assertNotNull( $dsn );
-		$this->assertSame( 'rustrak.ltt.onl', $dsn->host );
+		$this->assertSame( 'sentry.example.com', $dsn->host );
 		$this->assertSame( 3, $dsn->project_id );
-		$this->assertSame( 'rustrak.ltt.onl · project 3', $dsn->label() );
-		$this->assertSame( 'https://abc123@rustrak.ltt.onl/3', $dsn->value() );
+		$this->assertSame( 'sentry.example.com · project 3', $dsn->label() );
+		$this->assertSame( 'https://abc123@sentry.example.com/3', $dsn->value() );
 	}
 
 	public function test_trims_whitespace(): void {
@@ -68,7 +68,7 @@ final class SentryDsnTest extends TestCase {
 	}
 
 	public function test_label_never_contains_key(): void {
-		$dsn = SentryDsn::parse( 'https://abc123@rustrak.ltt.onl/3' );
+		$dsn = SentryDsn::parse( 'https://abc123@sentry.example.com/3' );
 
 		$this->assertNotNull( $dsn );
 		$this->assertStringNotContainsString( 'abc123', $dsn->label() );

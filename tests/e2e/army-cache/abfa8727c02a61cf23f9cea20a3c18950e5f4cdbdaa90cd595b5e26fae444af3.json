@@ -1,6 +1,6 @@
 {
   "schemaVersion": "trace-1",
-  "createdAt": "2026-11-12T00:59:13.863Z",
+  "createdAt": "2026-11-13T02:05:18.684Z",
   "payload": {
     "actions": [
       {
@@ -28,7 +28,7 @@
       "provider": "e2e-text-agent.chat",
       "model": "gpt-6-luna"
     },
-    "summary": "Clicked “Lưu kết nối.” A success notice appeared below the form: “Thành công: Đã lưu thông tin kết nối Mắt Bão (mã hóa).” The password field was displayed as secure, not rendered back as plaintext.",
+    "summary": "Clicked “Lưu kết nối.” A success notice confirms the credentials were saved encrypted; the password remains secure and is not rendered back.",
     "startPath": "/wp-admin/admin.php?page=einvoice-matbao-settings&tab=connection",
     "endPath": "/wp-admin/admin.php?page=einvoice-matbao-settings&tab=connection",
     "endAnchors": [
@@ -37,7 +37,7 @@
         "name": "Thành công: Đã lưu thông tin kết nối Mắt Bão (mã hóa)."
       }
     ],
-    "endWaitMs": 13089,
+    "endWaitMs": 12796,
     "keyedBy": {
       "cacheSchema": "trace-1",
       "policyVersion": "conservative/6",
@@ -46,7 +46,7 @@
       "engineName": "web",
       "engineSpiVersion": 1,
       "appIdentity": "2ce612fe684f904f96ec07f53bc449688a65d26e28e9999fd2a1cec1cbd6fc2d",
-      "agentContextDigest": "13ee543110db691cee44fe33553b56519a220ff3903fab1412a9389339af7ddb"
+      "agentContextDigest": "235c22cafecee64e40527527a5323a53e23fcc3bd4f4deb7cfcfc7cc6261bc9e"
     }
   }
 }

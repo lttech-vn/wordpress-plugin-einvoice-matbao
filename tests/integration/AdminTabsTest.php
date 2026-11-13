@@ -16,12 +16,24 @@ use WP_UnitTestCase;
 final class AdminTabsTest extends WP_UnitTestCase {
 
 	public function test_tabs_are_ordered_with_invoices_first(): void {
-		$this->assertSame( array( 'invoices', 'connection', 'invoicing', 'lark', 'monitoring', 'advanced' ), array_keys( AdminTabs::labels() ) );
+		$this->assertSame( array( 'invoices', 'connection', 'invoicing', 'notifications', 'advanced' ), array_keys( AdminTabs::labels() ) );
 		$this->assertSame( 'Hóa đơn', AdminTabs::labels()['invoices'] );
 	}
 
 	public function test_resolve_keeps_known_keys(): void {
-		$this->assertSame( 'lark', AdminTabs::resolve( 'lark' ) );
+		$this->assertSame( 'notifications', AdminTabs::resolve( 'notifications' ) );
+	}
+
+	public function test_aliases_resolve_to_notifications(): void {
+		$this->assertSame( 'notifications', AdminTabs::resolve( 'lark' ) );
+		$this->assertSame( 'notifications', AdminTabs::resolve( 'monitoring' ) );
+	}
+
+	public function test_canonical_returns_null_for_unknown(): void {
+		$this->assertNull( AdminTabs::canonical( 'foo' ) );
+		$this->assertNull( AdminTabs::canonical( 'Lark' ) );
+		$this->assertNull( AdminTabs::canonical( null ) );
+		$this->assertSame( 'notifications', AdminTabs::canonical( 'monitoring' ) );
 	}
 
 	/**
@@ -53,6 +65,6 @@ final class AdminTabsTest extends WP_UnitTestCase {
 	}
 
 	public function test_url_points_to_the_settings_page_tab(): void {
-		$this->assertSame( admin_url( 'admin.php?page=einvoice-matbao-settings&tab=lark' ), AdminTabs::url( 'lark' ) );
+		$this->assertSame( admin_url( 'admin.php?page=einvoice-matbao-settings&tab=notifications' ), AdminTabs::url( 'notifications' ) );
 	}
 }

@@ -8,6 +8,7 @@
 namespace LTTech\EinvoiceMatbao\Tests\Integration;
 
 use LTTech\EinvoiceMatbao\CredentialStore;
+use LTTech\EinvoiceMatbao\Settings;
 use LTTech\EinvoiceMatbao\Tests\Integration\Support\SettingsRestTestCase;
 
 /**
@@ -176,7 +177,7 @@ final class SettingsCredentialsRestTest extends SettingsRestTestCase {
 		$this->assertStringNotContainsString( self::LARK_SECRET, $html );
 		$this->assertStringNotContainsString( 'fake-hook', $this->stored_plugin_options() );
 		$this->assertStringNotContainsString( self::LARK_SECRET, $this->stored_plugin_options() );
-		$lark_tab = $this->render_settings_page( 'lark' );
+		$lark_tab = $this->render_settings_page( 'notifications' );
 		$this->assertStringContainsString( 'name="webhook_url"', $lark_tab );
 		$this->assertStringNotContainsString( 'fake-hook', $lark_tab );
 
@@ -293,6 +294,84 @@ final class SettingsCredentialsRestTest extends SettingsRestTestCase {
 		$lark = ( new CredentialStore() )->lark();
 		$this->assertSame( self::LARK_WEBHOOK, $lark?->webhook_url );
 		$this->assertSame( '', $lark?->secret );
+	}
+
+	public function test_lark_switch_off_keeps_the_stored_webhook_and_secret(): void {
+		$this->with_encryption_key();
+		$this->htmx(
+			'POST',
+			'/settings/lark',
+			array(
+				'webhook_url' => self::LARK_WEBHOOK,
+				'secret'      => self::LARK_SECRET,
+				'enabled'     => '1',
+			)
+		);
+
+		$response = $this->htmx( 'POST', '/settings/lark', array( 'webhook_url' => '' ) );
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertFalse( ( new Settings() )->lark_enabled( true ) );
+		$lark = ( new CredentialStore() )->lark();
+		$this->assertSame( self::LARK_WEBHOOK, $lark?->webhook_url );
+		$this->assertSame( self::LARK_SECRET, $lark?->secret );
+	}
+
+	public function test_lark_switch_on_with_a_new_webhook_is_saved(): void {
+		$this->with_encryption_key();
+
+		$response = $this->htmx(
+			'POST',
+			'/settings/lark',
+			array(
+				'webhook_url' => self::LARK_WEBHOOK,
+				'enabled'     => '1',
+			)
+		);
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertTrue( ( new Settings() )->lark_enabled( false ) );
+	}
+
+	public function test_lark_switch_on_without_any_webhook_is_refused_and_writes_nothing(): void {
+		$this->with_encryption_key();
+
+		$response = $this->htmx(
+			'POST',
+			'/settings/lark',
+			array(
+				'webhook_url' => '',
+				'secret'      => self::LARK_SECRET,
+				'enabled'     => '1',
+			)
+		);
+
+		$this->assertSame( 422, $response->get_status() );
+		$this->assertStringContainsString( 'data-einv-status="error"', $this->html( $response ) );
+		$this->assertFalse( ( new Settings() )->lark_enabled( false ) );
+		$this->assertFalse( ( new CredentialStore() )->has_lark() );
+	}
+
+	public function test_lark_switch_can_be_turned_off_when_the_stored_webhook_is_unreadable(): void {
+		$this->with_encryption_key();
+		$this->htmx(
+			'POST',
+			'/settings/lark',
+			array(
+				'webhook_url' => self::LARK_WEBHOOK,
+				'enabled'     => '1',
+			)
+		);
+		remove_all_filters( 'einvoice_matbao_encryption_key' );
+		add_filter( 'einvoice_matbao_encryption_key', static fn(): string => 'another-key-material-0123456789abcdef' );
+		$this->assertTrue( ( new CredentialStore() )->has_lark() );
+		$this->assertNull( ( new CredentialStore() )->lark() );
+
+		$response = $this->htmx( 'POST', '/settings/lark', array( 'webhook_url' => '' ) );
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertFalse( ( new Settings() )->lark_enabled( true ) );
+		$this->assertTrue( ( new CredentialStore() )->has_lark(), 'The stored webhook is untouched.' );
 	}
 
 	public function test_stored_credentials_are_unreadable_with_a_different_key(): void {

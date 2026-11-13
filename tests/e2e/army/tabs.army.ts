@@ -21,11 +21,11 @@ describe("plugin screen tabs", { serial: false, agent: "admin" }, () => {
 		await expect(browser.locator("[data-einv-total]")).toBeVisible();
 	});
 
-	test("the monitoring tab sits between Lark and Advanced", async ({ app, browser }) => {
+	test("the notifications tab sits between Invoicing and Advanced", async ({ app, browser }) => {
 		await app.open(SCREEN);
 		const keys = await browser.evaluate(() => Array.from(document.querySelectorAll("[data-einv-tab-link]")).map((a) => a.getAttribute("data-einv-tab-link")));
-		expect(keys).toEqual(["invoices", "connection", "invoicing", "lark", "monitoring", "advanced"]);
-		await expect(tabLink(browser, "monitoring")).toHaveText("Giám sát lỗi");
+		expect(keys).toEqual(["invoices", "connection", "invoicing", "notifications", "advanced"]);
+		await expect(tabLink(browser, "notifications")).toHaveText("Thông báo");
 	});
 
 	test("switching tabs does not reload and updates the URL", async ({ app, screen, browser }) => {
@@ -33,10 +33,18 @@ describe("plugin screen tabs", { serial: false, agent: "admin" }, () => {
 		await browser.evaluate(() => {
 			(window as any).__einvMarker = 1;
 		});
-		await tabLink(browser, "lark").tap();
+		await tabLink(browser, "notifications").tap();
 		await expect(screen.getByLabel("Webhook URL")).toBeVisible();
-		await expect(browser).toHaveURL(/tab=lark/);
+		await expect(browser).toHaveURL(/tab=notifications/);
 		expect(await browser.evaluate(() => (window as any).__einvMarker)).toBe(1);
+	});
+
+	test("legacy lark and monitoring URLs open the notifications tab", async ({ app, screen, browser }) => {
+		for (const url of [PAGES.legacyLark, PAGES.legacyMonitoring]) {
+			await app.open(url);
+			await expect(tabLink(browser, "notifications")).toHaveAttribute("aria-current", "page");
+			await expect(screen.getByLabel("Webhook URL")).toBeVisible();
+		}
 	});
 
 	test("switching to the connection tab loads the template list", async ({ app, screen, browser }) => {

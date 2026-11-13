@@ -77,17 +77,17 @@ wp eval 'echo wp_generate_password( 64, false );'
 
 ## Bước 2: cấu hình trên trang cài đặt
 
-Mở **WooCommerce → Hóa đơn Mắt Bão**. Chỉ Administrator (quyền `manage_options`) thấy và dùng được trang này. Trang chia thành các tab:
+Mở menu **Hóa đơn Mắt Bão** ở thanh bên trái của wp-admin (mục chính, nằm dưới WooCommerce). Chỉ Administrator (quyền `manage_options`) thấy và dùng được trang này. Trang chia thành các tab:
 
 | Tab | Nội dung |
 |---|---|
 | **Hóa đơn** (mở mặc định) | Tổng quan, danh sách hóa đơn, chi tiết, gửi lại |
 | **Kết nối Mắt Bão** | Thông tin đăng nhập API và mẫu hóa đơn mặc định |
 | **Xuất hóa đơn** | Mã tham chiếu, người mua vãng lai, đơn vị tính |
-| **Cảnh báo Lark** | Webhook nhận cảnh báo |
+| **Thông báo** | Cảnh báo Lark (có công tắc bật/tắt) và giám sát lỗi Sentry |
 | **Nâng cao** | Gỡ plugin |
 
-Chuyển tab không tải lại trang; mỗi tab có đường dẫn riêng (`&tab=connection`, …) nên có thể đánh dấu trang. Mỗi phần có nút **Lưu** riêng.
+Chuyển tab không tải lại trang; mỗi tab có đường dẫn riêng (`&tab=connection`, …) nên có thể đánh dấu trang; đường dẫn cũ `&tab=lark` và `&tab=monitoring` vẫn mở tab Thông báo. Mỗi phần có nút **Lưu** riêng.
 
 ### Kết nối Mắt Bão (tab Kết nối Mắt Bão)
 
@@ -116,9 +116,9 @@ Sau khi kết nối thành công, danh sách mẫu GTGT của năm hiện tại 
 
 Muốn đặt riêng cho một sản phẩm, mở trang sửa sản phẩm, điền ô **Đơn vị tính hóa đơn**. Biến thể không đặt riêng thì dùng của sản phẩm cha. Sửa nhanh, sửa hàng loạt và nhập CSV chưa hỗ trợ trường này (giá trị đã có được giữ nguyên).
 
-### Cảnh báo Lark (tab Cảnh báo Lark, tùy chọn)
+### Cảnh báo Lark (tab Thông báo, tùy chọn)
 
-Tạo **custom bot** trong group Lark nhận cảnh báo, dán **Webhook URL** và **Secret ký** (nếu bot bật ký), bấm **Lưu webhook** rồi **Gửi tin nhắn kiểm tra**. Webhook và secret được lưu mã hóa.
+Tạo **custom bot** trong group Lark nhận cảnh báo, dán **Webhook URL** và **Secret ký** (nếu bot bật ký), tick **Bật cảnh báo Lark**, bấm **Lưu webhook** rồi **Gửi tin nhắn kiểm tra**. Webhook và secret được lưu mã hóa. Bỏ tick để tạm ngừng gửi tin mà vẫn giữ webhook; khi tắt, thông báo trong wp-admin vẫn hiện kèm ghi chú đã tắt cảnh báo Lark, và các lỗi phát sinh lúc tắt không được gửi bù khi bật lại. Site đã lưu webhook từ trước khi có công tắc được coi là đang bật.
 
 Tin Lark chỉ gồm mã đơn, loại lỗi, **Cách xử lý** (hướng dẫn cụ thể cho loại lỗi đó) và đường dẫn tới đơn trong wp-admin, không có thông tin cá nhân người mua.
 
@@ -165,7 +165,7 @@ Nội dung hóa đơn:
 
 - **Trên trang đơn hàng:** hộp **Hóa đơn Mắt Bão** hiện trạng thái, mã tham chiếu, mã hóa đơn Mắt Bão, mẫu/ký hiệu, loại lỗi và lý do.
 - **Danh sách đơn hàng:** bộ lọc **Hóa đơn** để lọc đơn theo trạng thái hóa đơn.
-- **WooCommerce → Hóa đơn Mắt Bão, tab Hóa đơn** (đường dẫn cũ *Danh sách hóa đơn* tự chuyển về đây):
+- **Hóa đơn Mắt Bão, tab Hóa đơn** (đường dẫn cũ *Danh sách hóa đơn* tự chuyển về đây):
   - Ô tổng quan: *Lỗi / cần xử lý*, *Đang chờ gửi*, *Đã tạo nháp* (tổng và hôm nay).
   - Lọc theo trạng thái, tìm theo mã đơn hoặc đầu mã tham chiếu.
   - Trang **Chi tiết**: lịch sử từng lần gửi, kết quả, thông điệp từ Mắt Bão. Số CCCD luôn được che, chỉ hiện 4 số cuối.
@@ -276,7 +276,7 @@ Tính năng này là tùy chọn, **mặc định tắt**. Khi bật, plugin g�
 ### Bật giám sát
 
 1. Lấy DSN của project Sentry: có dạng `https://<public_key>@<host>/<project_id>`.
-2. Mở **WooCommerce → Hóa đơn Mắt Bão**, chọn tab **Giám sát lỗi**.
+2. Mở menu **Hóa đơn Mắt Bão**, chọn tab **Thông báo** (thẻ **Giám sát lỗi (Sentry)**).
 3. Bật ô **Bật gửi lỗi, hiệu năng và log lên máy chủ Sentry**, nhập **DSN** (ô này hiển thị dạng mật khẩu và không hiện lại DSN đã lưu; để trống khi muốn giữ DSN cũ).
 4. Chỉnh **Tỉ lệ lấy mẫu hiệu năng** từ 0 đến 1 (mặc định 1 = ghi lại mọi giao dịch; site đông đơn nên giảm, ví dụ 0.2).
 5. Bấm **Lưu cấu hình**, rồi bấm **Gửi event thử**. Thành công sẽ hiện ID event; trên Sentry, event có nội dung "einvoice-matbao test event". Thất bại thì kiểm tra lại DSN và kết nối mạng từ máy chủ WordPress.
