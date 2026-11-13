@@ -2,7 +2,7 @@
 
 **Change**: `top-level-menu-notifications`
 **Finalized at**: `2026-11-12 15:20`
-**Outcome**: `pr-updated` (local merge only; push and PR not done, see Deviations)
+**Outcome**: `pr-created`
 
 ---
 
@@ -10,8 +10,8 @@
 
 - **Branch**: `change-menu`
 - **Base branch**: `main`
-- **Final state**: `kept-open` (merged locally, not pushed; `change-menu` has no remote branch and no PR)
-- **PR URL**: N/A
+- **Final state**: `pr-open`
+- **PR URL**: https://github.com/lttech-vn/wordpress-plugin-einvoice-matbao/pull/47
 
 ---
 
@@ -24,7 +24,7 @@
 
 ## PR comment
 
-- **PR comment status**: `skipped (no PR)`
+- **PR comment status**: `posted`
 
 ---
 
@@ -46,10 +46,10 @@
 
 - Step 4 fast-forward merge of `top-level-menu-notifications` into `change-menu` done (`4a69516`).
 - Steps 6-7 (remove worktree, delete branch): skipped on purpose. Project rules require Worktrunk (`wt`) for worktrees and cleanup after merge from the `main` worktree.
-- Steps 10-11 (push, open PR): not done. Global rule: no push, merge or PR without explicit permission in chat; `change-menu` has no upstream. Waiting for the user.
+- Steps 10-11 (push, open PR): done after the user's explicit permission in chat. Pushed over HTTPS with the `naicoi92` account (`ttdua` has READ only on `lttech-vn/*`); PR #47 against `main`.
 
 ---
 
 ## Next step
 
-Tell me to push `change-menu` and open a PR (or merge another way). Then run `/opsx-archive` on `change-menu`, push the archive commits, and merge. Afterwards remove the worktree with `wt remove top-level-menu-notifications`. Browser e2e (`tests/e2e/army`) is still unrun and should be run in an environment with the runner before merging.
+Wait for PR code review. After approval, run `/opsx-archive` on `change-menu`, push the archive commits to update the PR, then merge it (`gh pr merge --squash --delete-branch` or the GitHub UI). Afterwards remove the worktree with `wt remove top-level-menu-notifications`. Browser e2e (`tests/e2e/army`) is still unrun and should be run in an environment with the runner before merging.
