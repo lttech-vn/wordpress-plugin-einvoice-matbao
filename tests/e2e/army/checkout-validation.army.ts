@@ -45,30 +45,34 @@ describe("classic checkout validation", { serial: false, agent: "default" }, () 
 		await expect(browser).toHaveURL(/classic-checkout/);
 	});
 
-	test("a business needs name, a 10 or 13 digit tax code and an address", async ({ app, screen, browser }) => {
+	test("a business needs name, a 10 or 13 digit tax code and a billing address", async ({ app, screen, browser }) => {
 		await fillClassicBilling({ app, screen });
 		await screen.getByLabel("Yêu cầu xuất hóa đơn").check();
 		await screen.getByLabel("Doanh nghiệp").check();
 		await screen.getByLabel("Mã số thuế").fill("12345");
+		// The composed billing address joins address 1 and city, so both must be empty for the error.
+		await screen.getByLabel("Street address", { exact: false }).first().fill("");
+		await screen.getByLabel("Town / City", { exact: false }).first().fill("");
 		await placeOrder(screen).tap();
 		await expect(browser.locator("#einv_business_name_error")).toContainText("Vui lòng nhập tên doanh nghiệp");
 		await expect(browser.locator("#einv_tax_code_error")).toContainText("Mã số thuế phải gồm 10 hoặc 13 chữ số");
-		await expect(browser.locator("#einv_address_error")).toContainText("Vui lòng nhập địa chỉ xuất hóa đơn");
+		await expect(browser.locator("#billing_address_1_error")).toContainText("Vui lòng nhập địa chỉ thanh toán của bạn");
 		await expect(browser).toHaveURL(/classic-checkout/);
 
 		// Fixing the fields clears the errors as the buyer types.
 		await screen.getByLabel("Tên doanh nghiệp").fill("CÔNG TY TNHH THỬ NGHIỆM E2E");
 		await screen.getByLabel("Mã số thuế").fill("0000000000");
-		await screen.getByLabel("Địa chỉ xuất hóa đơn").fill("2 Đường Thử Nghiệm, Quận 3");
+		await screen.getByLabel("Street address", { exact: false }).first().fill("2 Đường Thử Nghiệm, Quận 3");
+		await screen.getByLabel("Town / City", { exact: false }).first().fill(BILLING.city);
 		await expect(browser.locator("#einv_tax_code_error")).toHaveText("");
 		await expect(browser.locator("#einv_business_name_error")).toHaveText("");
+		await expect(browser.locator("#billing_address_1_error")).toHaveText("");
 	});
 
 	test("an individual needs a 12 digit CCCD", async ({ app, screen, browser }) => {
 		await fillClassicBilling({ app, screen });
 		await screen.getByLabel("Yêu cầu xuất hóa đơn").check();
 		await screen.getByLabel("Cá nhân").check();
-		await screen.getByLabel("Địa chỉ xuất hóa đơn").fill("1 Đường Thử Nghiệm");
 		await screen.getByLabel("Số CCCD").fill("12345");
 		await placeOrder(screen).tap();
 		await expect(browser.locator("#einv_id_number_error")).toContainText("Số CCCD phải gồm đúng 12 chữ số.");
@@ -89,20 +93,22 @@ describe("classic checkout validation", { serial: false, agent: "default" }, () 
 		expect(seen.length).toBe(0);
 	});
 
-	test("without the checkbox the order is a walk-in buyer even with billing data", async ({ app, screen, browser }) => {
+	test("without the checkbox the order is a walk-in buyer with the valid billing details", async ({ app, screen, browser }) => {
 		await fillClassicBilling({ app, screen });
 		await placeOrder(screen).tap();
 		await expect(browser).toHaveURL(/order-received/);
 		const orderId = await orderIdFromUrl(browser);
 		await seam({ app }, `/status/${orderId}`, { status: "completed" });
 		await waitForStatus({ app }, orderId, "draft_created");
-		expect((await fake("requests?endpoint=create-invoice"))[0].body[0].NMua_Ten).toBe("Khách hàng không lấy hóa đơn");
+		const body = (await fake("requests?endpoint=create-invoice"))[0].body[0];
+		expect(body.NMua_Ten).toBe("Nguyễn Văn Thử");
+		expect(body.NMua_DChi).toBe("3 Đường Thử Nghiệm, Hồ Chí Minh");
 	});
 
 	test("a valid business request is saved and sent with its tax code and address", async ({ app, screen, browser, agent }) => {
 		await fillClassicBilling({ app, screen });
-		await agent.act("tick the invoice request checkbox 'Yêu cầu xuất hóa đơn', choose 'Doanh nghiệp', fill the business name {name}, the tax code {tax_code} and the invoice address {address}", {
-			params: { name: "CÔNG TY TNHH THỬ NGHIỆM E2E", tax_code: "0000000000", address: "2 Đường Thử Nghiệm, Quận 3, TP HCM" },
+		await agent.act("tick the invoice request checkbox 'Yêu cầu xuất hóa đơn', choose 'Doanh nghiệp', fill the business name {name} and the tax code {tax_code}", {
+			params: { name: "CÔNG TY TNHH THỬ NGHIỆM E2E", tax_code: "0000000000" },
 		});
 		await expect(browser.locator("#einv_tax_code")).toHaveValue("0000000000");
 		await placeOrder(screen).tap();
@@ -113,15 +119,15 @@ describe("classic checkout validation", { serial: false, agent: "default" }, () 
 		const body = (await fake("requests?endpoint=create-invoice"))[0].body[0];
 		expect(body.NMua_Ten).toBe("CÔNG TY TNHH THỬ NGHIỆM E2E");
 		expect(body.NMua_MST).toBe("0000000000");
-		expect(body.NMua_DChi).toBe("2 Đường Thử Nghiệm, Quận 3, TP HCM");
+		expect(body.NMua_DChi).toBe("3 Đường Thử Nghiệm, Hồ Chí Minh");
 	});
 
 	test("a valid individual request sends the CCCD to Mat Bao but never stores it in the clear", async ({ app, screen, browser, agent }) => {
 		await fillClassicBilling({ app, screen });
-		await agent.act("tick the invoice request checkbox 'Yêu cầu xuất hóa đơn', choose 'Cá nhân', fill the invoice address {address} exactly as given, without adding any punctuation, and the ID number {id_number}", {
-			params: { address: "1 Đường Thử Nghiệm, Quận 1, TP HCM", id_number: "000000000042" },
+		await agent.act("tick the invoice request checkbox 'Yêu cầu xuất hóa đơn', choose 'Cá nhân', and fill the ID number {id_number}", {
+			params: { id_number: "000000000042" },
 		});
-		await expect(browser.locator("#einv_address")).toHaveValue("1 Đường Thử Nghiệm, Quận 1, TP HCM");
+		await expect(browser.locator("#einv_id_number")).toHaveValue("000000000042");
 		await placeOrder(screen).tap();
 		await expect(browser).toHaveURL(/order-received/);
 		const orderId = await orderIdFromUrl(browser);

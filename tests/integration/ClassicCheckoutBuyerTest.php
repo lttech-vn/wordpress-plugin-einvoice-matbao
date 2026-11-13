@@ -48,10 +48,19 @@ final class ClassicCheckoutBuyerTest extends InvoiceWorkflowTestCase {
 
 		$this->assertNotNull( $request );
 		$this->assertSame( 'individual', $request['type'] );
-		$this->assertSame( 'Số 1 Đường Thử, Quận Thử', $request['address'] );
+		$this->assertSame( '', $request['address'] );
 		$this->assertSame( '********1234', $request['id_mask'] );
 		$this->assertStringStartsWith( 'v1.', $request['id_encrypted'] );
 		$this->assertStringNotContainsString( self::ID_NUMBER, (string) wp_json_encode( $this->all_meta( $order ) ) );
+	}
+
+	public function test_individual_requires_a_billing_address(): void {
+		$this->with_encryption_key();
+
+		$errors = $this->validate_checkout( $this->individual_post(), $this->no_billing_address() );
+
+		$this->assertSame( array( 'einvoice_buyer_address' ), $errors->get_error_codes() );
+		$this->assertStringContainsString( 'thanh toán', $errors->get_error_message( 'einvoice_buyer_address' ) );
 	}
 
 	public function test_individual_requires_name_address_id_number_and_phone(): void {
@@ -66,7 +75,7 @@ final class ClassicCheckoutBuyerTest extends InvoiceWorkflowTestCase {
 				'billing_first_name' => '',
 				'billing_last_name'  => '',
 				'billing_phone'      => '',
-			)
+			) + $this->no_billing_address()
 		);
 
 		$this->assertEqualsCanonicalizing(
@@ -115,10 +124,10 @@ final class ClassicCheckoutBuyerTest extends InvoiceWorkflowTestCase {
 		$this->assertSame( array(), $ok->get_error_codes() );
 	}
 
-	public function test_individual_rejects_an_address_longer_than_the_mat_bao_limit(): void {
+	public function test_individual_rejects_a_billing_address_longer_than_the_mat_bao_limit(): void {
 		$this->with_encryption_key();
 
-		$errors = $this->validate_checkout( array( 'einv_address' => str_repeat( 'a', 401 ) ) + $this->individual_post() );
+		$errors = $this->validate_checkout( $this->individual_post(), $this->address_of_length( 401 ) );
 
 		$this->assertSame( array( 'einvoice_buyer_address' ), $errors->get_error_codes() );
 	}
@@ -151,6 +160,18 @@ final class ClassicCheckoutBuyerTest extends InvoiceWorkflowTestCase {
 		$this->assertSame( '', $request['id_encrypted'] );
 	}
 
+	public function test_business_requires_a_billing_address(): void {
+		$errors = $this->validate_checkout( $this->business_post(), $this->no_billing_address() );
+
+		$this->assertSame( array( 'einvoice_buyer_address' ), $errors->get_error_codes() );
+	}
+
+	public function test_business_rejects_a_billing_address_longer_than_the_mat_bao_limit(): void {
+		$errors = $this->validate_checkout( $this->business_post(), $this->address_of_length( 401 ) );
+
+		$this->assertSame( array( 'einvoice_buyer_address' ), $errors->get_error_codes() );
+	}
+
 	public function test_business_requires_name_tax_code_address_phone_and_email(): void {
 		$errors = $this->validate_checkout(
 			array(
@@ -160,7 +181,7 @@ final class ClassicCheckoutBuyerTest extends InvoiceWorkflowTestCase {
 			array(
 				'billing_phone' => '',
 				'billing_email' => '',
-			)
+			) + $this->no_billing_address()
 		);
 
 		$this->assertEqualsCanonicalizing(
@@ -270,8 +291,8 @@ final class ClassicCheckoutBuyerTest extends InvoiceWorkflowTestCase {
 	public function test_lengths_count_characters_not_bytes(): void {
 		$this->with_encryption_key();
 
-		$at_limit = $this->validate_checkout( array( 'einv_address' => str_repeat( 'ạ', 400 ) ) + $this->individual_post() );
-		$over     = $this->validate_checkout( array( 'einv_address' => str_repeat( 'ạ', 401 ) ) + $this->individual_post() );
+		$at_limit = $this->validate_checkout( $this->individual_post(), $this->address_of_length( 400, 'ạ' ) );
+		$over     = $this->validate_checkout( $this->individual_post(), $this->address_of_length( 401, 'ạ' ) );
 		// Billing name is "first last": 50 + 1 + 49 = 100 characters, then 101.
 		$name_ok   = $this->validate_checkout( $this->individual_post(), $this->billing_name( str_repeat( 'Ư', 50 ), str_repeat( 'ơ', 49 ) ) );
 		$name_long = $this->validate_checkout( $this->individual_post(), $this->billing_name( str_repeat( 'Ư', 50 ), str_repeat( 'ơ', 50 ) ) );
@@ -304,7 +325,13 @@ final class ClassicCheckoutBuyerTest extends InvoiceWorkflowTestCase {
 		$html = $this->render_fields();
 
 		$this->assertStringNotContainsString( self::ID_NUMBER, $html );
-		$this->assertStringContainsString( 'Số 1 Đường Thử', $html );
+	}
+
+	public function test_classic_form_has_no_address_field(): void {
+		$html = $this->render_fields();
+
+		$this->assertStringNotContainsString( 'einv_address', $html );
+		$this->assertStringNotContainsString( 'Địa chỉ xuất hóa đơn', $html );
 	}
 
 	public function test_individual_is_never_both_checked_and_disabled(): void {
@@ -320,7 +347,7 @@ final class ClassicCheckoutBuyerTest extends InvoiceWorkflowTestCase {
 		$html = $this->render_fields();
 
 		$this->assertMatchesRegularExpression( '/<fieldset[^>]*id="einv_buyer_type_field"[^>]*>\s*<legend[^>]*>Xuất hóa đơn cho.*?<\/legend>/su', $html );
-		foreach ( array( 'einv_business_name', 'einv_tax_code', 'einv_address', 'einv_id_number' ) as $name ) {
+		foreach ( array( 'einv_business_name', 'einv_tax_code', 'einv_id_number' ) as $name ) {
 			$this->assertMatchesRegularExpression( '/<input[^>]*id="' . $name . '"[^>]*aria-required="true"[^>]*aria-describedby="' . $name . '_error"/', $html, $name );
 			$this->assertMatchesRegularExpression( '/id="' . $name . '_error"[^>]*aria-live="polite"/', $html, $name );
 		}
@@ -328,7 +355,7 @@ final class ClassicCheckoutBuyerTest extends InvoiceWorkflowTestCase {
 	}
 
 	public function test_fields_escape_submitted_values(): void {
-		$_POST = array( 'einv_address' => '"><script>alert(1)</script>' );
+		$_POST = array( 'einv_business_name' => '"><script>alert(1)</script>' );
 
 		$this->assertStringNotContainsString( '<script>alert(1)', $this->render_fields() );
 	}
@@ -342,7 +369,6 @@ final class ClassicCheckoutBuyerTest extends InvoiceWorkflowTestCase {
 		return array(
 			'einv_request_invoice' => '1',
 			'einv_buyer_type'      => 'individual',
-			'einv_address'         => 'Số 1 Đường Thử, Quận Thử',
 			'einv_id_number'       => self::ID_NUMBER,
 		);
 	}
@@ -358,7 +384,6 @@ final class ClassicCheckoutBuyerTest extends InvoiceWorkflowTestCase {
 			'einv_buyer_type'      => 'business',
 			'einv_business_name'   => 'Doanh nghiệp Thử',
 			'einv_tax_code'        => self::TAX_CODE,
-			'einv_address'         => 'Số 2 Đường Thử, Quận Thử',
 		);
 	}
 
@@ -374,7 +399,34 @@ final class ClassicCheckoutBuyerTest extends InvoiceWorkflowTestCase {
 			'billing_last_name'  => 'Văn A',
 			'billing_phone'      => '0900000001',
 			'billing_email'      => 'buyer@example.invalid',
+			'billing_address_1'  => '1 Đường Thử',
+			'billing_city'       => 'Hà Nội',
 		);
+	}
+
+	/**
+	 * Billing overrides that leave every address part empty.
+	 *
+	 * @return array<string, string>
+	 */
+	private function no_billing_address(): array {
+		return array(
+			'billing_address_1' => '',
+			'billing_address_2' => '',
+			'billing_city'      => '',
+			'billing_state'     => '',
+		);
+	}
+
+	/**
+	 * Billing overrides whose joined address has the given length (city is left empty).
+	 *
+	 * @param int    $length Characters in address line 1.
+	 * @param string $char   Character to repeat.
+	 * @return array<string, string>
+	 */
+	private function address_of_length( int $length, string $char = 'a' ): array {
+		return array( 'billing_address_1' => str_repeat( $char, $length ) ) + $this->no_billing_address();
 	}
 
 	/**

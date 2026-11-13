@@ -72,15 +72,214 @@ final class DraftInvoiceBuyerSnapshotTest extends InvoiceWorkflowTestCase {
 	public function test_order_with_billing_but_no_request_is_a_walk_in_buyer(): void {
 		$this->configure_matbao();
 		$this->fake_create_invoice_ok();
-		$order = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
-		$order->set_billing_phone( '0900000001' );
-		$order->save();
+		$order = $this->walk_in_order(
+			array(
+				'first_name' => '',
+				'last_name'  => '',
+				'email'      => '',
+				'phone'      => '0900000001',
+			)
+		);
 
 		$this->complete_and_run( $order );
 
 		$invoice = $this->sent_invoices()[0];
 		$this->assertSame( 'Khách hàng không lấy hóa đơn', $invoice['NMua_Ten'] );
+		$this->assertSame( '0900000001', $invoice['NMua_SDThoai'] );
+		$this->assertArrayNotHasKey( 'NMua_MST', $invoice );
+	}
+
+	public function test_walk_in_draft_carries_billing_fields(): void {
+		$this->configure_matbao();
+		$this->fake_create_invoice_ok();
+		$order = $this->walk_in_order(
+			array(
+				'phone'     => '0900000001',
+				'address_1' => 'Số 3 Đường Thử',
+				'city'      => 'Thành phố Thử',
+			)
+		);
+
+		$this->complete_and_run( $order );
+
+		$invoice = $this->sent_invoices()[0];
+		$this->assertSame( 'Nguyễn Văn A', $invoice['NMua_Ten'] );
+		$this->assertSame( 'Nguyễn Văn A', $invoice['NMua_HVTNMHang'] );
+		$this->assertSame( 'Số 3 Đường Thử, Thành phố Thử', $invoice['NMua_DChi'] );
+		$this->assertSame( '0900000001', $invoice['NMua_SDThoai'] );
+		$this->assertSame( 'buyer@example.invalid', $invoice['NMua_DCTDTu'] );
+		$this->assertArrayNotHasKey( 'NMua_MST', $invoice );
+		$this->assertArrayNotHasKey( 'NMua_CCCDan', $invoice );
+		$this->assertTrue( ( new BuyerSnapshotter() )->load( $order )?->personal );
+	}
+
+	public function test_walk_in_skips_invalid_phone_and_email(): void {
+		$this->configure_matbao();
+		$this->fake_create_invoice_ok();
+		$order = $this->walk_in_order(
+			array(
+				'phone' => '12345',
+				'email' => str_repeat( 'a', 45 ) . '@example.invalid',
+			)
+		);
+
+		$this->complete_and_run( $order );
+
+		$invoice = $this->sent_invoices()[0];
+		$this->assertSame( 'Nguyễn Văn A', $invoice['NMua_Ten'] );
+		$this->assertArrayNotHasKey( 'NMua_SDThoai', $invoice );
+		$this->assertArrayNotHasKey( 'NMua_DCTDTu', $invoice );
+	}
+
+	public function test_walk_in_drops_a_malformed_email_under_the_length_limit(): void {
+		$order = new class() extends WC_Order {
+			/**
+			 * WooCommerce rejects a malformed email in its setter, so the stale value is injected here.
+			 *
+			 * @param string $context Context.
+			 */
+			public function get_billing_email( $context = 'view' ): string {
+				return 'not-an-email';
+			}
+		};
+		$order->set_billing_first_name( 'Nguyễn' );
+		$order->set_billing_phone( '0900000001' );
+
+		$snapshot = ( new BuyerSnapshotter() )->build( $order, 'Khách hàng không lấy hóa đơn' );
+
+		$this->assertLessThan( 50, strlen( $order->get_billing_email() ) );
+		$this->assertArrayNotHasKey( 'NMua_DCTDTu', $snapshot->fields );
+		$this->assertSame( '0900000001', $snapshot->fields['NMua_SDThoai'] );
+		$this->assertSame( 'Nguyễn', $snapshot->fields['NMua_Ten'] );
+		$this->assertTrue( $snapshot->personal );
+	}
+
+	public function test_walk_in_with_only_a_long_name_is_personal_without_the_short_name_field(): void {
+		$order = $this->walk_in_order(
+			array(
+				'first_name' => str_repeat( 'N', 101 ),
+				'last_name'  => '',
+				'email'      => '',
+				'phone'      => '',
+			)
+		);
+
+		$snapshot = ( new BuyerSnapshotter() )->build( $order, 'Khách hàng không lấy hóa đơn' );
+
+		$this->assertSame( str_repeat( 'N', 101 ), $snapshot->fields['NMua_Ten'] );
+		$this->assertArrayNotHasKey( 'NMua_HVTNMHang', $snapshot->fields );
+		$this->assertArrayNotHasKey( 'NMua_DChi', $snapshot->fields );
+		$this->assertTrue( $snapshot->personal );
+	}
+
+	public function test_walk_in_cuts_a_name_over_400_characters(): void {
+		$order = $this->walk_in_order(
+			array(
+				'first_name' => str_repeat( 'N', 450 ),
+				'last_name'  => '',
+			)
+		);
+
+		$snapshot = ( new BuyerSnapshotter() )->build( $order, 'Khách hàng không lấy hóa đơn' );
+
+		$this->assertSame( str_repeat( 'N', 400 ), $snapshot->fields['NMua_Ten'] );
+		$this->assertArrayNotHasKey( 'NMua_HVTNMHang', $snapshot->fields );
+	}
+
+	public function test_walk_in_with_empty_billing_sends_only_the_configured_name(): void {
+		$this->configure_matbao();
+		$this->fake_create_invoice_ok();
+		$order = $this->walk_in_order(
+			array(
+				'first_name' => '',
+				'last_name'  => '',
+				'email'      => '',
+			)
+		);
+
+		$this->complete_and_run( $order );
+
+		$invoice = $this->sent_invoices()[0];
 		$this->assertSame( array( 'NMua_Ten' ), array_values( array_filter( array_keys( $invoice ), static fn( string $key ): bool => str_starts_with( $key, 'NMua_' ) ) ) );
+		$this->assertSame( 'Khách hàng không lấy hóa đơn', $invoice['NMua_Ten'] );
+		$this->assertFalse( ( new BuyerSnapshotter() )->load( $order )?->personal );
+	}
+
+	public function test_walk_in_cuts_a_long_address_and_skips_the_short_name_field_for_a_long_name(): void {
+		$this->configure_matbao();
+		$this->fake_create_invoice_ok();
+		$order = $this->walk_in_order(
+			array(
+				'first_name' => str_repeat( 'N', 101 ),
+				'last_name'  => '',
+				'address_1'  => str_repeat( 'Đ', 450 ),
+			)
+		);
+
+		$this->complete_and_run( $order );
+
+		$invoice = $this->sent_invoices()[0];
+		$this->assertSame( str_repeat( 'N', 101 ), $invoice['NMua_Ten'] );
+		$this->assertArrayNotHasKey( 'NMua_HVTNMHang', $invoice );
+		$this->assertSame( str_repeat( 'Đ', 400 ), $invoice['NMua_DChi'] );
+	}
+
+	public function test_individual_address_comes_from_billing(): void {
+		$this->with_encryption_key();
+		$order = $this->order_with_request( $this->individual_post() );
+		$order->set_billing_address_1( 'Số 9 Đường Thử' );
+		$order->save();
+
+		$snapshot = ( new BuyerSnapshotter() )->build( $order, 'Khách' );
+
+		$this->assertSame( 'Số 9 Đường Thử', $snapshot->fields['NMua_DChi'] );
+		$this->assertTrue( $snapshot->personal );
+	}
+
+	public function test_legacy_request_address_is_the_fallback(): void {
+		$this->with_encryption_key();
+		$order = $this->order_with_request( $this->individual_post() );
+		$store = new \LTTech\EinvoiceMatbao\Buyer\BuyerRequestStore();
+		$data  = $store->load( $order );
+		$this->assertNotNull( $data );
+		$data['address'] = 'Địa chỉ cũ';
+		$order->set_billing_address_1( '' );
+		$order->update_meta_data( \LTTech\EinvoiceMatbao\Buyer\BuyerRequestStore::META_KEY, wp_json_encode( $data ) );
+		$order->save();
+
+		$snapshotter = new BuyerSnapshotter();
+
+		$this->assertSame( 'Địa chỉ cũ', $snapshotter->build( $order, 'Khách' )->fields['NMua_DChi'] );
+		$this->assertSame( array(), $snapshotter->validate( $order ) );
+	}
+
+	public function test_personal_flag_round_trips_and_defaults_to_false(): void {
+		$snapshot = new \LTTech\EinvoiceMatbao\Buyer\BuyerSnapshot( 'walk_in', 'A', array( 'NMua_Ten' => 'A' ), '', '', true );
+
+		$this->assertTrue( \LTTech\EinvoiceMatbao\Buyer\BuyerSnapshot::from_array( $snapshot->to_array() )->personal );
+		$this->assertFalse(
+			\LTTech\EinvoiceMatbao\Buyer\BuyerSnapshot::from_array(
+				array(
+					'type'       => 'walk_in',
+					'buyer_name' => 'A',
+				)
+			)->personal
+		);
+	}
+
+	/**
+	 * Order without a request and with the given billing overrides.
+	 *
+	 * @param array<string, string> $billing Billing values by field name.
+	 */
+	private function walk_in_order( array $billing ): WC_Order {
+		$order = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
+		foreach ( $billing as $field => $value ) {
+			$order->{'set_billing_' . $field}( $value );
+		}
+		$order->save();
+
+		return $order;
 	}
 
 	public function test_every_attempt_sends_the_snapshot_not_the_current_order(): void {
@@ -389,6 +588,7 @@ final class DraftInvoiceBuyerSnapshotTest extends InvoiceWorkflowTestCase {
 		$this->configure_matbao();
 		$_POST = $this->individual_post();
 		$order = $this->create_order( array( array( $this->create_product( 'Free', '0' ), 1 ) ) );
+		$order->set_billing_address_1( 'Số 1 Đường Thử, Quận Thử' );
 		do_action( 'woocommerce_checkout_create_order', $order, array( 'billing_phone' => '0900000001' ) + $this->billing_of( $order ) ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- fires a WooCommerce hook.
 		$order->set_billing_phone( '0900000001' );
 		$order->save();
@@ -484,6 +684,7 @@ final class DraftInvoiceBuyerSnapshotTest extends InvoiceWorkflowTestCase {
 			'billing_last_name'  => $order->get_billing_last_name(),
 			'billing_phone'      => $order->get_billing_phone(),
 			'billing_email'      => $order->get_billing_email(),
+			'billing_address_1'  => $order->get_billing_address_1(),
 		);
 	}
 
@@ -496,7 +697,6 @@ final class DraftInvoiceBuyerSnapshotTest extends InvoiceWorkflowTestCase {
 		return array(
 			'einv_request_invoice' => '1',
 			'einv_buyer_type'      => 'individual',
-			'einv_address'         => 'Số 1 Đường Thử, Quận Thử',
 			'einv_id_number'       => self::ID_NUMBER,
 		);
 	}
@@ -512,7 +712,6 @@ final class DraftInvoiceBuyerSnapshotTest extends InvoiceWorkflowTestCase {
 			'einv_buyer_type'      => 'business',
 			'einv_business_name'   => 'Doanh nghiệp Thử',
 			'einv_tax_code'        => '0000000000-001',
-			'einv_address'         => 'Số 2 Đường Thử, Quận Thử',
 		);
 	}
 
@@ -525,6 +724,7 @@ final class DraftInvoiceBuyerSnapshotTest extends InvoiceWorkflowTestCase {
 		$_POST = $post;
 		$order = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
 		$order->set_billing_phone( '0900000001' );
+		$order->set_billing_address_1( 'business' === ( $post['einv_buyer_type'] ?? '' ) ? 'Số 2 Đường Thử, Quận Thử' : 'Số 1 Đường Thử, Quận Thử' );
 		do_action( 'woocommerce_checkout_create_order', $order, $this->billing_of( $order ) ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- fires a WooCommerce hook.
 		$order->save();
 

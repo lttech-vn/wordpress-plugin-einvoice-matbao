@@ -8,15 +8,15 @@ import { PAGES, seam } from "./support.ts";
 
 const BILLING = { first_name: "Nguyễn", last_name: "Văn Thử", phone: "0912345678", email: "e2e-buyer@example.invalid", address: "3 Đường Thử Nghiệm", city: "Hồ Chí Minh" };
 const CLASSIC_LABELS: Record<string, string> = { first_name: "First name", last_name: "Last name", address_1: "Street address", city: "Town / City", phone: "Phone", email: "Email address" };
-const INDIVIDUAL = { address: "1 Đường Thử Nghiệm, Quận 1, TP HCM", id_number: "000000000000" };
-const BUSINESS = { name: "CÔNG TY TNHH THỬ NGHIỆM E2E", tax_code: "0000000000", address: "2 Đường Thử Nghiệm, Quận 3, TP HCM" };
+const INDIVIDUAL = { id_number: "000000000000" };
+const BUSINESS = { name: "CÔNG TY TNHH THỬ NGHIỆM E2E", tax_code: "0000000000" };
 
 type Buyer = "walk_in" | "individual" | "business";
 
 const BUYER_GOALS: Record<Buyer, string> = {
 	walk_in: "",
-	individual: "1) tick the checkbox 'Yêu cầu xuất hóa đơn', 2) choose 'Cá nhân', 3) type {address} into the invoice address field, 4) type {id_number} into the ID number field. Check that both fields are filled, then stop.",
-	business: "1) tick the checkbox 'Yêu cầu xuất hóa đơn', 2) choose 'Doanh nghiệp', 3) type {name} into the business name field, 4) type {tax_code} into the tax code field, 5) type {address} into the invoice address field. Check that all three fields are filled, then stop.",
+	individual: "1) tick the checkbox 'Yêu cầu xuất hóa đơn', 2) choose 'Cá nhân', 3) type {id_number} into the ID number field. Check that the field is filled, then stop.",
+	business: "1) tick the checkbox 'Yêu cầu xuất hóa đơn', 2) choose 'Doanh nghiệp', 3) type {name} into the business name field, 4) type {tax_code} into the tax code field. Check that both fields are filled, then stop.",
 };
 const BUYER_PARAMS: Record<Buyer, Record<string, string>> = { walk_in: {}, individual: INDIVIDUAL, business: BUSINESS };
 

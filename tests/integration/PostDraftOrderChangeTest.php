@@ -73,11 +73,11 @@ final class PostDraftOrderChangeTest extends InvoiceWorkflowTestCase {
 		$_POST = $post ?? array(
 			'einv_request_invoice' => '1',
 			'einv_buyer_type'      => 'individual',
-			'einv_address'         => 'Số 1 Đường Thử, Quận Thử',
 			'einv_id_number'       => '000000001234',
 		);
 		$order = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
 		$order->set_billing_phone( '0900000001' );
+		$order->set_billing_address_1( 'business' === ( $post['einv_buyer_type'] ?? '' ) ? 'Số 2 Đường Thử, Quận Thử' : 'Số 1 Đường Thử, Quận Thử' );
 		// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- fires a WooCommerce hook.
 		do_action(
 			'woocommerce_checkout_create_order',
@@ -87,6 +87,7 @@ final class PostDraftOrderChangeTest extends InvoiceWorkflowTestCase {
 				'billing_last_name'  => $order->get_billing_last_name(),
 				'billing_phone'      => '0900000001',
 				'billing_email'      => $order->get_billing_email(),
+				'billing_address_1'  => $order->get_billing_address_1(),
 			)
 		);
 		// phpcs:enable
@@ -280,6 +281,59 @@ final class PostDraftOrderChangeTest extends InvoiceWorkflowTestCase {
 		$this->assertSame( '0900000002', $sent[0]['NMua_SDThoai'] );
 		$this->assertSame( 'Trần Văn A', $sent[0]['NMua_Ten'] );
 		$this->assertSame( array(), $this->attention->codes, 'The draft carries the new buyer, so there is nothing to warn about.' );
+	}
+
+	public function test_admin_editing_only_the_billing_address_before_the_draft_makes_the_next_attempt_use_it(): void {
+		$this->configure_matbao();
+		$this->fake_create_invoice_ok();
+		$order = $this->individual_order();
+		$order->update_status( 'completed' );
+
+		$order = $this->fresh( $order );
+		$order->set_billing_address_1( 'Số 99 Đường Mới, Quận Mới' );
+		$order->save();
+		OrderChangeWatcher::flush();
+		$this->run_queued_draft_actions();
+		OrderChangeWatcher::flush();
+
+		$sent = $this->sent_invoices();
+		$this->assertCount( 1, $sent );
+		$this->assertStringContainsString( 'Số 99 Đường Mới', $sent[0]['NMua_DChi'] );
+		$this->assertSame( array(), $this->attention->codes );
+	}
+
+	public function test_editing_the_billing_address_after_the_draft_alerts_once(): void {
+		$order = $this->drafted_order();
+
+		$order = $this->fresh( $order );
+		$order->set_billing_address_1( 'Số 99 Đường Mới, Quận Mới' );
+		$order->save();
+		OrderChangeWatcher::flush();
+		OrderChangeWatcher::flush();
+
+		$this->assertSame( array( 'order_buyer_changed' ), $this->attention->codes );
+	}
+
+	public function test_admin_filling_a_missing_billing_address_recaptures_a_buyer_invalid_order(): void {
+		$this->configure_matbao();
+		$this->fake_create_invoice_ok();
+		$order = $this->individual_order();
+		$order->update_status( 'completed' );
+		$order = $this->fresh( $order );
+		$order->set_billing_address_1( '' );
+		$order->save();
+		OrderChangeWatcher::flush();
+		$this->run_queued_draft_actions();
+		$this->assertSame( array( 'buyer_invalid' ), $this->attention->codes );
+		$this->assertCount( 0, $this->http->requests_to( self::CREATE_ROUTE ) );
+
+		$order = $this->fresh( $order );
+		$order->set_billing_address_1( 'Số 7 Đường Bổ Sung, Quận Thử' );
+		$order->save();
+		OrderChangeWatcher::flush();
+
+		$snapshot = ( new BuyerSnapshotter() )->load( $this->fresh( $order ) );
+		$this->assertStringContainsString( 'Số 7 Đường Bổ Sung', (string) $snapshot?->fields['NMua_DChi'] );
 	}
 
 	public function test_a_buyer_edit_that_no_longer_validates_blocks_the_send_and_alerts_once(): void {
@@ -511,7 +565,6 @@ final class PostDraftOrderChangeTest extends InvoiceWorkflowTestCase {
 				'einv_buyer_type'      => 'business',
 				'einv_business_name'   => 'Doanh nghiệp Thử',
 				'einv_tax_code'        => '0000000000-001',
-				'einv_address'         => 'Số 2 Đường Thử, Quận Thử',
 			)
 		);
 		$order->update_status( 'completed' );

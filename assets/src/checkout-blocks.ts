@@ -24,11 +24,10 @@ interface Values {
 	type: string;
 	business_name: string;
 	tax_code: string;
-	address: string;
 	id_number: string;
 }
 
-const EMPTY: Values = { type: "", business_name: "", tax_code: "", address: "", id_number: "" };
+const EMPTY: Values = { type: "", business_name: "", tax_code: "", id_number: "" };
 
 function field(name: string, label: string, value: string, onChange: (v: string) => void, error: string | undefined, maxLength: number) {
 	const id = `einv_${name}`;
@@ -61,7 +60,6 @@ function InvoiceRequest({ checkoutExtensionData }: { checkoutExtensionData: { se
 	const set = (key: keyof Values) => (v: string) => setValues((current) => ({ ...current, [key]: v }));
 	const get = (name: string): string => {
 		const map: Record<string, string> = {
-			einv_address: values.address,
 			einv_id_number: values.id_number,
 			einv_business_name: values.business_name,
 			einv_tax_code: values.tax_code,
@@ -69,6 +67,10 @@ function InvoiceRequest({ checkoutExtensionData }: { checkoutExtensionData: { se
 			billing_last_name: billing?.last_name ?? "",
 			billing_phone: billing?.phone ?? "",
 			billing_email: billing?.email ?? "",
+			billing_address_1: billing?.address_1 ?? "",
+			billing_address_2: billing?.address_2 ?? "",
+			billing_city: billing?.city ?? "",
+			billing_state: billing?.state ?? "",
 		};
 		return map[name] ?? "";
 	};
@@ -90,6 +92,7 @@ function InvoiceRequest({ checkoutExtensionData }: { checkoutExtensionData: { se
 	}, [first]);
 
 	const shown = visibleErrors(errors, new Set(Object.keys(errors)), true);
+	const billingError = shown.billing_first_name ?? shown.billing_phone ?? shown.billing_email ?? shown.billing_address_1;
 	const radio = (value: string, label: string, disabled = false) =>
 		h(
 			"label",
@@ -122,10 +125,9 @@ function InvoiceRequest({ checkoutExtensionData }: { checkoutExtensionData: { se
 					),
 					values.type === "business" ? field("business_name", __("Tên doanh nghiệp", "einvoice-matbao"), values.business_name, set("business_name"), shown.einv_business_name, 400) : null,
 					values.type === "business" ? field("tax_code", __("Mã số thuế", "einvoice-matbao"), values.tax_code, set("tax_code"), shown.einv_tax_code, 14) : null,
-					values.type !== "" ? field("address", __("Địa chỉ xuất hóa đơn", "einvoice-matbao"), values.address, set("address"), shown.einv_address, 400) : null,
 					values.type === "individual" ? field("id_number", __("Số CCCD", "einvoice-matbao"), values.id_number, set("id_number"), shown.einv_id_number, 12) : null,
-					shown.billing_first_name || shown.billing_phone || shown.billing_email
-						? h("div", { className: "wc-block-components-validation-error", role: "alert" }, shown.billing_first_name ?? shown.billing_phone ?? shown.billing_email)
+					billingError
+						? h("div", { className: "wc-block-components-validation-error", role: "alert" }, billingError)
 						: null,
 				)
 			: null,

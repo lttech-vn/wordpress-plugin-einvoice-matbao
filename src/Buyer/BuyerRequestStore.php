@@ -24,6 +24,7 @@ final class BuyerRequestStore {
 	/**
 	 * The request to store for input that already passed BuyerRules. Keeps only the fields of the
 	 * chosen type and encrypts the citizen ID, so every checkout flavour stores the same shape.
+	 * The `address` key is always written empty; the billing address is read from the order.
 	 *
 	 * @param BuyerInput $input      Validated input.
 	 * @param Encryption $encryption Encryption service (must be available for an individual).
@@ -38,7 +39,7 @@ final class BuyerRequestStore {
 			'type'          => $input->type,
 			'business_name' => $is_individual ? '' : trim( $input->business_name ),
 			'tax_code'      => $is_individual ? '' : trim( $input->tax_code ),
-			'address'       => trim( $input->address ),
+			'address'       => '', // The address now comes from the billing fields; kept for requests stored earlier.
 			'id_encrypted'  => '' === $id_number ? '' : $encryption->encrypt( $id_number ),
 			'id_mask'       => '' === $id_number ? '' : BuyerRules::mask_id_number( $id_number ),
 		);

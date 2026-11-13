@@ -49,7 +49,7 @@ final class BuyerRules {
 			'full_name'     => __( 'Vui lòng nhập họ tên người mua (tối đa 100 ký tự).', 'einvoice-matbao' ),
 			'business_name' => __( 'Vui lòng nhập tên doanh nghiệp (tối đa 400 ký tự).', 'einvoice-matbao' ),
 			'tax_code'      => __( 'Mã số thuế phải gồm 10 hoặc 13 chữ số (có thể kèm dấu "-" trước 3 số cuối).', 'einvoice-matbao' ),
-			'address'       => __( 'Vui lòng nhập địa chỉ xuất hóa đơn (tối đa 400 ký tự).', 'einvoice-matbao' ),
+			'address'       => __( 'Vui lòng nhập địa chỉ thanh toán của bạn (tối đa 400 ký tự).', 'einvoice-matbao' ),
 			'id_number'     => __( 'Số CCCD phải gồm đúng 12 chữ số.', 'einvoice-matbao' ),
 			'id_encryption' => __( 'Chưa thể nhận CCCD vì cửa hàng chưa cấu hình khóa mã hóa; vui lòng chọn doanh nghiệp hoặc liên hệ cửa hàng.', 'einvoice-matbao' ),
 			'phone'         => __( 'Vui lòng nhập số điện thoại Việt Nam hợp lệ.', 'einvoice-matbao' ),

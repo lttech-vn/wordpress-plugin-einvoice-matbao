@@ -217,7 +217,7 @@ final class BuyerPersonalData {
 		$fields = null !== $snapshot ? $snapshot->fields : array();
 		$values = array(
 			__( 'Đơn hàng', 'einvoice-matbao' )       => $order->get_order_number(),
-			__( 'Loại người mua', 'einvoice-matbao' ) => BuyerType::BUSINESS === $type ? __( 'Doanh nghiệp', 'einvoice-matbao' ) : __( 'Cá nhân', 'einvoice-matbao' ),
+			__( 'Loại người mua', 'einvoice-matbao' ) => self::type_label( $type ),
 			__( 'Tên người mua', 'einvoice-matbao' )  => null !== $snapshot ? $snapshot->buyer_name : (string) ( $request['business_name'] ?? '' ),
 			__( 'Mã số thuế', 'einvoice-matbao' )     => $fields['NMua_MST'] ?? (string) ( $request['tax_code'] ?? '' ),
 			__( 'Địa chỉ', 'einvoice-matbao' )        => $fields['NMua_DChi'] ?? (string) ( $request['address'] ?? '' ),
@@ -248,8 +248,21 @@ final class BuyerPersonalData {
 	}
 
 	/**
-	 * Whether the order holds a named buyer (individual or business), not a walk-in buyer whose
-	 * `NMua_Ten` is the store's generic text.
+	 * Vietnamese label of a buyer type.
+	 *
+	 * @param string $type BuyerType constant, or empty.
+	 */
+	private static function type_label( string $type ): string {
+		return match ( $type ) {
+			BuyerType::BUSINESS => __( 'Doanh nghiệp', 'einvoice-matbao' ),
+			BuyerType::WALK_IN  => __( 'Khách vãng lai', 'einvoice-matbao' ),
+			default             => __( 'Cá nhân', 'einvoice-matbao' ),
+		};
+	}
+
+	/**
+	 * Whether the order holds a named buyer (individual or business, or a walk-in snapshot built
+	 * from billing data), not a walk-in buyer whose `NMua_Ten` is the store's generic text.
 	 *
 	 * @param array<string, string>|null $request  Stored request.
 	 * @param BuyerSnapshot|null         $snapshot Stored snapshot.
@@ -257,7 +270,7 @@ final class BuyerPersonalData {
 	private static function is_identified_buyer( ?array $request, ?BuyerSnapshot $snapshot ): bool {
 		$types = array( BuyerType::INDIVIDUAL, BuyerType::BUSINESS );
 
-		return ( null !== $snapshot && in_array( $snapshot->type, $types, true ) )
+		return ( null !== $snapshot && ( $snapshot->personal || in_array( $snapshot->type, $types, true ) ) )
 			|| ( null !== $request && in_array( $request['type'] ?? '', $types, true ) );
 	}
 
@@ -278,7 +291,7 @@ final class BuyerPersonalData {
 		if ( null !== $request ) {
 			array_push( $values, $request['business_name'] ?? '', $request['tax_code'] ?? '', $request['address'] ?? '', $request['id_mask'] ?? '' );
 		}
-		if ( null !== $snapshot && BuyerType::WALK_IN !== $snapshot->type ) {
+		if ( null !== $snapshot && ( $snapshot->personal || BuyerType::WALK_IN !== $snapshot->type ) ) {
 			array_push( $values, $snapshot->buyer_name, $snapshot->id_mask, ...array_values( $snapshot->fields ) );
 		}
 

@@ -19,7 +19,7 @@ final class BuyerInput {
 	 * @param string $full_name     Person's full name (individual).
 	 * @param string $business_name Business name (business).
 	 * @param string $tax_code      Business tax code (business).
-	 * @param string $address       Invoice address.
+	 * @param string $address       Billing address (composed), or a legacy request address.
 	 * @param string $id_number     Citizen ID number, CCCD (individual).
 	 * @param string $phone         Phone number.
 	 * @param string $email         Email address.

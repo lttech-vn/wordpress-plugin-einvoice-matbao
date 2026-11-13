@@ -56,7 +56,9 @@ final class OrderRedaction {
 				$last,
 				(string) $order->{"get_{$type}_company"}(),
 				(string) $order->{"get_{$type}_address_1"}(),
-				(string) $order->{"get_{$type}_address_2"}()
+				(string) $order->{"get_{$type}_address_2"}(),
+				(string) $order->{"get_{$type}_city"}(),
+				(string) $order->{"get_{$type}_state"}()
 			);
 		}
 

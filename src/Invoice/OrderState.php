@@ -60,6 +60,11 @@ final class OrderState {
 				self::text( $order->get_billing_company() ),
 				self::text( $order->get_billing_email() ),
 				self::text( $order->get_billing_phone() ),
+				self::text( $order->get_billing_address_1() ),
+				self::text( $order->get_billing_address_2() ),
+				self::text( $order->get_billing_city() ),
+				self::text( $order->get_billing_state() ),
+				self::text( $order->get_billing_country() ),
 				(string) $order->get_meta( BuyerRequestStore::META_KEY ),
 			)
 		);

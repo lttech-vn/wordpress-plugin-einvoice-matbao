@@ -42,6 +42,8 @@ final class OrderRedactionTest extends WP_UnitTestCase {
 		$order->set_billing_phone( '0901234567' );
 		$order->set_billing_address_1( '12 Nguyen Trai' );
 		$order->set_billing_address_2( 'Tang 3' );
+		$order->set_billing_city( 'Quan Binh Thanh' );
+		$order->set_billing_state( 'SG' );
 		$order->set_shipping_first_name( 'Minh' );
 		$order->set_shipping_last_name( 'Le' );
 		$order->set_shipping_company( 'Kho Binh Duong' );
@@ -52,7 +54,7 @@ final class OrderRedactionTest extends WP_UnitTestCase {
 
 		$values = OrderRedaction::values_for( $order->get_id() );
 
-		foreach ( array( 'Lan Tran Thi', 'Lan', 'Tran Thi', 'Cong Ty Hoa Mai', 'lan@example.vn', '0901234567', '12 Nguyen Trai', 'Tang 3', 'Minh Le', 'Kho Binh Duong', '0912345678', '45 Le Loi', 'Lo B' ) as $expected ) {
+		foreach ( array( 'Lan Tran Thi', 'Lan', 'Tran Thi', 'Cong Ty Hoa Mai', 'lan@example.vn', '0901234567', '12 Nguyen Trai', 'Tang 3', 'Quan Binh Thanh', 'SG', 'Minh Le', 'Kho Binh Duong', '0912345678', '45 Le Loi', 'Lo B' ) as $expected ) {
 			$this->assertContains( $expected, $values );
 		}
 		$this->assertNotContains( '', $values );

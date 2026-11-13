@@ -27,6 +27,9 @@ final class BuyerPersonalDataPrivacyTest extends InvoiceWorkflowTestCase {
 	private const EMAIL       = 'buyer@example.invalid';
 	private const OTHER_EMAIL = 'other@example.invalid';
 
+	/** Valid but over the 50 characters Mat Bao accepts, so the snapshot skips it. */
+	private const LONG_EMAIL = 'a-very-long-local-part-of-an-address@example.invalid';
+
 	/**
 	 * Whether create-invoice was faked to fail before the orders are completed.
 	 *
@@ -159,16 +162,98 @@ final class BuyerPersonalDataPrivacyTest extends InvoiceWorkflowTestCase {
 		$this->assertStringNotContainsString( 'a:1;b:2;c:3', (string) wp_json_encode( $data ) );
 	}
 
-	public function test_eraser_does_not_claim_anonymization_for_a_walk_in_order(): void {
+	public function test_exports_walk_in_order_with_billing_data(): void {
 		$this->configure_matbao();
 		$this->fake_create_invoice_ok();
 		$order = $this->order_with_request( array(), self::EMAIL );
 		$this->complete_and_run( $order );
+
+		$export = BuyerPersonalData::export( self::EMAIL, 1 );
+
+		$this->assertCount( 1, $export['data'] );
+		$values = array_column( $export['data'][0]['data'], 'value', 'name' );
+		$this->assertSame( 'Khách vãng lai', $values['Loại người mua'] );
+		$this->assertSame( 'Nguyễn Văn A', $values['Tên người mua'] );
+		$this->assertSame( 'Số 1 Đường Thử, Quận Thử', $values['Địa chỉ'] );
+		$this->assertSame( '0900000001', $values['Số điện thoại'] );
+		$this->assertSame( self::EMAIL, $values['Email'] );
+		$this->assertArrayNotHasKey( 'CCCD', $values );
+		$this->assertArrayNotHasKey( 'Mã số thuế', $values );
+	}
+
+	public function test_erases_walk_in_order_with_billing_data(): void {
+		$this->configure_matbao();
+		$this->fake_create_invoice_ok();
+		$order = $this->order_with_request( array(), self::EMAIL );
+		$this->complete_and_run( $order );
+		$this->assertSame( 'Nguyễn Văn A', $this->invoice_of( $order )?->buyer_name );
+
+		$result = BuyerPersonalData::erase( self::EMAIL, 1 );
+
+		$this->assertTrue( $result['items_removed'] );
+		$this->assertStringContainsString( 'đã được ẩn danh', implode( "\n", $result['messages'] ) );
+		$this->assertSame( wp_privacy_anonymize_data( 'text' ), $this->invoice_of( $order )?->buyer_name );
+		$fresh = wc_get_order( $order->get_id() );
+		$this->assertSame( '', (string) $fresh->get_meta( BuyerSnapshotter::META_KEY ) );
+		$this->assertSame( '', (string) $fresh->get_meta( BuyerRequestStore::META_KEY ) );
+		$this->assertSame( array(), BuyerPersonalData::export( self::EMAIL, 1 )['data'] );
+	}
+
+	public function test_eraser_scrubs_walk_in_snapshot_values_that_billing_no_longer_holds(): void {
+		$this->configure_matbao();
+		$this->http->respond_json(
+			self::CREATE_ROUTE,
+			200,
+			array(
+				'errorCode' => 400,
+				'message'   => 'Lỗi người mua 12 Phố Cũ, Quận Một, 0911222333, old-buyer@example.invalid',
+				'data'      => null,
+				'success'   => false,
+			)
+		);
+		$order = $this->order_with_request( array(), 'old-buyer@example.invalid', '12 Phố Cũ, Quận Một' );
+		$order->set_billing_phone( '0911222333' );
+		$order->save();
+		( new BuyerSnapshotter() )->capture( $order, 'Khách hàng không lấy hóa đơn' );
+		$this->complete_and_run( $order );
+		// Billing moved on after the snapshot, so only the snapshot still holds the old values.
+		$order->set_billing_email( self::EMAIL );
+		$order->set_billing_phone( '0900000009' );
+		$order->set_billing_address_1( 'Địa chỉ mới' );
+		$order->save();
+
+		$invoice = $this->invoice_of( $order );
+		$this->assertNotNull( $invoice );
+		$attempts_before = count( $this->attempts_of( $invoice ) );
+		$before          = $this->stored_attempt_messages( $order );
+		foreach ( array( '12 Phố Cũ, Quận Một', '0911222333', 'old-buyer@example.invalid' ) as $value ) {
+			$this->assertStringContainsString( $value, $before );
+		}
+
+		BuyerPersonalData::erase( self::EMAIL, 1 );
+
+		$after = $this->stored_attempt_messages( $order );
+		foreach ( array( '12 Phố Cũ, Quận Một', '0911222333', 'old-buyer@example.invalid' ) as $value ) {
+			$this->assertStringNotContainsString( $value, $after );
+		}
+		$kept = $this->invoice_of( $order );
+		$this->assertSame( $invoice->status, $kept?->status );
+		$this->assertSame( $invoice->reference, $kept?->reference );
+		$this->assertCount( $attempts_before, $this->attempts_of( $kept ) );
+	}
+
+	public function test_walk_in_order_without_personal_data_is_not_anonymized(): void {
+		$this->configure_matbao();
+		$this->fake_create_invoice_ok();
+		$order = $this->order_without_billing_details( self::LONG_EMAIL );
+		$this->complete_and_run( $order );
 		$invoice = $this->invoice_of( $order );
 		$this->assertNotNull( $invoice );
 		$walk_in_name = $invoice->buyer_name;
+		$this->assertStringNotContainsString( 'Nguyễn', $walk_in_name );
 
-		$result = BuyerPersonalData::erase( self::EMAIL, 1 );
+		$this->assertSame( array(), BuyerPersonalData::export( self::LONG_EMAIL, 1 )['data'] );
+		$result = BuyerPersonalData::erase( self::LONG_EMAIL, 1 );
 
 		$this->assertTrue( $result['items_retained'] );
 		$messages = implode( "\n", $result['messages'] );
@@ -354,10 +439,10 @@ final class BuyerPersonalDataPrivacyTest extends InvoiceWorkflowTestCase {
 			array(
 				'einv_request_invoice' => '1',
 				'einv_buyer_type'      => 'individual',
-				'einv_address'         => $address,
 				'einv_id_number'       => self::ID_NUMBER,
 			),
-			$email
+			$email,
+			$address
 		);
 		$this->complete_and_run( $order );
 
@@ -373,7 +458,6 @@ final class BuyerPersonalDataPrivacyTest extends InvoiceWorkflowTestCase {
 		return array(
 			'einv_request_invoice' => '1',
 			'einv_buyer_type'      => 'individual',
-			'einv_address'         => 'Số 1 Đường Thử, Quận Thử',
 			'einv_id_number'       => self::ID_NUMBER,
 		);
 	}
@@ -413,27 +497,46 @@ final class BuyerPersonalDataPrivacyTest extends InvoiceWorkflowTestCase {
 			'einv_buyer_type'      => 'business',
 			'einv_business_name'   => 'Doanh nghiệp Thử',
 			'einv_tax_code'        => '0000000000-001',
-			'einv_address'         => 'Số 2 Đường Thử, Quận Thử',
 		);
+	}
+
+	/**
+	 * A guest walk-in order with no usable billing details, so the snapshot holds only the
+	 * configured name (`personal` false): the name, phone and address are empty and the email is too long.
+	 *
+	 * @param string $email Email the privacy request uses to find the order.
+	 */
+	private function order_without_billing_details( string $email ): WC_Order {
+		$order = $this->order_with_request( array(), $email );
+		$order->set_billing_first_name( '' );
+		$order->set_billing_last_name( '' );
+		$order->set_billing_phone( '' );
+		$order->set_billing_address_1( '' );
+		$order->save();
+
+		return $order;
 	}
 
 	/**
 	 * A guest order whose checkout request was stored by the order-creation hook.
 	 *
 	 * @param array<string, string> $post  Submitted `einv_*` fields.
-	 * @param string                $email Billing email.
+	 * @param string                $email   Billing email.
+	 * @param string                $address Billing address line 1.
 	 */
-	private function order_with_request( array $post, string $email ): WC_Order {
+	private function order_with_request( array $post, string $email, string $address = 'Số 1 Đường Thử, Quận Thử' ): WC_Order {
 		$_POST = $post;
 		$order = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
 		$order->set_billing_email( $email );
 		$order->set_billing_phone( '0900000001' );
+		$order->set_billing_address_1( $address );
 		$order->set_customer_id( 0 );
 		$billing = array(
 			'billing_first_name' => $order->get_billing_first_name(),
 			'billing_last_name'  => $order->get_billing_last_name(),
 			'billing_phone'      => $order->get_billing_phone(),
 			'billing_email'      => $email,
+			'billing_address_1'  => $order->get_billing_address_1(),
 		);
 		do_action( 'woocommerce_checkout_create_order', $order, $billing ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- fires a WooCommerce hook.
 		$order->save();

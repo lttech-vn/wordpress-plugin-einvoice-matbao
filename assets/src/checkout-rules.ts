@@ -15,6 +15,15 @@ export const LIMITS = { fullName: 100, businessName: 400, address: 400, phone: 2
 /** Length in code points, like PHP mb_strlen. */
 const length = (text: string): number => Array.from(text).length;
 
+/**
+ * Billing address like BillingAddress::from_array (PHP). The state is a code here; PHP joins its
+ * name, so the length check is approximate and PHP stays the authority.
+ */
+function billingAddress(form: BuyerForm): string {
+	const parts = ["billing_address_1", "billing_address_2", "billing_city", "billing_state"].map((name) => form.get(name).trim());
+	return parts.filter((part) => part !== "").join(", ");
+}
+
 /** Error message by input name (`einv_*` or `billing_*`); `einv_buyer_type` for the radio group. */
 export function validate(
 	form: BuyerForm,
@@ -25,8 +34,8 @@ export function validate(
 	if (form.type !== "individual" && form.type !== "business") {
 		return { einv_buyer_type: messages.type };
 	}
-	const address = form.get("einv_address").trim();
-	if (address === "" || length(address) > LIMITS.address) errors.einv_address = messages.address;
+	const address = billingAddress(form);
+	if (address === "" || length(address) > LIMITS.address) errors.billing_address_1 = messages.address;
 	const phone = form.get("billing_phone").replace(/[\s.\-()]/g, "");
 	if (phone.length > LIMITS.phone || !PHONE.test(phone)) errors.billing_phone = messages.phone;
 	if (form.type === "individual") {
@@ -52,4 +61,17 @@ export function visibleErrors(
 ): Record<string, string> {
 	if (submitted) return errors;
 	return Object.fromEntries(Object.entries(errors).filter(([name]) => touched.has(name)));
+}
+
+const ADDRESS_PARTS = new Set(["billing_address_1", "billing_address_2", "billing_city", "billing_state"]);
+
+/** Error/touched key of a control: all address components share the composed `billing_address_1` error. */
+export function errorKeyOf(name: string): string {
+	return ADDRESS_PARTS.has(name) ? "billing_address_1" : name;
+}
+
+/** Whether a control (input or select) is one the invoice request validates. */
+export function isWatchedControl(control: { tagName: string; name: string }): boolean {
+	if (control.tagName !== "INPUT" && control.tagName !== "SELECT") return false;
+	return control.name.startsWith("einv_") || /^billing_(first_name|last_name|phone|email|address_1|address_2|city|state)$/.test(control.name);
 }

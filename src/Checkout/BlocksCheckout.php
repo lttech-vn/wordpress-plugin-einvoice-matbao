@@ -8,6 +8,7 @@
 namespace LTTech\EinvoiceMatbao\Checkout;
 
 use Automattic\WooCommerce\StoreApi\Exceptions\RouteException;
+use LTTech\EinvoiceMatbao\Buyer\BillingAddress;
 use LTTech\EinvoiceMatbao\Buyer\BuyerInput;
 use LTTech\EinvoiceMatbao\Buyer\BuyerRequestStore;
 use LTTech\EinvoiceMatbao\Buyer\BuyerRules;
@@ -86,7 +87,7 @@ final class BlocksCheckout {
 			),
 			'business_name'   => $text( 'Business name.', BuyerRules::MAX_BUSINESS_NAME ),
 			'tax_code'        => $text( 'Business tax code.', 14 ),
-			'address'         => $text( 'Invoice address.', BuyerRules::MAX_ADDRESS ),
+			'address'         => $text( 'Ignored; the billing address is used. Kept so cached scripts are not refused.', BuyerRules::MAX_ADDRESS ),
 			'id_number'       => $text( 'Citizen ID, write-only.', 12 ),
 		);
 	}
@@ -139,7 +140,7 @@ final class BlocksCheckout {
 			trim( $order->get_billing_first_name() . ' ' . $order->get_billing_last_name() ),
 			$text( 'business_name' ),
 			$text( 'tax_code' ),
-			$text( 'address' ),
+			BillingAddress::from_order( $order ),
 			$text( 'id_number' ),
 			trim( $order->get_billing_phone() ),
 			trim( $order->get_billing_email() ),

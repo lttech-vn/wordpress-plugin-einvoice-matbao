@@ -1,6 +1,6 @@
 {
   "schemaVersion": "trace-1",
-  "createdAt": "2026-11-06T16:19:14.927Z",
+  "createdAt": "2026-11-13T01:53:22.362Z",
   "payload": {
     "actions": [
       {
@@ -13,40 +13,23 @@
         "checked": true
       },
       {
-        "name": "tap",
-        "summary": "tap radio \"Doanh nghiệp\" in \"Xuất hóa đơn cho\"",
+        "name": "check",
+        "summary": "check radio \"Cá nhân\" in \"Xuất hóa đơn cho\"",
         "target": {
           "role": "radio",
-          "name": "Doanh nghiệp",
+          "name": "Cá nhân",
           "within": "Xuất hóa đơn cho"
-        }
+        },
+        "checked": true
       },
       {
         "name": "type",
-        "summary": "type \"CÔNG TY TNHH THỬ NGHIỆM E2E\" into textbox \"Tên doanh nghiệp\"",
+        "summary": "type \"000000000042‬\" into textbox \"Số CCCD\"",
         "target": {
           "role": "textbox",
-          "name": "Tên doanh nghiệp"
+          "name": "Số CCCD"
         },
-        "value": "CÔNG TY TNHH THỬ NGHIỆM E2E"
-      },
-      {
-        "name": "type",
-        "summary": "type \"0000000000\" into textbox \"Mã số thuế\"",
-        "target": {
-          "role": "textbox",
-          "name": "Mã số thuế"
-        },
-        "value": "0000000000"
-      },
-      {
-        "name": "type",
-        "summary": "type \"2 Đường Thử Nghiệm, Quận 3, TP HCM\" into textbox \"Địa chỉ xuất hóa đơn\"",
-        "target": {
-          "role": "textbox",
-          "name": "Địa chỉ xuất hóa đơn"
-        },
-        "value": "2 Đường Thử Nghiệm, Quận 3, TP HCM"
+        "value": "000000000042‬"
       }
     ],
     "executor": {
@@ -54,10 +37,10 @@
       "version": "2"
     },
     "recordedFor": {
-      "testId": "army/checkout-validation.army.ts::classic%20checkout%20validation::a%20valid%20business%20request%20is%20saved%20and%20sent%20with%20its%20tax%20code%20and%20address",
+      "testId": "army/checkout-validation.army.ts::classic%20checkout%20validation::a%20valid%20individual%20request%20sends%20the%20CCCD%20to%20Mat%20Bao%20but%20never%20stores%20it%20in%20the%20clear",
       "targetId": "chromium",
-      "instructionDigest": "59a100274f15f214b70bf61b160d406f0fedc275a9db801c2a2ad8cbad42ed00",
-      "paramsDigest": "d7b22ba18bb730a293bd6b43c0693a31d085e203f5ae8d805dc9afbc80d4f002",
+      "instructionDigest": "6d4e472ed68fa4f6efbc7bcdf2d07d31320f9b2c282078188c2d2fce912f7c49",
+      "paramsDigest": "b4ce069e921dbd95f63eb7f4fe22560de254107f5ee19b595cc40eeea3ca0f7d",
       "callIndex": 0,
       "agent": "default"
     },
@@ -65,7 +48,7 @@
       "provider": "e2e-text-agent.chat",
       "model": "gpt-6-luna"
     },
-    "summary": "Checked Yêu cầu xuất hóa đơn, selected Doanh nghiệp, and filled business name CÔNG TY TNHH THỬ NGHIỆM E2E, tax code 0000000000, and invoice address 2 Đường Thử Nghiệm, Quận 3, TP HCM.",
+    "summary": "Checked “Yêu cầu xuất hóa đơn,” selected “Cá nhân,” and entered CCCD 000000000042 in the Số CCCD field.",
     "startPath": "/?pagename=classic-checkout",
     "endPath": "/?pagename=classic-checkout",
     "endAnchors": [
@@ -81,28 +64,28 @@
       },
       {
         "role": "radio",
-        "name": "Cá nhân"
+        "name": "Cá nhân",
+        "states": [
+          "checked"
+        ]
       },
       {
         "text": "Cá nhân"
       },
       {
         "role": "radio",
-        "name": "Doanh nghiệp",
-        "states": [
-          "checked"
-        ]
+        "name": "Doanh nghiệp"
       },
       {
         "text": "Doanh nghiệp"
       },
       {
-        "text": "Tên doanh nghiệp"
+        "text": "Số CCCD"
       },
       {
         "role": "textbox",
-        "name": "Tên doanh nghiệp",
-        "value": "CÔNG TY TNHH THỬ NGHIỆM E2E"
+        "name": "Số CCCD",
+        "value": "000000000042"
       }
     ],
     "goneAnchors": [
@@ -111,7 +94,7 @@
         "name": "Yêu cầu xuất hóa đơn"
       }
     ],
-    "endWaitMs": 13257,
+    "endWaitMs": 12840,
     "keyedBy": {
       "cacheSchema": "trace-1",
       "policyVersion": "conservative/6",
