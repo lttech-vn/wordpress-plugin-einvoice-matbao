@@ -18,8 +18,8 @@
 
 ## Commits
 
-- **Range**: `c6ee475..db83aab`
-- **Count**: `16`
+- **Range**: `c6ee475..e8a9e1f`
+- **Count**: `18`
 
 ---
 
@@ -52,18 +52,20 @@
 ## Verification evidence (implementer-reported, not yet re-run by verify)
 
 - `composer test:integration` 871 tests / 4499 assertions OK; `composer test:without-woocommerce` 8 OK; `composer lint` clean; `composer analyse` no errors; `bun test assets/src` 16 pass; `bun run build` OK.
-- e2e replay (tests/e2e): 73 pass, 5 fail with `CI_MODEL_CALL_FORBIDDEN` (cache misses for agent steps whose instructions changed). They need `bun run e2e:record` with `E2E_TEXT_*` credentials; recorded cache JSON still references the removed address field and was not hand-edited.
+- e2e: cache replay was re-recorded with a model (`bun run e2e:record`, 5 stale cache files that referenced the removed address field replaced by 5 new ones) and then `bun run e2e:replay` ran with no API keys: 78 passed, 8 cache replayed, exit 0 (commit e8a9e1f). Record runs also showed model/UI noise that did not recur: a business-name trailing period in an agent step and an ambiguous alert locator in `settings.army.ts`; both passed on rerun.
+
+---
 
 ## Rulings and deferred items
 
 - Client length check uses the state code, PHP uses the state name (approximate by design; PHP authoritative).
 - `MIN_SCRUB_LENGTH = 3` (pre-existing privacy scrub policy) unchanged.
 - Classic `billing_state` select2 native-event wiring not verified in a browser (server revalidates on submit).
-- Blocks e2e absence assertion for the removed address field: add when re-recording the cache.
+- Blocks e2e absence assertion for the removed address field: not added (follow-up).
 - Recapture of a `buyer_invalid` order after the admin fills the address does not re-send; the admin uses the existing "Gửi lại".
 
 ---
 
 ## Next step
 
-Run `/opsx-verify`. Before merge a human must run `bun run e2e:record` (needs `E2E_TEXT_*`) to restore the 5 cache misses.
+Run `/opsx-verify`.
