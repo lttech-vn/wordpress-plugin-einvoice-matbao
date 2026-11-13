@@ -31,8 +31,7 @@ Evidence: src/Buyer/BuyerRules.php:89-92, tests/integration/ClassicCheckoutBuyer
 - **THEN** phản hồi HTTP 400 và không echo lại giá trị đã gửi
 
 ### Requirement: Individual buyer validation
-Hệ thống SHALL yêu cầu người mua cá nhân có họ tên billing, địa chỉ xuất hóa đơn, số điện thoại Việt Nam hợp lệ và số CCCD gồm đúng 12 chữ số, trong giới hạn độ dài của Mắt Bão.
-Evidence: src/Buyer/BuyerRules.php:21-35,94-110, tests/integration/ClassicCheckoutBuyerTest.php:57,86,108,118, tests/integration/BlocksCheckoutBuyerTest.php:114, assets/src/checkout-rules.test.ts, tests/e2e/army/checkout-validation.army.ts:67
+Hệ thống SHALL yêu cầu người mua cá nhân có họ tên billing, địa chỉ billing, số điện thoại Việt Nam hợp lệ và số CCCD gồm đúng 12 chữ số, trong giới hạn độ dài của Mắt Bão; lỗi hiển thị trước khi gửi đơn.
 
 #### Scenario: CCCD not 12 digits
 - **WHEN** người mua cá nhân nhập CCCD "123"
@@ -43,12 +42,15 @@ Evidence: src/Buyer/BuyerRules.php:21-35,94-110, tests/integration/ClassicChecko
 - **THEN** số được chấp nhận (tiền tố 0, 84, +84 và ký tự phân tách đều hợp lệ)
 
 #### Scenario: Length limits
-- **WHEN** họ tên vượt 100 ký tự, địa chỉ vượt 400 ký tự hoặc số điện thoại vượt 20 ký tự
+- **WHEN** họ tên vượt 100 ký tự, địa chỉ billing ghép vượt 400 ký tự hoặc số điện thoại vượt 20 ký tự
 - **THEN** checkout bị từ chối với lỗi của trường tương ứng
 
+#### Scenario: Missing billing address
+- **WHEN** người mua cá nhân không có địa chỉ billing
+- **THEN** checkout bị từ chối với lỗi địa chỉ, nhắc nhập địa chỉ ở phần thanh toán
+
 ### Requirement: Business buyer validation
-Hệ thống SHALL yêu cầu người mua doanh nghiệp có tên doanh nghiệp, mã số thuế 10 hoặc 13 chữ số, địa chỉ, số điện thoại và email billing hợp lệ; không cần tên liên hệ và không cần khóa mã hóa.
-Evidence: src/Buyer/BuyerRules.php:112-128, tests/integration/ClassicCheckoutBuyerTest.php:133,154,179,199,206, tests/integration/BlocksCheckoutBuyerTest.php:64,132,302, tests/e2e/army/checkout-validation.army.ts:48,167
+Hệ thống SHALL yêu cầu người mua doanh nghiệp có tên doanh nghiệp, mã số thuế 10 hoặc 13 chữ số, địa chỉ billing, số điện thoại và email billing hợp lệ; không cần tên liên hệ và không cần khóa mã hóa; lỗi hiển thị trước khi gửi đơn.
 
 #### Scenario: Malformed tax code
 - **WHEN** doanh nghiệp nhập MST "12"
@@ -59,8 +61,12 @@ Evidence: src/Buyer/BuyerRules.php:112-128, tests/integration/ClassicCheckoutBuy
 - **THEN** MST được chấp nhận
 
 #### Scenario: Length limits
-- **WHEN** tên doanh nghiệp hoặc địa chỉ vượt 400 ký tự, hoặc email vượt 50 ký tự
+- **WHEN** tên doanh nghiệp hoặc địa chỉ billing ghép vượt 400 ký tự, hoặc email vượt 50 ký tự
 - **THEN** checkout bị từ chối với lỗi của trường tương ứng
+
+#### Scenario: Missing billing address
+- **WHEN** doanh nghiệp không có địa chỉ billing
+- **THEN** checkout bị từ chối với lỗi địa chỉ, nhắc nhập địa chỉ ở phần thanh toán
 
 ### Requirement: Individual invoice requires encryption key
 Hệ thống SHALL không nhận yêu cầu xuất hóa đơn cá nhân khi chưa cấu hình khóa mã hóa (xem credential-encryption): lựa chọn "Cá nhân" bị vô hiệu kèm ghi chú và server từ chối, trong khi doanh nghiệp vẫn dùng được.
@@ -75,8 +81,7 @@ Evidence: src/Buyer/BuyerRules.php:106-110, src/Checkout/ClassicCheckout.php:84,
 - **THEN** đơn được tạo và yêu cầu được lưu
 
 ### Requirement: Request stored on order with encrypted CCCD
-Hệ thống SHALL lưu yêu cầu xuất hóa đơn vào order meta `_einvoice_buyer_request` chỉ gồm các trường của loại đã chọn; CCCD chỉ được lưu ở dạng mã hóa kèm bản mask lộ 4 số cuối, không bao giờ ở dạng rõ.
-Evidence: src/Buyer/BuyerRequestStore.php:21-60, tests/integration/BuyerRequestStoreTest.php:23,41, tests/integration/ClassicCheckoutBuyerTest.php:41,242,254, tests/integration/BlocksCheckoutBuyerTest.php:49,154
+Hệ thống SHALL lưu yêu cầu xuất hóa đơn vào order meta `_einvoice_buyer_request` chỉ gồm các trường đặc thù của loại đã chọn (loại, tên doanh nghiệp, MST, CCCD), không còn ghi địa chỉ riêng; CCCD chỉ được lưu ở dạng mã hóa kèm bản mask lộ 4 số cuối, không bao giờ ở dạng rõ.
 
 #### Scenario: Individual stored
 - **WHEN** đơn cá nhân hợp lệ với CCCD 12 số được đặt
@@ -85,6 +90,10 @@ Evidence: src/Buyer/BuyerRequestStore.php:21-60, tests/integration/BuyerRequestS
 #### Scenario: Business ignores individual fields
 - **WHEN** form doanh nghiệp vẫn kèm CCCD đã nhập trước đó
 - **THEN** CCCD không được lưu
+
+#### Scenario: No address stored
+- **WHEN** đơn doanh nghiệp hợp lệ được đặt
+- **THEN** meta yêu cầu không chứa địa chỉ mới
 
 ### Requirement: Server-side validation is authoritative
 Hệ thống SHALL kiểm tra lại yêu cầu ở server lúc tạo đơn và từ chối dữ liệu không hợp lệ, kể cả khi validation trên trình duyệt hoặc bước validate checkout bị bỏ qua.
@@ -128,7 +137,6 @@ Evidence: src/Checkout/BlocksCheckout.php:121-126, tests/integration/BlocksCheck
 
 ### Requirement: Classic checkout fields
 Hệ thống SHALL hiển thị ở checkout Classic ô "Yêu cầu xuất hóa đơn", ẩn các trường cho tới khi tick, hiện trường theo loại người mua, và không bao giờ điền lại CCCD đã gửi.
-Evidence: src/Checkout/ClassicCheckout.php:66-105,194-203, assets/src/checkout.ts:30-38, tests/integration/ClassicCheckoutBuyerTest.php:285,300,319,330, tests/e2e/army/checkout-validation.army.ts:31
 
 #### Scenario: Hidden until ticked
 - **WHEN** trang checkout tải lần đầu
@@ -136,7 +144,7 @@ Evidence: src/Checkout/ClassicCheckout.php:66-105,194-203, assets/src/checkout.t
 
 #### Scenario: Fields per type
 - **WHEN** khách chọn doanh nghiệp, rồi chọn cá nhân
-- **THEN** doanh nghiệp thấy tên doanh nghiệp, MST và địa chỉ; cá nhân thấy địa chỉ và CCCD
+- **THEN** doanh nghiệp thấy tên doanh nghiệp và MST; cá nhân thấy CCCD; cả hai không có ô địa chỉ riêng
 
 #### Scenario: Re-rendered after failed submit
 - **WHEN** form hiển thị lại sau khi submit lỗi
@@ -169,3 +177,18 @@ Evidence: src/Checkout/ClassicCheckout.php:45-59, tests/integration/ClassicCheck
 #### Scenario: Classic page
 - **WHEN** trang checkout dùng shortcode Classic
 - **THEN** script Classic được nạp
+
+### Requirement: Invoice address from billing
+Hệ thống SHALL lấy địa chỉ người mua (`NMua_DChi`) cho mọi loại người mua từ địa chỉ thanh toán (billing) của đơn, ghép theo thứ tự địa chỉ 1, địa chỉ 2, thành phố, tỉnh/thành bằng ", " và bỏ phần trống; hệ thống SHALL không còn ô "Địa chỉ xuất hóa đơn" riêng ở checkout Classic hoặc Blocks, và SHALL bỏ qua giá trị `address` mà script checkout cũ vẫn gửi mà không trả lỗi.
+
+#### Scenario: Address composed from billing
+- **WHEN** billing có địa chỉ 1 "12 Nguyễn Huệ", thành phố "Quận 1", tỉnh/thành "TP. Hồ Chí Minh" và địa chỉ 2 trống
+- **THEN** địa chỉ người mua là "12 Nguyễn Huệ, Quận 1, TP. Hồ Chí Minh"
+
+#### Scenario: Legacy address field ignored
+- **WHEN** Store API nhận extension `einvoice-matbao` kèm `address` từ script đã cache
+- **THEN** phản hồi không phải HTTP 400 và giá trị `address` không được dùng
+
+#### Scenario: No separate address field
+- **WHEN** khách tick yêu cầu xuất hóa đơn ở Classic hoặc Blocks
+- **THEN** không có ô "Địa chỉ xuất hóa đơn", địa chỉ lấy từ phần thanh toán
