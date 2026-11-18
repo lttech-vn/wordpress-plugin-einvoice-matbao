@@ -386,7 +386,7 @@ final class SettingsController {
 	public function unassign_tax_rate( WP_REST_Request $request ): WP_REST_Response {
 		$settings = new Settings();
 		$assigned = $settings->exempt_tax_rates();
-		$id       = Settings::parse_rate_id( self::raw_param( $request, 'rate_id' ) );
+		$id       = Settings::parse_rate_id( $request->get_param( 'rate_id' ) );
 
 		$target = null;
 		foreach ( ExemptTaxRateOptions::stale_assignments( $assigned ) as $stale ) {
@@ -404,7 +404,7 @@ final class SettingsController {
 			array_keys( array_filter( $assigned, static fn( int $code ): bool => Settings::TAX_RATE_KKKNT === $code ) )
 		);
 
-		return Fragment::success( sprintf( /* translators: %s: tax rate name. */ __( 'Đã bỏ gán thuế suất "%s".', 'einvoice-matbao' ), $target['name'] ) );
+		return Fragment::success( sprintf( /* translators: %s: tax rate name. */ __( 'Đã bỏ gán thuế suất "%s". Tải lại trang để cập nhật danh sách.', 'einvoice-matbao' ), $target['name'] ) );
 	}
 
 	/**

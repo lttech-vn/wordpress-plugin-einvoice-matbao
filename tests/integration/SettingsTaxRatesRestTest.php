@@ -287,14 +287,25 @@ final class SettingsTaxRatesRestTest extends SettingsRestTestCase {
 		$html  = SettingsPage::render_tabs( 'invoicing' );
 		$block = $this->stale_block( $html );
 
-		$this->assertStringContainsString( 'Miễn thuế A', $block );
-		$this->assertStringContainsString( 'kct', $block );
-		$this->assertStringContainsString( '10%', $block );
-		$this->assertStringContainsString( 'KCT', $block );
+		$this->assertStringContainsString( 'Miễn thuế A · kct · 10% · KCT', $block );
+		$this->assertMatchesRegularExpression( '#<button[^>]*aria-label="[^"]*Miễn thuế A[^"]*"#u', $block );
 		$this->assertStringContainsString( 'Đơn mới dùng thuế suất này sẽ bị chặn', $block );
 		$this->assertMatchesRegularExpression( '#<form hx-post="[^"]*settings/tax-rates/unassign"#', $block );
 		$this->assertStringContainsString( sprintf( '<input type="hidden" name="rate_id" value="%d"', $this->kct_id ), $block );
 		$this->assertStringNotContainsString( sprintf( 'tax_rate_kind[%d]', $this->kct_id ), $html );
+	}
+
+	public function test_stale_block_is_shown_when_no_zero_rate_remains(): void {
+		( new Settings() )->save_exempt_tax_rates( array( $this->kct_id ), array() );
+		WC_Tax::_update_tax_rate( $this->kct_id, array( 'tax_rate' => '10' ) );
+		WC_Tax::_delete_tax_rate( $this->kkknt_id );
+		WC_Tax::_delete_tax_rate( $this->ten_id );
+
+		$html = SettingsPage::render_tabs( 'invoicing' );
+
+		$this->assertStringContainsString( 'data-einv-stale-rates', $html );
+		$this->assertStringContainsString( 'Miễn thuế A · kct · 10% · KCT', $html );
+		$this->assertStringContainsString( 'Chưa có thuế suất 0%', $html );
 	}
 
 	public function test_unassign_removes_only_that_assignment(): void {
@@ -306,12 +317,32 @@ final class SettingsTaxRatesRestTest extends SettingsRestTestCase {
 		$response = $this->htmx( 'POST', '/settings/tax-rates/unassign', array( 'rate_id' => (string) $this->kct_id ) );
 
 		$this->assertSame( 200, $response->get_status() );
-		$this->assertStringContainsString( 'data-einv-status="success"', $this->html( $response ) );
+		$html = $this->html( $response );
+		$this->assertStringContainsString( 'data-einv-status="success"', $html );
+		$this->assertStringContainsString( 'Đã bỏ gán thuế suất &quot;Miễn thuế A&quot;. Tải lại trang để cập nhật danh sách.', $html );
 		$this->assertEqualsCanonicalizing(
 			array(
 				$this->kkknt_id => -2,
 				$orphan         => -1,
 			),
+			( new Settings() )->exempt_tax_rates()
+		);
+	}
+
+	public function test_unassign_accepts_integer_rate_id_from_json(): void {
+		( new Settings() )->save_exempt_tax_rates( array( $this->kct_id ), array( $this->kkknt_id ) );
+		WC_Tax::_update_tax_rate( $this->kct_id, array( 'tax_rate' => '10' ) );
+
+		$request = new WP_REST_Request( 'POST', self::NAMESPACE . '/settings/tax-rates/unassign' );
+		$request->set_header( 'X-WP-Nonce', wp_create_nonce( 'wp_rest' ) );
+		$request->set_header( 'HX-Request', 'true' );
+		$request->set_header( 'Content-Type', 'application/json' );
+		$request->set_body( (string) wp_json_encode( array( 'rate_id' => $this->kct_id ) ) );
+		$response = rest_do_request( $request );
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertSame(
+			array( $this->kkknt_id => -2 ),
 			( new Settings() )->exempt_tax_rates()
 		);
 	}
