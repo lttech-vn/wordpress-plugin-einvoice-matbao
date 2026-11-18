@@ -129,4 +129,12 @@ describe("settings page", { serial: false, agent: "admin" }, () => {
 		await screen.getByRole("button", "Lưu").nth(1).tap();
 		await expect(okNotice(screen)).toContainText("Đã lưu. Đơn vị tính mặc định: Lượt.");
 	});
+
+	test("admin assigns KCT from the tax rate list", async ({ agent, screen, app }) => {
+		await app.open(PAGES.invoicing);
+		await agent.act("In the 'Thuế KCT/KKKNT' card choose 'KCT' in the dropdown of the rate named 'KCT', then click that card's button 'Lưu'. Stop once a notice appears below the form.");
+		await expect(okNotice(screen)).toContainText("Đã lưu. 1 thuế suất KCT, 0 thuế suất KKKNT.");
+		await app.open(PAGES.invoicing);
+		await expect(screen.getByLabel("KCT", { exact: false }).first()).toHaveValue("kct");
+	});
 });

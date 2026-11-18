@@ -426,7 +426,7 @@ add_action(
 			}
 		);
 
-		// Sets plugin settings. Body: any of prefix (with walk_in), template (form and series), unit.
+		// Sets plugin settings. Body: any of prefix (with walk_in), template (form and series), unit, exempt ({kct, kkknt} rate names).
 		$route(
 			'/settings',
 			static function ( WP_REST_Request $request ): array {
@@ -440,6 +440,19 @@ add_action(
 				}
 				if ( null !== $request->get_param( 'unit' ) ) {
 					$settings->save_default_unit( (string) $request->get_param( 'unit' ) );
+				}
+				$exempt = $request->get_param( 'exempt' );
+				if ( is_array( $exempt ) ) {
+					// Rate names (kct, kkknt lists) become the IDs of the matching WooCommerce tax rates.
+					global $wpdb;
+					$ids = static function ( $names ) use ( $wpdb ): array {
+						$found = array();
+						foreach ( (array) $names as $name ) {
+							$found[] = (int) $wpdb->get_var( $wpdb->prepare( "SELECT tax_rate_id FROM {$wpdb->prefix}woocommerce_tax_rates WHERE tax_rate_name = %s", (string) $name ) ); // phpcs:ignore WordPress.DB
+						}
+						return array_values( array_filter( $found ) );
+					};
+					$settings->save_exempt_tax_rates( $ids( $exempt['kct'] ?? array() ), $ids( $exempt['kkknt'] ?? array() ) );
 				}
 				delete_transient( 'einvoice_matbao_templates' );
 				return array( 'ok' => true );

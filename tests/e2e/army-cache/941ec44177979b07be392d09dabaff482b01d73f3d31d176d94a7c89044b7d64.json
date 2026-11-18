@@ -1,0 +1,88 @@
+{
+  "schemaVersion": "trace-1",
+  "createdAt": "2026-11-18T08:30:21.694Z",
+  "payload": {
+    "actions": [
+      {
+        "name": "select",
+        "summary": "select \"KCT\" in combobox \"KCT · KCT · *\"",
+        "target": {
+          "role": "combobox",
+          "name": "KCT · KCT · *"
+        },
+        "value": "KCT"
+      },
+      {
+        "name": "tap",
+        "summary": "tap button \"Lưu\" (3 of 3)",
+        "target": {
+          "role": "button",
+          "name": "Lưu",
+          "position": {
+            "index": 2,
+            "of": 3
+          }
+        }
+      }
+    ],
+    "executor": {
+      "name": "e2e-default-agent",
+      "version": "2"
+    },
+    "recordedFor": {
+      "testId": "army/settings.army.ts::settings%20page::admin%20assigns%20KCT%20from%20the%20tax%20rate%20list",
+      "targetId": "chromium",
+      "instructionDigest": "4d7b6608775eaf0b9984200c9ec62014a1de4c22d8d3a4fe2681f8d18471c2af",
+      "paramsDigest": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "callIndex": 0,
+      "agent": "admin"
+    },
+    "recordedBy": {
+      "provider": "e2e-text-agent.chat",
+      "model": "gpt-6-luna"
+    },
+    "summary": "Chọn KCT cho mức thuế KCT và bấm Lưu. Notice xuất hiện: “Thành công: Đã lưu. 1 thuế suất KCT, 0 thuế suất KKKNT.”.",
+    "startPath": "/wp-admin/admin.php?page=einvoice-matbao-settings&tab=invoicing",
+    "endPath": "/wp-admin/admin.php?page=einvoice-matbao-settings&tab=invoicing",
+    "endAnchors": [
+      {
+        "role": "status",
+        "name": "Thành công: Đã lưu. 1 thuế suất KCT, 0 thuế suất KKKNT."
+      },
+      {
+        "role": "option",
+        "name": "0%"
+      },
+      {
+        "role": "option",
+        "name": "KCT",
+        "states": [
+          "selected"
+        ]
+      },
+      {
+        "role": "combobox",
+        "name": "KCT · KCT · *",
+        "value": "kct"
+      }
+    ],
+    "goneAnchors": [
+      {
+        "role": "combobox",
+        "name": "KCT · KCT · *",
+        "value": "vat0"
+      }
+    ],
+    "endWaitMs": 13951,
+    "keyedBy": {
+      "cacheSchema": "trace-1",
+      "policyVersion": "conservative/6",
+      "project": "2b483fc49e5e740989e492050e28e6fb856764a2ed52d31c600d470a05baba44",
+      "platform": "web",
+      "engineName": "web",
+      "engineSpiVersion": 1,
+      "appIdentity": "2ce612fe684f904f96ec07f53bc449688a65d26e28e9999fd2a1cec1cbd6fc2d",
+      "agentContextDigest": "235c22cafecee64e40527527a5323a53e23fcc3bd4f4deb7cfcfc7cc6261bc9e"
+    }
+  }
+}

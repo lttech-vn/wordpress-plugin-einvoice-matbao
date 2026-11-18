@@ -27,9 +27,10 @@ describe("blocked drafts", { serial: false, agent: "admin" }, () => {
 		await expect(screen.getByText("Thuế suất không hỗ trợ", { exact: false }).first()).toBeVisible();
 	});
 
-	test("supported rates 0/5/8/10 and not-taxable lines are sent with the right TSuat", async ({ app }) => {
+	test("supported rates 0/5/8/10, KCT and KKKNT are sent with the right TSuat", async ({ app }) => {
+		await seam({ app }, "/settings", { exempt: { kct: ["KCT"], kkknt: ["KKKNT"] } });
 		const ids: Record<string, number> = {};
-		for (const sku of ["E2E-SVC", "E2E-VAT5", "E2E-VAT8", "E2E-NOTAX"]) ids[sku] = await completedOrder({ app }, lines(sku));
+		for (const sku of ["E2E-SVC", "E2E-VAT5", "E2E-VAT8", "E2E-KCT", "E2E-KKKNT"]) ids[sku] = await completedOrder({ app }, lines(sku));
 		for (const id of Object.values(ids)) await waitForStatus({ app }, id, "draft_created");
 
 		const bodies = (await fake("requests?endpoint=create-invoice")).map((r: any) => r.body[0]);
@@ -37,7 +38,19 @@ describe("blocked drafts", { serial: false, agent: "admin" }, () => {
 		expect(rateOf("E2E-SVC")).toBe(10);
 		expect(rateOf("E2E-VAT5")).toBe(5);
 		expect(rateOf("E2E-VAT8")).toBe(8);
-		expect(rateOf("E2E-NOTAX")).toBe(-1); // KCT
+		expect(rateOf("E2E-KCT")).toBe(-1);
+		expect(rateOf("E2E-KKKNT")).toBe(-2);
+	});
+
+	test("a not-taxable product is blocked until its tax is configured", async ({ app, screen, browser }) => {
+		const orderId = await completedOrder({ app }, lines("E2E-NOTAX"));
+		const row = await waitForStatus({ app }, orderId, "failed");
+		expect(row.invoice.error_code).toBe("line_tax_not_configured");
+		expect(await sent()).toBe(0);
+
+		await app.open(PAGES.order(orderId));
+		await expect(browser.locator("[data-einv-error-code='line_tax_not_configured']")).toBeVisible();
+		await expect(screen.getByText("Dòng chưa cài thuế", { exact: false }).first()).toBeVisible();
 	});
 
 	test("totals that do not match the order total block the draft", async ({ app }) => {
