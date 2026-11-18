@@ -17,9 +17,9 @@ Blocked by: 1
 
 Blocked by: 1
 
-- [ ] 3.1 `SettingsController`: route `POST /settings/tax-rates`, kiểm tra lựa chọn và rate ID (tồn tại, tỷ lệ 0%), lưu qua `Settings` (design D2)
-- [ ] 3.2 `SettingsPage::render_invoicing_panel()`: card "Thuế KCT/KKKNT" liệt kê rate 0% kèm tên, lớp, quốc gia và `<select>` có label; hướng dẫn khi không có rate 0% (design D5)
-- [ ] 3.3 Test integration `SettingsTaxRatesRestTest` (lưu, 422, quyền, nonce, chỉ liệt kê rate 0%, không có rate 0%) và cập nhật `SettingsPageTest` cho nội dung tab Xuất hóa đơn
+- [x] 3.1 `SettingsController`: route `POST /settings/tax-rates`, kiểm tra lựa chọn và rate ID (tồn tại, tỷ lệ 0%), lưu qua `Settings` (design D2)
+- [x] 3.2 `SettingsPage::render_invoicing_panel()`: card "Thuế KCT/KKKNT" liệt kê rate 0% kèm tên, lớp, quốc gia và `<select>` có label; hướng dẫn khi không có rate 0% (design D5)
+- [x] 3.3 Test integration `SettingsTaxRatesRestTest` (lưu, 422, quyền, nonce, chỉ liệt kê rate 0%, không có rate 0%) và cập nhật `SettingsPageTest` cho nội dung tab Xuất hóa đơn
 
 ## 4. Browser E2E
 
