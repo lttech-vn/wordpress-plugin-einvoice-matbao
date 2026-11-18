@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Mat Bao tax mapping table
-Tab Xuất hóa đơn SHALL có card "Ánh xạ thuế Mắt Bão" gồm bảy hàng theo thứ tự 10%, 8%, 5%, 0%, KCT, KKKNT, Khác. Mỗi hàng SHALL hiện các thuế suất WooCommerce đã chọn dạng badge có nút × và một ô chọn có nhãn để thêm thuế suất. Ô chọn SHALL chỉ liệt kê thuế suất còn tồn tại trong WooCommerce (lớp Standard và mọi lớp bổ sung) chưa thuộc hàng nào, nên mỗi thuế suất thuộc nhiều nhất một hàng.
+Tab Xuất hóa đơn SHALL có card "Ánh xạ thuế Mắt Bão" gồm bảy hàng theo thứ tự 10%, 8%, 5%, 0%, KCT, KKKNT, Khác. Mỗi hàng SHALL hiện các thuế suất WooCommerce đã chọn dạng badge có nút × và một ô chọn có nhãn để thêm thuế suất. Mỗi thuế suất WooCommerce SHALL ánh xạ tới nhiều nhất một mã thuế Mắt Bão, nên ô chọn của mọi hàng SHALL chỉ liệt kê các thuế suất còn tồn tại trong WooCommerce (lớp Standard và mọi lớp bổ sung) chưa được thêm vào bảng.
 
 #### Scenario: Empty table
 - **WHEN** chưa có ánh xạ nào

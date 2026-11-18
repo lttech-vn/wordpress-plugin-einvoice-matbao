@@ -39,10 +39,11 @@
 - Xóa các key cũ `kct_tax_rate_ids`, `kkknt_tax_rate_ids` cùng `exempt_tax_rates()` / `save_exempt_tax_rates()`. Plugin đang smoke test, không migrate, và các key này chưa phát hành.
 
 **D2. Bảng trong tab Xuất hóa đơn, thêm/xóa từng thuế suất.**
+- **Quy tắc một-một:** mỗi thuế suất WooCommerce chỉ ánh xạ tới **một** mã thuế Mắt Bão. Vì vậy danh sách để chọn ở mọi hàng chỉ gồm **các thuế suất còn lại, chưa được thêm vào bảng**. Thêm vào một hàng thì thuế suất biến khỏi danh sách của tất cả các hàng; bấm × thì nó trở lại. Route add cũng từ chối thuế suất đã có trong bảng.
 - Card "Ánh xạ thuế Mắt Bão" có bảy hàng: nhãn hàng (10%, 8%, 5%, 0%, KCT, KKKNT, Khác) và một dòng mô tả ngắn.
   - Mỗi badge là một rate đã chọn, hiển thị `tên · lớp · quốc gia`; rate đã xóa ghi "(đã xóa)".
   - Mỗi badge có nút × (`aria-label` "Bỏ <tên> khỏi <nhóm>"). Nút gửi `POST einvoice-matbao/v1/settings/tax-rate-map/remove` với `group`, `rate_id`.
-  - Mỗi hàng có `<select>` có label, chỉ liệt kê rate **chưa thuộc nhóm nào**, mọi lớp và mọi phần trăm, hiển thị `tên · lớp · quốc gia · phần trăm%`. Nút **Thêm** gửi `POST einvoice-matbao/v1/settings/tax-rate-map/add` với `group`, `rate_id`.
+  - Mỗi hàng có `<select>` có label, liệt kê các rate còn lại theo quy tắc một-một ở trên, mọi lớp và mọi phần trăm, hiển thị `tên · lớp · quốc gia · phần trăm%`. Nút **Thêm** gửi `POST einvoice-matbao/v1/settings/tax-rate-map/add` với `group`, `rate_id`.
 - Kết quả của cả hai route là **card đã cập nhật**: route trả lại toàn bộ card, htmx swap `outerHTML` của card. Badge và các danh sách chọn luôn khớp với dữ liệu, không cần tải lại trang. Thông báo thành công/lỗi nằm trong card.
 - Kiểm tra ở trust boundary:
   - `group` phải là một trong bảy mã.
