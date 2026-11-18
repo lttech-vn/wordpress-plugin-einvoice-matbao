@@ -1,62 +1,105 @@
 ## Design Summary
 
-**Vì sao:** smoke test cho thấy plugin coi mọi dòng có trạng thái thuế *Không* (`tax_status = none`) là KCT (`TSuat = -1`). Một sản phẩm chưa được cài thuế vì vậy vẫn xuất hóa đơn KCT mà không ai biết. Ngược lại, khi staff đã cài thuế KCT cho sản phẩm (một thuế suất 0% trong WooCommerce), plugin lại xuất `TSuat = 0` vì không phân biệt được KCT với 0%.
+**Vì sao:** smoke test cho thấy hai vấn đề:
+- Plugin coi mọi dòng có trạng thái thuế *Không* (`tax_status = none`) là KCT. Sản phẩm chưa cài thuế vẫn ra hóa đơn KCT mà không ai biết.
+- Plugin suy `TSuat` từ phần trăm thuế. Thuế KCT staff đã cài (thuế suất 0% trong WooCommerce) vì vậy ra `TSuat = 0`, không phân biệt được KCT với 0%.
+
+Cả hai đều là plugin **đoán** thuế. Cách mới: admin tự khai báo thuế suất WooCommerce nào ứng với giá trị thuế nào của Mắt Bão. Plugin chỉ tra theo ID thuế suất và kiểm tra khớp.
+
+**Bảng ánh xạ thuế** (tab **Xuất hóa đơn**):
+- Mỗi hàng là một giá trị `TSuat` Mắt Bão chấp nhận: **10%, 8%, 5%, 0%, KCT, KKKNT**.
+- Mỗi hàng chứa các thuế suất WooCommerce đã chọn, hiện dạng **badge kèm dấu ×**. Một hàng có thể có nhiều thuế suất (ví dụ 10% ở lớp Standard và ở lớp khác, hoặc nhiều quốc gia).
+- Thêm: chọn thuế suất từ danh sách thuế suất hiện có của WooCommerce rồi bấm **Thêm**. Danh sách chỉ gồm thuế suất **chưa thuộc hàng nào**, nên mỗi thuế suất chỉ ứng với một giá trị Mắt Bão.
+- Bỏ: bấm **×** trên badge thì xóa ngay ánh xạ đó.
+- Hàng không có badge nghĩa là không dùng giá trị đó (thay cho lựa chọn "bỏ qua").
+
+```text
+Thuế Mắt Bão   Thuế suất WooCommerce đã chọn                       Thêm
+10%            [VAT 10 · Tiêu chuẩn · VN ×] [VAT 10 · Dịch vụ ×]   [chọn thuế suất ▾] [Thêm]
+8%             [Giảm 8 · Giam 8 ×]                                 [chọn thuế suất ▾] [Thêm]
+5%             (trống)                                             [chọn thuế suất ▾] [Thêm]
+0%             (trống)                                             [chọn thuế suất ▾] [Thêm]
+KCT            [KCT · KCT ×]                                       [chọn thuế suất ▾] [Thêm]
+KKKNT          [KKKNT · KKKNT (đã xóa) ×]                          [chọn thuế suất ▾] [Thêm]
+```
+
+**Khi tạo hóa đơn**, với mỗi dòng (sản phẩm kể cả 0 đồng, phí, vận chuyển có tiền):
+1. Không có thuế suất nào lưu trên dòng → lỗi **"Dòng chưa cài thuế"**, kể cả dòng có trạng thái thuế *Không*.
+2. Có từ hai thuế suất → lỗi **"Dòng không có đúng một thuế suất"**.
+3. ID thuế suất không có trong bảng (kể cả khi bảng còn trống) → lỗi mới **"Thuế không khớp với thông tin thuế gửi tới Mắt Bão"**.
+4. ID có trong bảng → `TSuat` lấy theo hàng chứa ID đó, rồi kiểm tra đúng yêu cầu Mắt Bão. Sai thì chặn với cùng lỗi "không khớp":
+   - hàng 10%, 8%, 5%: phần trăm lưu trên đơn phải bằng giá trị của hàng;
+   - hàng 0%, KCT, KKKNT: tiền thuế của dòng phải bằng 0.
+
+Phí và vận chuyển 0 đồng vẫn bị bỏ khỏi hóa đơn như hiện nay.
 
 **Mục tiêu:**
-
-- KCT và KKKNT là **một thuế được cài cho sản phẩm**, giống 0/5/8/10%. Admin chọn thuế suất WooCommerce nào là KCT, thuế suất nào là KKKNT, **từ danh sách thuế suất có sẵn** trong cài đặt của plugin, không gõ tay.
-- **Mọi dòng phải có thuế của chính nó.** Dòng không có thuế suất nào đã lưu là lỗi dữ liệu, kể cả dòng có trạng thái thuế *Không* và sản phẩm 0 đồng (quà tặng).
+- `TSuat` chỉ đến từ ID thuế suất đã lưu trên dòng đơn và bảng ánh xạ do admin chọn.
+- Mọi dòng phải có đúng một thuế suất, và thuế suất đó phải nằm trong bảng.
+- Hỗ trợ đủ sáu giá trị Mắt Bão: 10, 8, 5, 0, KCT (`-1`), KKKNT (`-2`).
 - Quy tắc áp chung cho sản phẩm, phí và vận chuyển.
 
 **Không làm (non-goals):**
+- Không migrate hay tự điền bảng khi nâng cấp; plugin đang smoke test.
+- Không tự chọn thuế suất cho phí/vận chuyển; kế toán quyết và cài trong WooCommerce.
+- Không hỗ trợ `TSuat = 3.5` ("Khác").
+- Không tính lại thuế của đơn.
 
-- Không migrate hay giữ hành vi cũ cho đơn đã tạo (plugin đang smoke test).
-- Không tự chọn thuế suất cho phí/vận chuyển; thuế suất của chúng do kế toán quyết và cài trong WooCommerce.
-- Không hỗ trợ `TSuat = 3.5` ("Khác") của Mắt Bão.
-
-**Anti-goal:** plugin không được đoán thuế. Không suy KCT từ trạng thái *Không*, từ tên thuế hay từ tỷ lệ 0%.
+**Anti-goal:** plugin không được đoán thuế. Không suy từ trạng thái thuế, tên thuế, tên lớp hay phần trăm.
 
 ### Requirement hiện có bị thay đổi
 
-- `draft-invoice-creation` → **VAT rate mapping**: hiện "dùng `-1` (KCT) cho dòng không chịu thuế". Đổi thành: `TSuat` lấy từ thuế suất đã lưu trên dòng; thuế suất được chọn là KCT → `-1`, KKKNT → `-2`; dòng không có thuế suất đã lưu (kể cả `tax_status = none`) bị chặn với lỗi dữ liệu mới "Dòng chưa cài thuế".
-- `draft-invoice-creation` → **Zero-value lines**: sản phẩm 0 đồng vẫn được gửi, nhưng không còn ngoại lệ "không lưu thuế suất thì dùng 0% hoặc KCT theo trạng thái thuế". Nó phải có đúng một thuế suất như mọi dòng; tiền thuế tự bằng 0. Dòng phí/vận chuyển 0 đồng vẫn bị bỏ khỏi hóa đơn như hiện nay.
-- Lỗi `untaxed_line_with_tax` ("Dòng không chịu thuế có tiền thuế") không còn cần, vì dòng *Không* nay bị chặn bằng lỗi chưa cài thuế.
-- Cài đặt (tab **Xuất hóa đơn**) có thêm phần chọn thuế suất KCT/KKKNT; error monitoring và cảnh báo nhận thêm mã lỗi mới với hint riêng.
+- `draft-invoice-creation` → **VAT rate mapping**:
+  - hiện: ánh xạ theo phần trăm đã lưu, dòng *Không* là KCT;
+  - đổi thành: tra `TSuat` theo bảng ánh xạ, kiểm tra khớp, chặn dòng chưa cài thuế và dòng có thuế suất không thuộc bảng.
+- `draft-invoice-creation` → **Zero-value lines**: sản phẩm 0 đồng không còn ngoại lệ "không lưu thuế suất thì dùng 0% hoặc KCT theo trạng thái thuế". Nó tuân cùng quy tắc như mọi dòng.
+- `admin-settings`: thêm bảng ánh xạ thuế vào tab `invoicing`.
+- `failure-alerts` → **Resolution hint per error code**: thêm hint cho lỗi mới; hint các lỗi thuế cũ trỏ tới bảng ánh xạ.
+
+### So với bản đang code trên nhánh
+
+- **Bỏ:** card "Thuế KCT/KKKNT" (chỉ gán thuế suất 0% là KCT/KKKNT), route lưu toàn bộ phép gán, route "Bỏ gán", mục "Đã gán nhưng không còn 0%".
+- **Thay bằng:** bảng ánh xạ đủ sáu giá trị Mắt Bão, thêm/xóa từng thuế suất.
+- **Thay lỗi:** các lỗi "Thuế suất không hỗ trợ", "Thiếu thuế suất đã lưu", "Dòng KCT/KKKNT có tiền thuế" được thay bằng lỗi "không khớp". Mã cũ vẫn được giữ trong danh mục, vì hóa đơn đã ghi lỗi trước đó còn hiển thị chúng.
+- **Giữ:** lỗi "Dòng chưa cài thuế", lỗi "Dòng không có đúng một thuế suất", việc không đọc trạng thái thuế, phần e2e và tài liệu (sẽ cập nhật theo bảng mới).
 
 ## Alternatives Considered
 
-### Alternative A: Quy ước theo tên thuế
-- **Approach**: thuế suất 0% có *Tax name* là `KCT`/`KKKNT` thì xuất mã tương ứng.
-- **Pros**: không cần cài đặt thêm.
-- **Cons**: gõ sai tên thì dòng âm thầm thành 0%, không có lỗi nào báo.
-- **Why not chosen**: vi phạm anti-goal "không đoán thuế"; user muốn chọn từ danh sách để tránh điền sai.
+### Alternative A: Gán KCT/KKKNT cho thuế suất 0%, phần còn lại suy theo phần trăm
+- **Approach**: bản đang code trên nhánh. Admin chỉ gán thuế suất 0% là KCT hoặc KKKNT; 10/8/5/0 vẫn suy từ phần trăm đã lưu.
+- **Pros**: ít cấu hình; site chưa có KCT không phải làm gì.
+- **Cons**: vẫn đoán theo phần trăm. Phải xử lý riêng thuế suất đã gán rồi bị sửa khỏi 0% (cần thêm mục "Bỏ gán"). Hai cơ chế song song khó giải thích.
+- **Why not chosen**: user muốn khai báo tường minh cho mọi giá trị, không đoán.
 
-### Alternative B: Quy ước theo lớp thuế (slug `kct`)
-- **Approach**: lớp thuế có slug cố định là KCT.
-- **Pros**: không cần cài đặt thêm.
-- **Cons**: phụ thuộc slug, khó thấy trong admin; cùng rủi ro đặt sai như A.
-- **Why not chosen**: cùng lý do với A.
+### Alternative B: Mỗi thuế suất WooCommerce một ô chọn giá trị Mắt Bão
+- **Approach**: liệt kê mọi thuế suất WooCommerce, mỗi thuế suất chọn một trong 10/8/5/0/KCT/KKKNT hoặc "bỏ qua".
+- **Pros**: cùng dữ liệu với phương án được chọn; dễ thấy thuế suất nào chưa ánh xạ.
+- **Cons**: danh sách dài khi site có nhiều quốc gia/lớp; khó nhìn nhanh giá trị Mắt Bão nào đang dùng thuế suất nào.
+- **Why not chosen**: user muốn nhìn theo giá trị Mắt Bão, chọn nhiều thuế suất dạng badge.
 
-### Alternative C: Giữ `tax_status = none` là KCT, chỉ thêm KKKNT
-- **Approach**: thay đổi tối thiểu.
-- **Pros**: không đổi hành vi hiện có.
-- **Cons**: sản phẩm chưa cài thuế vẫn ra KCT; đây chính là lỗi cần sửa.
-- **Why not chosen**: không giải quyết vấn đề gốc.
+### Alternative C: Quy ước theo tên thuế hoặc tên lớp
+- **Approach**: thuế suất tên `KCT`/`KKKNT` hoặc lớp có slug cố định thì ra mã tương ứng.
+- **Pros**: không cần cài đặt.
+- **Cons**: gõ sai tên thì âm thầm ra sai mã.
+- **Why not chosen**: vi phạm anti-goal "không đoán thuế".
 
 ## Agreed Approach
 
-Admin chọn thuế suất KCT và KKKNT từ danh sách thuế suất WooCommerce trong tab **Xuất hóa đơn**. Plugin nhận diện theo thuế suất đã lưu trên dòng đơn. Mọi dòng cần đúng một thuế suất đã lưu; không có thì chặn với lỗi "Dòng chưa cài thuế". User chọn cách này vì nó không phải đoán và tránh điền sai.
+Bảng ánh xạ theo giá trị Mắt Bão, mỗi hàng chọn nhiều thuế suất WooCommerce dạng badge có dấu ×. Hóa đơn tra `TSuat` theo ID thuế suất đã lưu trên dòng, kiểm tra khớp yêu cầu Mắt Bão, và chặn mọi dòng không khớp. User chọn cách này vì nó tường minh, không đoán, và một nơi cấu hình cho cả sáu giá trị.
 
 ## Key Decisions
 
-- **Chọn từ danh sách:** chọn được nhiều thuế suất cho KCT và cho KKKNT (ví dụ cùng là KCT nhưng ở hai lớp thuế khác nhau). Một thuế suất không được thuộc cả hai nhóm.
-- **KCT/KKKNT không có tiền thuế:** dòng dùng thuế suất KCT/KKKNT mà có tiền thuế khác 0 thì chặn. Lý do: không có thuế GTGT. API Mắt Bão không ghi rõ ràng buộc này, đây là suy luận.
-- **Quà tặng 0 đồng:** phải có thuế suất của chính nó như mọi dòng (theo user: thuế nhân với 0 vẫn bằng 0). WooCommerce khi tính thuế vẫn lưu thuế suất với tiền thuế 0, nên dòng 0 đồng không có thuế suất nào nghĩa là chưa cài thuế → lỗi.
-- **Trạng thái thuế *Không* → lỗi "Dòng chưa cài thuế"**, áp cho sản phẩm, phí và vận chuyển. Shop bán hàng vật lý tự cài thuế cho phí/phương thức vận chuyển; tài liệu hướng dẫn và nhắc hỏi kế toán về thuế suất.
-- **KKKNT làm luôn**, cùng cơ chế với KCT (`TSuat = -2`).
+- **Chọn nhiều, mỗi thuế suất một hàng:** một giá trị Mắt Bão có thể gồm nhiều thuế suất WooCommerce. Danh sách thêm chỉ hiện thuế suất chưa được chọn ở hàng nào.
+- **Thêm/xóa lưu ngay:** bấm **Thêm** hoặc **×** là lưu, không có nút Lưu chung cho bảng.
+- **Thuế suất đã xóa khỏi WooCommerce:** giữ ánh xạ theo ID để đơn cũ vẫn gửi đúng; badge ghi "(đã xóa)", admin bấm × nếu muốn bỏ.
+- **Bảng trống sau khi nâng cấp:** mọi dòng có thuế bị chặn với lỗi "không khớp" cho tới khi admin điền bảng. Không tự điền, không đoán.
+- **Kiểm tra khớp yêu cầu Mắt Bão:** 10/8/5% so phần trăm lưu trên đơn; 0%/KCT/KKKNT yêu cầu tiền thuế bằng 0. Sai thì chặn với lỗi "không khớp".
+- **Trạng thái thuế *Không*** không còn là KCT. Dòng như vậy không có thuế suất nên báo "Dòng chưa cài thuế".
+- **Quà tặng 0 đồng:** có thuế suất của chính nó như mọi sản phẩm; tiền thuế tự bằng 0.
+- **KKKNT** làm luôn, cùng cơ chế.
 - **Đơn cũ:** không xử lý gì thêm.
-- **Tài liệu:** `docs/thiet-lap-thue.md`, `docs/huong-dan-su-dung.md`, README cập nhật theo cách cài KCT/KKKNT mới.
 
 ## Open Questions
 
-- Không còn câu hỏi mở cho user. Giao diện chọn danh sách, lưu trữ và mã lỗi cụ thể sẽ quyết ở `design.md`.
+- Không còn câu hỏi mở cho user. Lưu trữ bảng, route, mã lỗi cụ thể và giao diện htmx sẽ quyết ở `design.md`.
+- Cần thử trên Mắt Bão Demo rằng `TSuat = -2` (KKKNT) được chấp nhận trước khi phát hành.
