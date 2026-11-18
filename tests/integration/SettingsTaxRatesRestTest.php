@@ -112,14 +112,15 @@ final class SettingsTaxRatesRestTest extends SettingsRestTestCase {
 		( new Settings() )->save_exempt_tax_rates( array( $this->kct_id ), array() );
 
 		$this->assertSame( 422, $this->htmx( 'POST', '/settings/tax-rates', array( 'tax_rate_kind' => 'oops' ) )->get_status() );
+		$this->assertSame( array( $this->kct_id => -1 ), ( new Settings() )->exempt_tax_rates() );
 		$this->assertSame( 422, $this->htmx( 'POST', '/settings/tax-rates', array( 'tax_rate_kind' => array( $this->kct_id => array( 'kct' ) ) ) )->get_status() );
+		$this->assertSame( array( $this->kct_id => -1 ), ( new Settings() )->exempt_tax_rates() );
 
 		$request = new WP_REST_Request( 'POST', self::NAMESPACE . '/settings/tax-rates' );
 		$request->set_header( 'X-WP-Nonce', wp_create_nonce( 'wp_rest' ) );
 		$request->set_header( 'Content-Type', 'application/json' );
 		$request->set_body( (string) wp_json_encode( array( 'tax_rate_kind' => null ) ) );
 		$this->assertSame( 422, rest_do_request( $request )->get_status() );
-
 		$this->assertSame( array( $this->kct_id => -1 ), ( new Settings() )->exempt_tax_rates() );
 	}
 
@@ -228,6 +229,55 @@ final class SettingsTaxRatesRestTest extends SettingsRestTestCase {
 			),
 			( new Settings() )->exempt_tax_rates()
 		);
+	}
+
+	public function test_success_message_counts_only_the_saved_rates(): void {
+		( new Settings() )->save_exempt_tax_rates( array( 777 ), array() );
+
+		$html = $this->html( $this->save( array( $this->kct_id => 'kct' ) ) );
+
+		$this->assertStringContainsString( 'Đã lưu. 1 thuế suất KCT, 0 thuế suất KKKNT.', $html );
+		$this->assertSame(
+			array(
+				777           => -1,
+				$this->kct_id => -1,
+			),
+			( new Settings() )->exempt_tax_rates()
+		);
+	}
+
+	public function test_rate_edited_away_from_zero_keeps_its_assignment(): void {
+		( new Settings() )->save_exempt_tax_rates( array( $this->kct_id ), array() );
+		WC_Tax::_update_tax_rate( $this->kct_id, array( 'tax_rate' => '10' ) );
+
+		$this->assertSame( 200, $this->save( array( $this->kkknt_id => 'kkknt' ) )->get_status() );
+		$this->assertSame(
+			array(
+				$this->kct_id   => -1,
+				$this->kkknt_id => -2,
+			),
+			( new Settings() )->exempt_tax_rates()
+		);
+	}
+
+	public function test_invalid_keys_are_rejected(): void {
+		( new Settings() )->save_exempt_tax_rates( array( $this->kct_id ), array() );
+
+		foreach ( array( '0', '-5', 'abc' ) as $key ) {
+			$this->assertSame( 422, $this->htmx( 'POST', '/settings/tax-rates', array( 'tax_rate_kind' => array( $key => 'kct' ) ) )->get_status(), $key );
+			$this->assertSame( array( $this->kct_id => -1 ), ( new Settings() )->exempt_tax_rates(), $key );
+		}
+	}
+
+	public function test_label_shows_country_and_escapes_the_name(): void {
+		$vn = $this->insert_rate( '', '0', '<b>x</b>' );
+		WC_Tax::_update_tax_rate( $vn, array( 'tax_rate_country' => 'VN' ) );
+
+		$html = SettingsPage::render_tabs( 'invoicing' );
+
+		$this->assertMatchesRegularExpression( sprintf( '/for="einv-tax-rate-%d"[^>]*>&lt;b&gt;x&lt;\/b&gt; · Tiêu chuẩn · VN</u', $vn ), $html );
+		$this->assertMatchesRegularExpression( sprintf( '/for="einv-tax-rate-%d"[^>]*>Miễn thuế A · kct · \*</u', $this->kct_id ), $html );
+		$this->assertStringNotContainsString( '<b>x</b>', $html );
 	}
 
 	/**

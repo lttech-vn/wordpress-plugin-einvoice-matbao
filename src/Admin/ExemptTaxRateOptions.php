@@ -45,20 +45,11 @@ final class ExemptTaxRateOptions {
 	}
 
 	/**
-	 * Whether the rate exists and is 0%.
+	 * IDs of every 0% rate.
 	 *
-	 * @param int $id Rate ID.
+	 * @return list<int>
 	 */
-	public static function is_zero_rate( int $id ): bool {
-		return in_array( $id, array_column( self::zero_rates(), 'id' ), true );
-	}
-
-	/**
-	 * Whether WooCommerce still has the rate.
-	 *
-	 * @param int $id Rate ID.
-	 */
-	public static function exists( int $id ): bool {
-		return (bool) WC_Tax::_get_tax_rate( $id );
+	public static function zero_rate_ids(): array {
+		return array_column( self::zero_rates(), 'id' );
 	}
 }

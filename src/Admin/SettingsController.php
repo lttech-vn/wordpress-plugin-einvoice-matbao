@@ -329,12 +329,13 @@ final class SettingsController {
 
 	/**
 	 * Saves which 0% tax rates are KCT or KKKNT. Validates everything before writing; keeps the
-	 * assignment of rates WooCommerce no longer has, so old orders still map.
+	 * assignment of rates that are no longer 0% (deleted or edited), so old orders still map.
 	 *
 	 * @param WP_REST_Request $request Request.
 	 */
 	public function save_tax_rates( WP_REST_Request $request ): WP_REST_Response {
-		$kinds = $this->tax_rate_kinds( $request );
+		$zero_ids = ExemptTaxRateOptions::zero_rate_ids();
+		$kinds    = $this->tax_rate_kinds( $request, $zero_ids );
 		if ( null === $kinds ) {
 			return Fragment::error( __( 'Lựa chọn thuế không hợp lệ. Tải lại trang rồi thử lại.', 'einvoice-matbao' ) );
 		}
@@ -343,15 +344,24 @@ final class SettingsController {
 		$kct      = array();
 		$kkknt    = array();
 		foreach ( $settings->exempt_tax_rates() as $id => $code ) {
-			if ( ! ExemptTaxRateOptions::exists( $id ) ) {
-				( Settings::TAX_RATE_KCT === $code ) ? $kct[] = $id : $kkknt[] = $id;
+			if ( in_array( $id, $zero_ids, true ) ) {
+				continue;
+			}
+			if ( Settings::TAX_RATE_KCT === $code ) {
+				$kct[] = $id;
+			} else {
+				$kkknt[] = $id;
 			}
 		}
+		$saved_kct   = 0;
+		$saved_kkknt = 0;
 		foreach ( $kinds as $id => $kind ) {
 			if ( 'kct' === $kind ) {
 				$kct[] = $id;
+				++$saved_kct;
 			} elseif ( 'kkknt' === $kind ) {
 				$kkknt[] = $id;
+				++$saved_kkknt;
 			}
 		}
 		$settings->save_exempt_tax_rates( $kct, $kkknt );
@@ -360,8 +370,8 @@ final class SettingsController {
 			sprintf(
 				/* translators: 1: number of KCT rates, 2: number of KKKNT rates. */
 				__( 'Đã lưu. %1$d thuế suất KCT, %2$d thuế suất KKKNT.', 'einvoice-matbao' ),
-				count( $kct ),
-				count( $kkknt )
+				$saved_kct,
+				$saved_kkknt
 			)
 		);
 	}
@@ -369,10 +379,11 @@ final class SettingsController {
 	/**
 	 * The validated `tax_rate_kind` map (rate ID => vat0|kct|kkknt), or null when malformed.
 	 *
-	 * @param WP_REST_Request $request Request.
+	 * @param WP_REST_Request $request  Request.
+	 * @param array<int>      $zero_ids IDs of the current 0% rates.
 	 * @return array<int, string>|null
 	 */
-	private function tax_rate_kinds( WP_REST_Request $request ): ?array {
+	private function tax_rate_kinds( WP_REST_Request $request, array $zero_ids ): ?array {
 		if ( ! $request->has_param( 'tax_rate_kind' ) ) {
 			return array();
 		}
@@ -384,8 +395,8 @@ final class SettingsController {
 
 		$kinds = array();
 		foreach ( $raw as $key => $kind ) {
-			$id = 1 === preg_match( '/^[1-9][0-9]{0,17}$/', (string) $key ) ? (int) $key : 0;
-			if ( $id <= 0 || ! is_string( $kind ) || ! in_array( $kind, array( 'vat0', 'kct', 'kkknt' ), true ) || ! ExemptTaxRateOptions::is_zero_rate( $id ) ) {
+			$id = Settings::parse_rate_id( (string) $key );
+			if ( null === $id || ! is_string( $kind ) || ! in_array( $kind, array( 'vat0', 'kct', 'kkknt' ), true ) || ! in_array( $id, $zero_ids, true ) ) {
 				return null;
 			}
 			$kinds[ $id ] = $kind;

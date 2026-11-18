@@ -268,14 +268,30 @@ final class Settings {
 
 		$ids = array();
 		foreach ( $stored as $value ) {
-			if ( is_int( $value ) && $value > 0 ) {
-				$ids[] = $value;
-			} elseif ( is_string( $value ) && 1 === preg_match( '/^[1-9][0-9]{0,18}$/', $value ) && (string) (int) $value === $value ) {
-				$ids[] = (int) $value;
+			$id = self::parse_rate_id( $value );
+			if ( null !== $id ) {
+				$ids[] = $id;
 			}
 		}
 
 		return $ids;
+	}
+
+	/**
+	 * A positive integer tax rate ID from an int or canonical decimal string, or null.
+	 *
+	 * @param mixed $value Candidate value.
+	 */
+	public static function parse_rate_id( mixed $value ): ?int {
+		if ( is_int( $value ) ) {
+			return $value > 0 ? $value : null;
+		}
+
+		if ( is_string( $value ) && 1 === preg_match( '/^[1-9][0-9]{0,18}$/', $value ) && (string) (int) $value === $value ) {
+			return (int) $value;
+		}
+
+		return null;
 	}
 
 	/**
