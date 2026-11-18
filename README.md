@@ -6,7 +6,7 @@ Plugin dành riêng cho cửa hàng tại Việt Nam: tiền VND, thuế suất 
 
 ## Tính năng
 
-- **Tạo nháp tự động** khi đơn hoàn thành, từ số tiền và thuế đã lưu trên đơn (0%, 5%, 8%, 10%, KCT).
+- **Tạo nháp tự động** khi đơn hoàn thành, từ số tiền và thuế đã lưu trên đơn (0%, 5%, 8%, 10%, KCT, KKKNT).
 - **Không tạo trùng:** mỗi đơn một hóa đơn gốc, mã tham chiếu cố định, tra cứu Mắt Bão trước mỗi lần gửi lại.
 - **Tự thử lại** khi Mắt Bão lỗi tạm thời (1 phút, 5 phút, 15 phút, 1 giờ, 6 giờ).
 - **Yêu cầu xuất hóa đơn ở checkout** cho cá nhân (CCCD) hoặc doanh nghiệp (MST), hỗ trợ Classic và Checkout Blocks. Khách không yêu cầu được xuất cho người mua vãng lai.
@@ -32,7 +32,7 @@ PHP 8.2+, WordPress 6.6+, WooCommerce 9.8+, tiền tệ cửa hàng là VND, WP-
    ```
 
 4. Mở menu **Hóa đơn Mắt Bão** (mục chính của wp-admin): nhập kết nối Mắt Bão, kiểm tra kết nối, chọn mẫu hóa đơn mặc định.
-5. Cấu hình thuế WooCommerce để mỗi dòng đơn có đúng một thuế suất 0/5/8/10% hoặc KCT: **[Thiết lập thuế GTGT](docs/thiet-lap-thue.md)**.
+5. Cấu hình thuế WooCommerce để mỗi dòng đơn có đúng một thuế suất 0/5/8/10% hoặc KCT/KKKNT: **[Thiết lập thuế GTGT](docs/thiet-lap-thue.md)**.
 6. Chạy thử với môi trường **Demo**, rồi chuyển sang **Production**.
 
 Chi tiết từng bước, quy trình hằng ngày và xử lý lỗi: **[Hướng dẫn sử dụng](docs/huong-dan-su-dung.md)**.

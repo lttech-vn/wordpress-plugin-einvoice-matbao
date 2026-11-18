@@ -83,7 +83,7 @@ Mở menu **Hóa đơn Mắt Bão** ở thanh bên trái của wp-admin (mục c
 |---|---|
 | **Hóa đơn** (mở mặc định) | Tổng quan, danh sách hóa đơn, chi tiết, gửi lại |
 | **Kết nối Mắt Bão** | Thông tin đăng nhập API và mẫu hóa đơn mặc định |
-| **Xuất hóa đơn** | Mã tham chiếu, người mua vãng lai, đơn vị tính |
+| **Xuất hóa đơn** | Mã tham chiếu, người mua vãng lai, đơn vị tính, thuế KCT/KKKNT |
 | **Thông báo** | Cảnh báo Lark (có công tắc bật/tắt) và giám sát lỗi Sentry |
 | **Nâng cao** | Gỡ plugin |
 
@@ -163,7 +163,7 @@ Khi đơn chuyển sang **Hoàn thành**, plugin:
 Nội dung hóa đơn:
 
 - Mỗi sản phẩm là một dòng, với **giá sau giảm** (hóa đơn không hiện giá gốc hay % chiết khấu). Phí và vận chuyển là dòng riêng; dòng phí 0 đồng bị bỏ.
-- Thuế suất lấy từ thuế WooCommerce đã lưu trên từng dòng: **0%, 5%, 8%, 10%**, hoặc **KCT** (không chịu thuế) khi sản phẩm có trạng thái thuế *Không*. Thuế suất khác (ví dụ 7%) bị chặn.
+- Thuế suất lấy từ thuế WooCommerce đã lưu trên từng dòng: **0%, 5%, 8%, 10%**, hoặc **KCT**/**KKKNT** khi thuế suất 0% đó được gán KCT/KKKNT ở card **Thuế KCT/KKKNT** (tab **Xuất hóa đơn**). Thuế suất khác (ví dụ 7%) bị chặn. Dòng không lưu thuế suất nào (kể cả sản phẩm có trạng thái thuế *Không*) bị chặn với *Dòng chưa cài thuế*.
 - **Ngày lập** là ngày gửi thành công lên Mắt Bão.
 - **Đơn 0 đồng** không được tạo nháp; hóa đơn hiện trạng thái *Bỏ qua* để admin kiểm tra.
 
@@ -241,6 +241,8 @@ Cách xử lý đầy đủ của mỗi lỗi giống nhau ở mọi nơi: hộp
 | Mắt Bão từ chối mẫu hóa đơn | Mẫu/ký hiệu không hợp lệ phía Mắt Bão | Kiểm tra mẫu trên Mắt Bão, chọn lại |
 | Tiền tệ không phải VND | Cửa hàng hoặc đơn dùng tiền tệ khác | Plugin chỉ hỗ trợ VND |
 | Số tiền không nguyên đồng | Có dòng tiền/thuế lẻ đồng | Sửa giá hoặc cấu hình thuế để ra số nguyên |
+| Dòng chưa cài thuế | Dòng sản phẩm, phí hoặc vận chuyển có tiền nhưng không lưu thuế suất nào (kể cả trạng thái thuế *Không*) | Cài thuế theo [Thiết lập thuế GTGT](thiet-lap-thue.md#bước-4-gán-thuế-cho-từng-loại-sản-phẩm), bấm **Tính lại** trong đơn, rồi **Gửi lại** |
+| Dòng KCT/KKKNT có tiền thuế | Dòng dùng thuế suất gán KCT/KKKNT nhưng có tiền thuế | Thuế suất gán KCT/KKKNT phải là 0%: sửa thuế trong WooCommerce hoặc gán lại ở tab **Xuất hóa đơn**, bấm **Tính lại**, rồi **Gửi lại** |
 | Thuế suất không hỗ trợ / Thiếu thuế suất đã lưu | Thuế khác 0/5/8/10%, hoặc dòng không lưu thuế | Đổi thuế suất của dòng sang 0%, 5%, 8% hoặc 10%, rồi gửi lại. Nếu dòng chưa lưu thuế, bấm **Tính lại** trong đơn trước |
 | Dòng không có đúng một thuế suất | Một dòng hàng không có đúng một thuế suất GTGT: thiếu thuế hoặc có hai thuế suất trở lên (thường do lớp thuế của sản phẩm) | Kiểm tra lớp thuế của sản phẩm (cả biến thể) và thuế trên dòng trong đơn. Dòng chưa có thuế thì bấm **Tính lại** trong đơn, rồi gửi lại. Xem [Thiết lập thuế GTGT](thiet-lap-thue.md#sửa-đơn-bị-chặn-vì-thuế) |
 | Tổng tiền lệch tổng đơn hàng | Tổng các dòng không khớp tổng đơn | Kiểm tra phí, giảm giá, làm tròn của đơn |
