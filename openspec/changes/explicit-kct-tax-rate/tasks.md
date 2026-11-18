@@ -26,9 +26,9 @@ Blocked by: 2
 
 Blocked by: 2, 3
 
-- [ ] 4.1 `tests/e2e/setup-site.sh`: thuế suất KCT, KKKNT, 3,5%; `resetWorld` thay toàn bộ bảng bằng bảng mặc định của fixture (test cần bảng trống gửi `tax_map: {}`)
-- [ ] 4.2 `tests/e2e/army/failures.army.ts`: `TSuat` 10/5/8/-1/-2/3.5 qua bảng; sản phẩm *Không* dừng `line_tax_not_configured`; thuế suất chưa ánh xạ dừng `tax_rate_mismatch`
-- [ ] 4.3 `tests/e2e/army/settings.army.ts`: thêm thuế suất vào hàng KCT và bấm × xóa qua UI; ghi lại cache replay
+- [x] 4.1 `tests/e2e/setup-site.sh`: thuế suất KCT, KKKNT, 3,5%; `resetWorld` thay toàn bộ bảng bằng bảng mặc định của fixture (test cần bảng trống gửi `tax_map: {}`)
+- [x] 4.2 `tests/e2e/army/failures.army.ts`: `TSuat` 10/5/8/-1/-2/3.5 qua bảng; sản phẩm *Không* dừng `line_tax_not_configured`; thuế suất chưa ánh xạ dừng `tax_rate_mismatch`
+- [x] 4.3 `tests/e2e/army/settings.army.ts`: thêm thuế suất vào hàng KCT và bấm × xóa qua UI; ghi lại cache replay
 
 ## 5. Tài liệu
 
