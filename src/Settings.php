@@ -7,11 +7,12 @@
 
 namespace LTTech\EinvoiceMatbao;
 
+use LTTech\EinvoiceMatbao\Invoice\TaxRateMap;
 use LTTech\EinvoiceMatbao\Matbao\TemplateCache;
 
 /**
  * Default template, `MTChieu` prefix, walk-in buyer name, default unit, the delete-on-uninstall
- * switch, the Lark and monitoring switches, and the KCT and KKKNT tax rate assignment, stored in
+ * switch, the Lark and monitoring switches, and the Mat Bao tax mapping table, stored in
  * one option.
  * Secrets never go here; see CredentialStore.
  */
@@ -19,10 +20,18 @@ final class Settings {
 
 	public const OPTION = 'einvoice_matbao_settings';
 
-	/** `TSuat` code for tax rates assigned to KCT (not subject to tax). */
+	/**
+	 * `TSuat` code for tax rates assigned to KCT (not subject to tax).
+	 *
+	 * @deprecated Removed by task 3; use TaxRateMap.
+	 */
 	public const TAX_RATE_KCT = -1;
 
-	/** `TSuat` code for tax rates assigned to KKKNT (not declared for tax). */
+	/**
+	 * `TSuat` code for tax rates assigned to KKKNT (not declared for tax).
+	 *
+	 * @deprecated Removed by task 3; use TaxRateMap.
+	 */
 	public const TAX_RATE_KKKNT = -2;
 
 	public const DEFAULT_WALK_IN_BUYER_NAME = 'Khách hàng không lấy hóa đơn';
@@ -216,6 +225,7 @@ final class Settings {
 	/**
 	 * Tax rate IDs assigned to KCT or KKKNT, mapped to their `TSuat` code. A rate in both lists is KKKNT.
 	 *
+	 * @deprecated Removed by task 3; use tax_rate_map().
 	 * @return array<int, int> `tax_rate_id => TSuat`.
 	 */
 	public function exempt_tax_rates(): array {
@@ -233,6 +243,7 @@ final class Settings {
 	/**
 	 * Replaces the KCT and KKKNT rate ID lists. Callers pass disjoint, valid IDs.
 	 *
+	 * @deprecated Removed by task 3; use save_tax_rate_map().
 	 * @param array<int> $kct   Rate IDs assigned to KCT.
 	 * @param array<int> $kkknt Rate IDs assigned to KKKNT.
 	 */
@@ -243,6 +254,47 @@ final class Settings {
 				'kkknt_tax_rate_ids' => $kkknt,
 			)
 		);
+	}
+
+	/**
+	 * Mat Bao tax mapping table. Unknown groups and invalid IDs are dropped; a rate keeps the first
+	 * group in `TaxRateMap::groups()` order.
+	 *
+	 * @return array<string, list<int>> `group => tax rate IDs`; empty groups are omitted.
+	 */
+	public function tax_rate_map(): array {
+		$stored = $this->all()['tax_rate_map'] ?? array();
+		if ( ! is_array( $stored ) ) {
+			return array();
+		}
+
+		$map  = array();
+		$seen = array();
+		foreach ( TaxRateMap::groups() as $group ) {
+			$values = $stored[ $group ] ?? array();
+			if ( ! is_array( $values ) ) {
+				continue;
+			}
+
+			foreach ( $values as $value ) {
+				$id = self::parse_rate_id( $value );
+				if ( null !== $id && ! isset( $seen[ $id ] ) ) {
+					$seen[ $id ]     = true;
+					$map[ $group ][] = $id;
+				}
+			}
+		}
+
+		return $map;
+	}
+
+	/**
+	 * Replaces the tax mapping table. Callers pass valid, disjoint IDs.
+	 *
+	 * @param array<string, list<int>> $map `group => tax rate IDs`.
+	 */
+	public function save_tax_rate_map( array $map ): void {
+		$this->update( array( 'tax_rate_map' => $map ) );
 	}
 
 	/**
