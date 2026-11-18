@@ -63,6 +63,8 @@
 | REST `POST einvoice-matbao/v1/settings/tax-rates` | new | body `tax_rate_kind[<rate_id>] = vat0\|kct\|kkknt`. Field vắng → mọi rate 0% hiện có là `vat0`. Field có mặt mà không phải mảng phẳng chuỗi → 422. Gán của rate ID không còn tồn tại được giữ. 200 fragment success, 422 fragment error, 403 như route khác | yes (route admin) |
 | `SettingsRestTestCase::htmx()` param `$params` | modified (test support) | phpdoc `array<string, mixed>` để gửi mảng lồng | no |
 | `InvoiceWorkflowTestCase`: `CLASS_KCT = 'einv-kct'`, `CLASS_KKKNT = 'einv-kkknt'`, `rate_id_of( string $class_slug ): int` | new (test support) | mỗi lớp có một rate 0% tạo trong `set_up()`; `rate_id_of` trả `tax_rate_id` đầu tiên của lớp | no |
+| `ExemptTaxRateOptions::stale_assignments( array $assigned ): list<array{id: int, name: string, class: string, percent: string, code: int}>` | new | từ map `exempt_tax_rates()`, trả các rate còn tồn tại (`WC_Tax::_get_tax_rate`) có tỷ lệ khác 0; `percent` là tỷ lệ đã định dạng, `code` là -1/-2 | no |
+| REST `POST einvoice-matbao/v1/settings/tax-rates/unassign` | new | body `rate_id` (số nguyên dương theo `Settings::parse_rate_id()`); chỉ nhận rate còn tồn tại, đã gán, khác 0%; xóa đúng phép gán đó qua `save_exempt_tax_rates()`; 200 fragment success kèm card đã cập nhật, 422 fragment error không ghi gì, 403 như route khác | yes (route admin) |
 | e2e seam `POST einv-e2e/v1/settings` | modified (test only) | nhận `exempt: { kct: string[], kkknt: string[] }` (tên rate) | no |
 
 ---
@@ -341,6 +343,42 @@
 
 ---
 
+## Task 6: Bỏ gán thuế suất KCT/KKKNT không còn 0% — implements 6
+
+**Covers:** 6.1, 6.2, 6.3
+**Difficulty:** Normal
+**Blocked by:** Task 3
+
+**Files:**
+- Modify: `src/Admin/ExemptTaxRateOptions.php`, `src/Admin/SettingsController.php`, `src/Admin/SettingsPage.php`, `docs/thiet-lap-thue.md`
+- Modify test: `tests/integration/SettingsTaxRatesRestTest.php`
+
+**Interfaces:**
+- Consumes: `Settings::exempt_tax_rates()`, `Settings::save_exempt_tax_rates()`, `Settings::parse_rate_id()`, `ExemptTaxRateOptions::zero_rates()`.
+- Produces: `ExemptTaxRateOptions::stale_assignments()`, route `/settings/tax-rates/unassign` (Contracts).
+
+- [ ] **Step 1: Viết test thất bại** trong `SettingsTaxRatesRestTest` (A = rate 0% lớp `kct` đã gán KCT, sau đó `WC_Tax::_update_tax_rate( A, array( 'tax_rate' => '10' ) )`):
+  - `test_stale_assignment_is_listed_with_warning_and_unassign_button`: HTML tab `invoicing` có khối `data-einv-stale-rates`, trong đó có tên A, lớp, `10%`, `KCT`, câu cảnh báo `'Đơn mới dùng thuế suất này sẽ bị chặn'`, form `hx-post` tới `settings/tax-rates/unassign` với input ẩn `rate_id` = A; và không có `tax_rate_kind[<A>]`.
+  - `test_unassign_removes_only_that_assignment`: đã có thêm B (0%) gán KKKNT và orphan C (đã xóa) gán KCT; POST `/settings/tax-rates/unassign` `rate_id=A` → 200 success, `exempt_tax_rates()` == `[ B => -2, C => -1 ]`.
+  - `test_unassign_rejects_invalid_targets`: lần lượt `rate_id` = B (0%), một rate 10% chưa gán, `999999`, `abc`, `0`, thiếu field → mỗi lần 422 và gán không đổi (assert sau từng request).
+  - `test_unassign_requires_permission_and_nonce`: `shop_manager` → 403; nonce sai → 403; gán không đổi.
+  - `test_no_stale_block_when_nothing_is_stale`: chỉ có gán của rate 0% và orphan đã xóa → HTML không có `data-einv-stale-rates`.
+  - `test_unassigned_stale_rate_maps_by_its_stored_percent`: trong `DraftInvoiceWorkflowTest` — gán KCT cho `rate_id_of( CLASS_KCT )`, đổi rate đó sang 10%, bỏ gán qua `Settings::save_exempt_tax_rates( [], [] )`, đơn sản phẩm `CLASS_KCT` 100000 → `TSuat` 10, `TThue` 10000.
+- [ ] **Step 2: Chạy** `--filter 'SettingsTaxRatesRestTest|DraftInvoiceWorkflowTest'`. Kỳ vọng: test mới FAIL.
+- [ ] **Step 3: Cài đặt `ExemptTaxRateOptions::stale_assignments()`** theo Contracts; tên lớp lấy như `zero_rates()` (tách helper riêng nếu cần để không lặp code); bỏ qua ID không tồn tại.
+- [ ] **Step 4: Cài đặt route** `'/settings/tax-rates/unassign' => array( WP_REST_Server::CREATABLE, 'unassign_tax_rate' )` trong `SettingsController`:
+  - `rate_id` qua `Settings::parse_rate_id()`; phải thuộc ID của `stale_assignments( exempt_tax_rates() )`; sai → `Fragment::error( __( 'Thuế suất này không cần bỏ gán. Tải lại trang rồi thử lại.', 'einvoice-matbao' ) )`, không ghi.
+  - Hợp lệ → bỏ ID khỏi đúng nhóm, `save_exempt_tax_rates()`, trả `Fragment::success( sprintf( __( 'Đã bỏ gán thuế suất "%s".', 'einvoice-matbao' ), $name ) )`.
+- [ ] **Step 5: Card** trong `SettingsPage::render_invoicing_panel()`, sau danh sách chọn (vẫn hiện cả khi không có rate 0%):
+  - Khi `stale_assignments()` không rỗng: khối `<div data-einv-stale-rates>` với tiêu đề `Đã gán nhưng không còn 0%`, help `'Đơn mới dùng thuế suất này sẽ bị chặn. Bỏ gán nếu thuế suất đã đổi hẳn; đơn cũ đã lưu thuế 0% sẽ xuất theo phần trăm đã lưu sau khi bỏ gán.'`.
+  - Mỗi rate một dòng `name · class · percent% · KCT|KKKNT` và một form nhỏ `hx-post` tới `settings/tax-rates/unassign`, `hx-target` vùng kết quả của card, input ẩn `rate_id`, nút `Bỏ gán` có `aria-label` chứa tên rate.
+  - Escape mọi giá trị.
+- [ ] **Step 6: Tài liệu** `docs/thiet-lap-thue.md`, mục "Khi đổi thuế suất": nêu thuế suất đã gán KCT/KKKNT mà đổi khỏi 0% sẽ hiện ở "Đã gán nhưng không còn 0%" trong card, đơn mới dùng nó bị chặn cho tới khi bấm **Bỏ gán**.
+- [ ] **Step 7: Chạy** focused rồi toàn bộ `einv composer test:integration`, `einv composer lint`, `einv composer analyse`. Kỳ vọng: PASS/sạch.
+- [ ] **Step 8: Commit** `feat(admin-settings): unassign KCT/KKKNT rates that are no longer 0%`.
+
+---
+
 ## Scenario → test
 
 **draft-invoice-creation**
@@ -371,6 +409,12 @@
 - Non-zero rate rejected → `SettingsTaxRatesRestTest::test_non_zero_rate_is_rejected`, `SettingsTaxRatesRestTest::test_mixed_valid_and_invalid_entries_write_nothing` (Task 3 Step 1)
 - Unknown rate or kind rejected → `SettingsTaxRatesRestTest::test_unknown_rate_is_rejected`, `SettingsTaxRatesRestTest::test_unknown_kind_is_rejected`, `SettingsTaxRatesRestTest::test_malformed_field_is_rejected` (Task 3 Step 1)
 - Result area per card → `SettingsTaxRatesRestTest::test_result_goes_to_the_card_result_area` (Task 3 Step 1)
+- Rate changed away from zero keeps its assignment → `SettingsTaxRatesRestTest::test_rate_edited_away_from_zero_keeps_its_assignment` (fix wave sau final review, commit 144df5d)
+- Stale assignment listed → `SettingsTaxRatesRestTest::test_stale_assignment_is_listed_with_warning_and_unassign_button` (Task 6 Step 1)
+- Unassign a stale rate → `SettingsTaxRatesRestTest::test_unassign_removes_only_that_assignment`, `DraftInvoiceWorkflowTest::test_unassigned_stale_rate_maps_by_its_stored_percent` (Task 6 Step 1)
+- Unassign rejected → `SettingsTaxRatesRestTest::test_unassign_rejects_invalid_targets` (Task 6 Step 1)
+- Unassign access control → `SettingsTaxRatesRestTest::test_unassign_requires_permission_and_nonce` (Task 6 Step 1)
+- No stale assignment → `SettingsTaxRatesRestTest::test_no_stale_block_when_nothing_is_stale` (Task 6 Step 1)
 - Invoicing tab contents → `SettingsPageTest::test_tabs_group_the_existing_forms` (Task 3 Step 6)
 - Notifications tab contents → giữ `SettingsPageTest::test_notifications_tab_contents` (Task 3 Step 7)
 - Saving one notification card → giữ `SettingsPageTest::test_notifications_tab_contents` (mỗi card một `einv-result`); không đổi hành vi, chạy ở Task 3 Step 9

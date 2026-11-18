@@ -35,3 +35,11 @@ Blocked by: 2, 3
 
 - [x] 5.1 `docs/thiet-lap-thue.md`: KCT/KKKNT là thuế suất 0% được gán ở tab Xuất hóa đơn; trạng thái *Không* là lỗi; cài thuế cho phí/vận chuyển; bảng lỗi
 - [x] 5.2 `docs/huong-dan-su-dung.md` (mục cấu hình, bảng lỗi) và `README.md` (tính năng) theo hành vi mới
+
+## 6. Bỏ gán thuế suất KCT/KKKNT không còn 0%
+
+Blocked by: 3
+
+- [ ] 6.1 `ExemptTaxRateOptions` liệt kê rate đã gán, còn tồn tại, khác 0%; route `POST /settings/tax-rates/unassign` xóa đúng phép gán đó (design D2)
+- [ ] 6.2 Card "Thuế KCT/KKKNT" hiện danh sách "đã gán nhưng không còn 0%" kèm cảnh báo và nút bỏ gán; test integration cho mọi scenario của requirement "Stale exempt assignment removal" và "Rate changed away from zero keeps its assignment"
+- [ ] 6.3 Tài liệu `docs/thiet-lap-thue.md` mục đổi thuế suất: cách bỏ gán thuế suất KCT/KKKNT đã đổi khỏi 0%

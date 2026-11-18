@@ -31,6 +31,7 @@ Settings của plugin nằm trong option `einvoice_matbao_settings`, đọc/ghi 
 - Route mới `POST einvoice-matbao/v1/settings/tax-rates` nhận `tax_rate_kind[<rate_id>] = vat0|kct|kkknt`.
 - Server kiểm lại mọi ID còn tồn tại và có tỷ lệ 0, vì đây là trust boundary. Sai một ID thì từ chối 422 và không ghi gì.
 - Mỗi lần lưu thay phép gán của các rate 0% **đang tồn tại** theo request; rate có mặt trong form mà không có trong request được coi là `vat0`. Gán của rate đã bị xóa khỏi WooCommerce (orphan) được giữ nguyên trong option, để đơn cũ mang rate đó vẫn ánh xạ đúng. Không đơn mới nào mang rate đã xóa, nên giữ lại không gây hại.
+- Gán của rate **còn tồn tại nhưng đã đổi khỏi 0%** cũng được giữ, để đơn cũ đã lưu rate đó ở 0% vẫn ra KCT/KKKNT. Rate như vậy không còn trong danh sách chọn, nên card liệt kê riêng chúng (tên, lớp, tỷ lệ hiện tại, nhóm đã gán, cảnh báo đơn mới sẽ bị chặn) kèm nút bỏ gán. Nút gửi `POST einvoice-matbao/v1/settings/tax-rates/unassign` với `rate_id`; route chỉ nhận rate còn tồn tại, đã gán và khác 0%, xóa đúng phép gán đó, sai thì 422 không ghi gì. Route riêng giữ route lưu chính đơn giản: không trộn thao tác xóa vào phép thay toàn bộ (quyết định của user, phương án 2 sau final review).
 - Trang hiển thị kèm tên rate, lớp thuế và quốc gia để admin phân biệt. Không có rate 0% nào thì card hiện hướng dẫn tạo rate 0% trong WooCommerce.
 
 **D3. Thứ tự kiểm tra một dòng trong `DraftPayloadBuilder::line()`.**
