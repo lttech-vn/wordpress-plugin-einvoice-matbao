@@ -266,6 +266,27 @@ final class DraftInvoiceWorkflowTest extends InvoiceWorkflowTestCase {
 		$this->assertSame( array( 10 ), array_column( $this->sent_invoices()[0]['DSHHDVu'], 'TSuat' ) );
 	}
 
+	public function test_added_rate_reaches_the_invoice(): void {
+		$this->map_rates( array() );
+		$this->configure_matbao();
+		$this->fake_create_invoice_ok();
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+
+		$response = $this->htmx(
+			'POST',
+			'/settings/tax-rate-map/add',
+			array(
+				'group'   => 'vat10',
+				'rate_id' => (string) $this->rate_id_of( '' ),
+			)
+		);
+		$this->assertSame( 200, $response->get_status() );
+
+		$this->complete_and_run( $this->create_order( array( array( $this->create_product( 'Mười', '100000' ), 1 ) ) ) );
+
+		$this->assertSame( array( 10 ), array_column( $this->sent_invoices()[0]['DSHHDVu'], 'TSuat' ) );
+	}
+
 	public function test_deleted_rate_keeps_mapping_old_orders(): void {
 		$this->configure_matbao();
 		$this->fake_create_invoice_ok();

@@ -9,6 +9,7 @@ namespace LTTech\EinvoiceMatbao\Admin;
 
 use LTTech\EinvoiceMatbao\CredentialStore;
 use LTTech\EinvoiceMatbao\Encryption;
+use LTTech\EinvoiceMatbao\Invoice\TaxRateMap;
 use LTTech\EinvoiceMatbao\Lark\LarkClient;
 use LTTech\EinvoiceMatbao\Lark\LarkError;
 use LTTech\EinvoiceMatbao\Lark\LarkWebhook;
@@ -43,19 +44,19 @@ final class SettingsController {
 	 */
 	public static function register_routes(): void {
 		$routes = array(
-			'/settings/templates'          => array( WP_REST_Server::READABLE, 'list_templates' ),
-			'/settings/matbao'             => array( WP_REST_Server::CREATABLE, 'save_matbao' ),
-			'/settings/matbao/test'        => array( WP_REST_Server::CREATABLE, 'test_matbao' ),
-			'/settings/lark'               => array( WP_REST_Server::CREATABLE, 'save_lark' ),
-			'/settings/lark/test'          => array( WP_REST_Server::CREATABLE, 'test_lark' ),
-			'/settings/monitoring'         => array( WP_REST_Server::CREATABLE, 'save_monitoring' ),
-			'/settings/monitoring/test'    => array( WP_REST_Server::CREATABLE, 'test_monitoring' ),
-			'/settings/template'           => array( WP_REST_Server::CREATABLE, 'save_template' ),
-			'/settings/invoicing'          => array( WP_REST_Server::CREATABLE, 'save_invoicing' ),
-			'/settings/unit'               => array( WP_REST_Server::CREATABLE, 'save_unit' ),
-			'/settings/tax-rates'          => array( WP_REST_Server::CREATABLE, 'save_tax_rates' ),
-			'/settings/tax-rates/unassign' => array( WP_REST_Server::CREATABLE, 'unassign_tax_rate' ),
-			'/tabs/(?P<tab>[^/]+)'         => array( WP_REST_Server::READABLE, 'show_tab' ),
+			'/settings/templates'           => array( WP_REST_Server::READABLE, 'list_templates' ),
+			'/settings/matbao'              => array( WP_REST_Server::CREATABLE, 'save_matbao' ),
+			'/settings/matbao/test'         => array( WP_REST_Server::CREATABLE, 'test_matbao' ),
+			'/settings/lark'                => array( WP_REST_Server::CREATABLE, 'save_lark' ),
+			'/settings/lark/test'           => array( WP_REST_Server::CREATABLE, 'test_lark' ),
+			'/settings/monitoring'          => array( WP_REST_Server::CREATABLE, 'save_monitoring' ),
+			'/settings/monitoring/test'     => array( WP_REST_Server::CREATABLE, 'test_monitoring' ),
+			'/settings/template'            => array( WP_REST_Server::CREATABLE, 'save_template' ),
+			'/settings/invoicing'           => array( WP_REST_Server::CREATABLE, 'save_invoicing' ),
+			'/settings/unit'                => array( WP_REST_Server::CREATABLE, 'save_unit' ),
+			'/settings/tax-rate-map/add'    => array( WP_REST_Server::CREATABLE, 'add_tax_rate' ),
+			'/settings/tax-rate-map/remove' => array( WP_REST_Server::CREATABLE, 'remove_tax_rate' ),
+			'/tabs/(?P<tab>[^/]+)'          => array( WP_REST_Server::READABLE, 'show_tab' ),
 		);
 
 		foreach ( $routes as $route => list( $methods, $handler ) ) {
@@ -329,111 +330,82 @@ final class SettingsController {
 	}
 
 	/**
-	 * Saves which 0% tax rates are KCT or KKKNT. Validates everything before writing; keeps the
-	 * assignment of rates that are no longer 0% (deleted or edited), so old orders still map.
+	 * Adds one WooCommerce tax rate to a Mat Bao group. The rate must exist and not be in the table yet.
 	 *
 	 * @param WP_REST_Request $request Request.
 	 */
-	public function save_tax_rates( WP_REST_Request $request ): WP_REST_Response {
-		$zero_ids = ExemptTaxRateOptions::zero_rate_ids();
-		$kinds    = $this->tax_rate_kinds( $request, $zero_ids );
-		if ( null === $kinds ) {
-			return Fragment::error( __( 'Lựa chọn thuế không hợp lệ. Tải lại trang rồi thử lại.', 'einvoice-matbao' ) );
+	public function add_tax_rate( WP_REST_Request $request ): WP_REST_Response {
+		$group   = $this->tax_group( $request );
+		$rate_id = Settings::parse_rate_id( $request->get_param( 'rate_id' ) );
+		$rate    = null === $rate_id ? null : TaxRateCatalog::find( $rate_id );
+		$map     = ( new Settings() )->tax_rate_map();
+
+		if ( null === $group || null === $rate_id || null === $rate || null !== ( new TaxRateMap( $map ) )->group_of( $rate_id ) ) {
+			return $this->tax_map_error( __( 'Không thêm được thuế suất. Tải lại trang rồi thử lại.', 'einvoice-matbao' ) );
 		}
 
-		$settings = new Settings();
-		$kct      = array();
-		$kkknt    = array();
-		foreach ( $settings->exempt_tax_rates() as $id => $code ) {
-			if ( in_array( $id, $zero_ids, true ) ) {
-				continue;
-			}
-			if ( Settings::TAX_RATE_KCT === $code ) {
-				$kct[] = $id;
-			} else {
-				$kkknt[] = $id;
-			}
-		}
-		$saved_kct   = 0;
-		$saved_kkknt = 0;
-		foreach ( $kinds as $id => $kind ) {
-			if ( 'kct' === $kind ) {
-				$kct[] = $id;
-				++$saved_kct;
-			} elseif ( 'kkknt' === $kind ) {
-				$kkknt[] = $id;
-				++$saved_kkknt;
-			}
-		}
-		$settings->save_exempt_tax_rates( $kct, $kkknt );
+		$map[ $group ][] = $rate_id;
+		( new Settings() )->save_tax_rate_map( $map );
 
-		return Fragment::success(
-			sprintf(
-				/* translators: 1: number of KCT rates, 2: number of KKKNT rates. */
-				__( 'Đã lưu. %1$d thuế suất KCT, %2$d thuế suất KKKNT.', 'einvoice-matbao' ),
-				$saved_kct,
-				$saved_kkknt
+		return Fragment::response(
+			TaxRateMapCard::render(
+				Fragment::notice(
+					Fragment::STATUS_SUCCESS,
+					/* translators: 1: tax rate name, 2: group label. */
+					sprintf( __( 'Đã thêm "%1$s" vào %2$s.', 'einvoice-matbao' ), $rate['name'], TaxRateMap::label( $group ) )
+				)
 			)
 		);
 	}
 
 	/**
-	 * Removes the KCT/KKKNT assignment of one stale rate (assigned, still existing, no longer 0%).
-	 * Other assignments, including orphans of deleted rates, are kept.
+	 * Removes one tax rate from the group it belongs to, also when WooCommerce no longer has the rate.
 	 *
 	 * @param WP_REST_Request $request Request.
 	 */
-	public function unassign_tax_rate( WP_REST_Request $request ): WP_REST_Response {
-		$settings = new Settings();
-		$assigned = $settings->exempt_tax_rates();
-		$id       = Settings::parse_rate_id( $request->get_param( 'rate_id' ) );
+	public function remove_tax_rate( WP_REST_Request $request ): WP_REST_Response {
+		$group   = $this->tax_group( $request );
+		$rate_id = Settings::parse_rate_id( $request->get_param( 'rate_id' ) );
+		$map     = ( new Settings() )->tax_rate_map();
 
-		$target = null;
-		foreach ( ExemptTaxRateOptions::stale_assignments( $assigned ) as $stale ) {
-			if ( $stale['id'] === $id ) {
-				$target = $stale;
-			}
-		}
-		if ( null === $target ) {
-			return Fragment::error( __( 'Thuế suất này không cần bỏ gán. Tải lại trang rồi thử lại.', 'einvoice-matbao' ) );
+		if ( null === $group || null === $rate_id || ! in_array( $rate_id, $map[ $group ] ?? array(), true ) ) {
+			return $this->tax_map_error( __( 'Không bỏ được thuế suất. Tải lại trang rồi thử lại.', 'einvoice-matbao' ) );
 		}
 
-		unset( $assigned[ $target['id'] ] );
-		$settings->save_exempt_tax_rates(
-			array_keys( array_filter( $assigned, static fn( int $code ): bool => Settings::TAX_RATE_KCT === $code ) ),
-			array_keys( array_filter( $assigned, static fn( int $code ): bool => Settings::TAX_RATE_KKKNT === $code ) )
+		$map[ $group ] = array_values( array_diff( $map[ $group ], array( $rate_id ) ) );
+		( new Settings() )->save_tax_rate_map( array_filter( $map ) );
+
+		$rate = TaxRateCatalog::find( $rate_id );
+
+		return Fragment::response(
+			TaxRateMapCard::render(
+				Fragment::notice(
+					Fragment::STATUS_SUCCESS,
+					/* translators: 1: tax rate name, 2: group label. */
+					sprintf( __( 'Đã bỏ "%1$s" khỏi %2$s.', 'einvoice-matbao' ), $rate['name'] ?? '#' . $rate_id, TaxRateMap::label( $group ) )
+				)
+			)
 		);
-
-		return Fragment::success( sprintf( /* translators: %s: tax rate name. */ __( 'Đã bỏ gán thuế suất "%s". Tải lại trang để cập nhật danh sách.', 'einvoice-matbao' ), $target['name'] ) );
 	}
 
 	/**
-	 * The validated `tax_rate_kind` map (rate ID => vat0|kct|kkknt), or null when malformed.
+	 * The `group` parameter when it is one of the Mat Bao groups.
 	 *
-	 * @param WP_REST_Request $request  Request.
-	 * @param array<int>      $zero_ids IDs of the current 0% rates.
-	 * @return array<int, string>|null
+	 * @param WP_REST_Request $request Request.
 	 */
-	private function tax_rate_kinds( WP_REST_Request $request, array $zero_ids ): ?array {
-		if ( ! $request->has_param( 'tax_rate_kind' ) ) {
-			return array();
-		}
+	private function tax_group( WP_REST_Request $request ): ?string {
+		$group = $request->get_param( 'group' );
 
-		$raw = $request->get_param( 'tax_rate_kind' );
-		if ( ! is_array( $raw ) ) {
-			return null;
-		}
+		return is_string( $group ) && in_array( $group, TaxRateMap::groups(), true ) ? $group : null;
+	}
 
-		$kinds = array();
-		foreach ( $raw as $key => $kind ) {
-			$id = Settings::parse_rate_id( (string) $key );
-			if ( null === $id || ! is_string( $kind ) || ! in_array( $kind, array( 'vat0', 'kct', 'kkknt' ), true ) || ! in_array( $id, $zero_ids, true ) ) {
-				return null;
-			}
-			$kinds[ $id ] = $kind;
-		}
-
-		return $kinds;
+	/**
+	 * 422 response carrying the unchanged card and an error notice.
+	 *
+	 * @param string $message Plain-text message.
+	 */
+	private function tax_map_error( string $message ): WP_REST_Response {
+		return Fragment::response( TaxRateMapCard::render( Fragment::notice( Fragment::STATUS_ERROR, $message ) ), 422 );
 	}
 
 	/**

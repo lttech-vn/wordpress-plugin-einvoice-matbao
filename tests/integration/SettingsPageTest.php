@@ -210,6 +210,34 @@ final class SettingsPageTest extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'Gửi event thử', $html );
 	}
 
+	public function test_saving_lark_leaves_the_monitoring_card(): void {
+		add_filter( 'einvoice_matbao_encryption_key', static fn(): string => 'test-only-key-material-0123456789abcdef' );
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+		$GLOBALS['wp_rest_server'] = null; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited, WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- fresh REST server.
+		rest_get_server();
+		( new Settings() )->save_monitoring( true, 0.25 );
+		$before = SettingsPage::render_tabs( 'notifications' );
+
+		$request = new \WP_REST_Request( 'POST', '/einvoice-matbao/v1/settings/lark' );
+		$request->set_header( 'X-WP-Nonce', wp_create_nonce( 'wp_rest' ) );
+		$request->set_body_params(
+			array(
+				'enabled'     => '1',
+				'webhook_url' => 'https://open.larksuite.com/open-apis/bot/v2/hook/00000000-fake-hook',
+			)
+		);
+		$response = rest_do_request( $request );
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertStringNotContainsString( 'einv-sentry-dsn', (string) $response->get_data() );
+		$after = SettingsPage::render_tabs( 'notifications' );
+		$this->assertStringContainsString( 'einv-sentry-dsn', $after );
+		$this->assertSame( 1, preg_match( '/name="traces_sample_rate"[^>]*value="0\.25"/', $after ) );
+		$this->assertSame( 1, preg_match( '/name="traces_sample_rate"[^>]*value="0\.25"/', $before ) );
+		$GLOBALS['wp_rest_server'] = null; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited, WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- reset.
+		remove_all_filters( 'einvoice_matbao_encryption_key' );
+	}
+
 	public function test_lark_switch_is_checked_for_a_site_with_a_saved_webhook_and_unchecked_for_a_new_site(): void {
 		add_filter( 'einvoice_matbao_encryption_key', static fn(): string => 'test-only-key-material-0123456789abcdef' );
 		$this->assertDoesNotMatchRegularExpression( '/name="enabled"[^>]*checked[^>]*>\s*Bật cảnh báo Lark/s', SettingsPage::render_tabs( 'notifications' ) );
@@ -239,9 +267,10 @@ final class SettingsPageTest extends WP_UnitTestCase {
 		$invoicing = SettingsPage::render_tabs( 'invoicing' );
 		$this->assertStringContainsString( 'settings/invoicing', $invoicing );
 		$this->assertStringContainsString( 'settings/unit', $invoicing );
-		$this->assertStringContainsString( 'settings/tax-rates', $invoicing );
-		$this->assertStringNotContainsString( 'settings/tax-rates', $connection );
-		$this->assertStringNotContainsString( 'settings/tax-rates', SettingsPage::render_tabs( 'notifications' ) );
+		$this->assertStringContainsString( 'settings/tax-rate-map/add', $invoicing );
+		$this->assertStringNotContainsString( 'settings/tax-rates', $invoicing );
+		$this->assertStringNotContainsString( 'settings/tax-rate-map', $connection );
+		$this->assertStringNotContainsString( 'settings/tax-rate-map', SettingsPage::render_tabs( 'notifications' ) );
 		$this->assertStringNotContainsString( 'settings/lark', $invoicing );
 		$this->assertStringNotContainsString( 'einv-sentry-dsn', $invoicing );
 

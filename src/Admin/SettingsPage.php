@@ -33,15 +33,15 @@ final class SettingsPage {
 	/** Capability required for the page and every settings route. */
 	public const CAPABILITY = 'manage_options';
 
-	private const FIELD     = 'mt-1 block w-full max-w-md rounded-einv-sm border border-einv-hairline-input bg-white px-3 py-2 text-[15px] text-einv-ink shadow-none focus:border-einv-primary focus:outline-none';
-	private const LABEL     = 'block text-[13px] font-medium text-einv-ink-secondary';
-	private const HELP      = 'mt-1 text-[13px] text-einv-ink-mute';
-	private const BUTTON    = 'inline-flex cursor-pointer items-center rounded-full border-0 bg-einv-primary px-4 py-2 text-[14px] font-normal text-white hover:bg-einv-primary-deep active:bg-einv-primary-press';
-	private const SECONDARY = 'inline-flex cursor-pointer items-center rounded-full border border-einv-hairline bg-white px-4 py-2 text-[14px] font-normal text-einv-primary hover:border-einv-primary';
-	private const CARD      = 'mb-6 rounded-einv-lg border border-einv-hairline bg-white p-6 shadow-einv-card';
-	private const TITLE     = 'm-0 mb-1 text-[20px] font-light tracking-[-0.2px] text-einv-ink';
-	private const TAB_BAR   = 'flex gap-6 overflow-x-auto border-b border-einv-hairline';
-	private const TAB_LINK  = '-mb-px whitespace-nowrap border-b-2 px-1 pb-3 pt-1 text-[14px] no-underline focus:!shadow-none focus-visible:!outline-2 focus-visible:!outline-solid focus-visible:!outline-offset-2 focus-visible:!outline-einv-primary';
+	public const FIELD     = 'mt-1 block w-full max-w-md rounded-einv-sm border border-einv-hairline-input bg-white px-3 py-2 text-[15px] text-einv-ink shadow-none focus:border-einv-primary focus:outline-none';
+	private const LABEL    = 'block text-[13px] font-medium text-einv-ink-secondary';
+	public const HELP      = 'mt-1 text-[13px] text-einv-ink-mute';
+	private const BUTTON   = 'inline-flex cursor-pointer items-center rounded-full border-0 bg-einv-primary px-4 py-2 text-[14px] font-normal text-white hover:bg-einv-primary-deep active:bg-einv-primary-press';
+	public const SECONDARY = 'inline-flex cursor-pointer items-center rounded-full border border-einv-hairline bg-white px-4 py-2 text-[14px] font-normal text-einv-primary hover:border-einv-primary';
+	public const CARD      = 'mb-6 rounded-einv-lg border border-einv-hairline bg-white p-6 shadow-einv-card';
+	public const TITLE     = 'm-0 mb-1 text-[20px] font-light tracking-[-0.2px] text-einv-ink';
+	private const TAB_BAR  = 'flex gap-6 overflow-x-auto border-b border-einv-hairline';
+	private const TAB_LINK = '-mb-px whitespace-nowrap border-b-2 px-1 pb-3 pt-1 text-[14px] no-underline focus:!shadow-none focus-visible:!outline-2 focus-visible:!outline-solid focus-visible:!outline-offset-2 focus-visible:!outline-einv-primary';
 
 	/**
 	 * Hooks the menu and assets.
@@ -235,13 +235,10 @@ final class SettingsPage {
 	}
 
 	/**
-	 * Reference prefix, walk-in buyer and unit cards.
+	 * Reference prefix, walk-in buyer, unit and tax mapping cards.
 	 */
 	private static function render_invoicing_panel(): string {
-		$settings   = new Settings();
-		$zero_rates = ExemptTaxRateOptions::zero_rates();
-		$assigned   = $settings->exempt_tax_rates();
-		$stale      = ExemptTaxRateOptions::stale_assignments( $assigned );
+		$settings = new Settings();
 
 		ob_start();
 		?>
@@ -285,52 +282,7 @@ final class SettingsPage {
 					<div class="einv-result" aria-live="polite"></div>
 				</section>
 
-				<section class="<?php echo esc_attr( self::CARD ); ?>">
-					<h2 class="<?php echo esc_attr( self::TITLE ); ?>"><?php esc_html_e( 'Thuế KCT/KKKNT', 'einvoice-matbao' ); ?></h2>
-					<?php if ( array() === $zero_rates ) : ?>
-						<p class="<?php echo esc_attr( self::HELP ); ?> mt-4"><?php esc_html_e( 'Chưa có thuế suất 0% nào. Tạo thuế suất 0% trong WooCommerce → Cài đặt → Thuế, rồi tải lại trang.', 'einvoice-matbao' ); ?></p>
-					<?php else : ?>
-						<p class="<?php echo esc_attr( self::HELP ); ?> mb-4"><?php esc_html_e( 'Chọn thuế suất 0% nào là KCT (không chịu thuế) hoặc KKKNT (không kê khai, nộp thuế). Thuế suất để "0%" xuất hóa đơn thuế suất 0%.', 'einvoice-matbao' ); ?></p>
-						<form hx-post="<?php echo esc_url( rest_url( SettingsController::NAMESPACE . '/settings/tax-rates' ) ); ?>" hx-target="next .einv-result" class="space-y-4">
-							<?php foreach ( $zero_rates as $rate ) : ?>
-								<?php
-								$field_id = 'einv-tax-rate-' . $rate['id'];
-								$current  = match ( $assigned[ $rate['id'] ] ?? null ) {
-									Settings::TAX_RATE_KCT   => 'kct',
-									Settings::TAX_RATE_KKKNT => 'kkknt',
-									default                  => 'vat0',
-								};
-	?>
-								<div>
-									<label class="<?php echo esc_attr( self::LABEL ); ?>" for="<?php echo esc_attr( $field_id ); ?>"><?php echo esc_html( $rate['name'] . ' · ' . $rate['class'] . ' · ' . $rate['country'] ); ?></label>
-									<select id="<?php echo esc_attr( $field_id ); ?>" name="tax_rate_kind[<?php echo esc_attr( (string) $rate['id'] ); ?>]" class="<?php echo esc_attr( self::FIELD ); ?>">
-										<option value="vat0" <?php echo 'vat0' === $current ? 'selected' : ''; ?>>0%</option>
-										<option value="kct" <?php echo 'kct' === $current ? 'selected' : ''; ?>>KCT</option>
-										<option value="kkknt" <?php echo 'kkknt' === $current ? 'selected' : ''; ?>>KKKNT</option>
-									</select>
-								</div>
-							<?php endforeach; ?>
-							<button type="submit" class="<?php echo esc_attr( self::BUTTON ); ?>"><?php esc_html_e( 'Lưu', 'einvoice-matbao' ); ?></button>
-						</form>
-						<div class="einv-result" aria-live="polite"></div>
-					<?php endif; ?>
-					<?php if ( array() !== $stale ) : ?>
-						<div data-einv-stale-rates class="mt-6 border-t border-einv-hairline pt-4">
-							<h3 class="<?php echo esc_attr( self::LABEL ); ?>"><?php esc_html_e( 'Đã gán nhưng không còn 0%', 'einvoice-matbao' ); ?></h3>
-							<p class="<?php echo esc_attr( self::HELP ); ?> mb-4"><?php esc_html_e( 'Đơn mới dùng thuế suất này sẽ bị chặn. Bỏ gán nếu thuế suất đã đổi hẳn; đơn cũ đã lưu thuế 0% sẽ xuất theo phần trăm đã lưu sau khi bỏ gán.', 'einvoice-matbao' ); ?></p>
-							<?php foreach ( $stale as $rate ) : ?>
-								<div class="flex flex-wrap items-center gap-3 py-2">
-									<span class="text-[14px] text-einv-ink"><?php echo esc_html( $rate['name'] . ' · ' . $rate['class'] . ' · ' . $rate['percent'] . '% · ' . ( Settings::TAX_RATE_KCT === $rate['code'] ? 'KCT' : 'KKKNT' ) ); ?></span>
-									<form hx-post="<?php echo esc_url( rest_url( SettingsController::NAMESPACE . '/settings/tax-rates/unassign' ) ); ?>" hx-target="#einv-stale-result" hx-swap="innerHTML">
-										<input type="hidden" name="rate_id" value="<?php echo esc_attr( (string) $rate['id'] ); ?>" />
-										<button type="submit" class="<?php echo esc_attr( self::SECONDARY ); ?>" aria-label="<?php echo esc_attr( sprintf( /* translators: %s: tax rate name. */ __( 'Bỏ gán thuế suất %s', 'einvoice-matbao' ), $rate['name'] ) ); ?>"><?php esc_html_e( 'Bỏ gán', 'einvoice-matbao' ); ?></button>
-									</form>
-								</div>
-							<?php endforeach; ?>
-							<div id="einv-stale-result" class="einv-result" aria-live="polite"></div>
-						</div>
-					<?php endif; ?>
-				</section>
+				<?php echo TaxRateMapCard::render(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in TaxRateMapCard. ?>
 
 		<?php
 		return (string) ob_get_clean();

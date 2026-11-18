@@ -28,7 +28,7 @@ describe("blocked drafts", { serial: false, agent: "admin" }, () => {
 	});
 
 	test("supported rates 5/8/10, KCT and KKKNT are sent with the right TSuat", async ({ app }) => {
-		await seam({ app }, "/settings", { exempt: { kct: ["KCT"], kkknt: ["KKKNT"] } });
+		await seam({ app }, "/settings", { tax_map: { vat10: ["VAT 10"], vat8: ["VAT 8"], vat5: ["VAT 5"], kct: ["KCT"], kkknt: ["KKKNT"] } });
 		const ids: Record<string, number> = {};
 		for (const sku of ["E2E-SVC", "E2E-VAT5", "E2E-VAT8", "E2E-KCT", "E2E-KKKNT"]) ids[sku] = await completedOrder({ app }, lines(sku));
 		for (const id of Object.values(ids)) await waitForStatus({ app }, id, "draft_created");
