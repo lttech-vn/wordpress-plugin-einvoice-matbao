@@ -64,6 +64,15 @@ final class SettingsTaxRateMapRestTest extends SettingsRestTestCase {
 		$this->assertSame( 7, substr_count( $html, '<option value="' . $this->other_id . '">VAT 3,5 · other · * · ' . wc_format_localized_decimal( '3.5' ) . '%</option>' ) );
 		foreach ( TaxRateMap::groups() as $group ) {
 			$this->assertStringContainsString( '<label class="sr-only" for="einv-map-' . $group . '">', $html );
+			$options = $this->option_texts( $html, $group );
+			$this->assertCount( 3, $options, $group );
+			$this->assertContains( 'VAT 10 · Tiêu chuẩn · * · 10%', $options, $group );
+			$this->assertContains( 'KCT · kct · * · 0%', $options, $group );
+			$this->assertContains( 'VAT 3,5 · other · * · ' . wc_format_localized_decimal( '3.5' ) . '%', $options, $group );
+		}
+		$this->insert_rate( '', '10', 'VN rate', 'VN' );
+		foreach ( TaxRateMap::groups() as $group ) {
+			$this->assertContains( 'VN rate · Tiêu chuẩn · VN · 10%', $this->option_texts( SettingsPage::render_tabs( 'invoicing' ), $group ), $group );
 		}
 		foreach ( array( '10%', '8%', '5%', '0%', 'KCT', 'KKKNT', 'Khác' ) as $label ) {
 			$this->assertStringContainsString( '>' . $label . '</strong>', $html );
@@ -81,13 +90,16 @@ final class SettingsTaxRateMapRestTest extends SettingsRestTestCase {
 
 		$html = SettingsPage::render_tabs( 'invoicing' );
 
-		$this->assertSame( 3, substr_count( $html, 'data-einv-badge=' ) );
+		$this->assertSame( array( $this->ten_id, $ten_b ), $this->badge_ids( $html, 'vat10' ) );
+		$this->assertSame( array( $this->kct_id ), $this->badge_ids( $html, 'kct' ) );
+		foreach ( array_diff( TaxRateMap::groups(), array( 'vat10', 'kct' ) ) as $group ) {
+			$this->assertSame( array(), $this->badge_ids( $html, $group ), $group );
+		}
 		$this->assertStringContainsString( 'VAT 10 · Tiêu chuẩn · *', $html );
 		$this->assertStringContainsString( 'VAT 10 B · kct · *', $html );
 		$this->assertStringContainsString( 'aria-label="Bỏ VAT 10 khỏi 10%"', $html );
 		$this->assertStringContainsString( 'aria-label="Bỏ VAT 10 B khỏi 10%"', $html );
 		$this->assertStringContainsString( 'aria-label="Bỏ KCT khỏi KCT"', $html );
-		$this->assertSame( 1, preg_match( '/data-einv-map-group="kct">.*?data-einv-badge="' . $this->kct_id . '"/s', $html ) );
 	}
 
 	public function test_mapped_rate_leaves_the_pickers(): void {
@@ -133,7 +145,10 @@ final class SettingsTaxRateMapRestTest extends SettingsRestTestCase {
 		$this->assertStringContainsString( 'id="einv-tax-rate-map"', $html );
 		$this->assertStringContainsString( 'data-einv-status="success"', $html );
 		$this->assertStringContainsString( 'Đã thêm &quot;VAT 10&quot; vào 10%.', $html );
-		$this->assertMatchesRegularExpression( '/data-einv-map-group="vat10">.*?data-einv-badge="' . $this->ten_id . '"/s', $html );
+		$this->assertSame( array( $this->ten_id ), $this->badge_ids( $html, 'vat10' ) );
+		foreach ( array_diff( TaxRateMap::groups(), array( 'vat10' ) ) as $group ) {
+			$this->assertSame( array(), $this->badge_ids( $html, $group ), $group );
+		}
 		$this->assertStringNotContainsString( '<option value="' . $this->ten_id . '"', $html );
 		$this->assertSame( array( 'vat10' => array( $this->ten_id ) ), ( new Settings() )->tax_rate_map() );
 	}
@@ -156,16 +171,31 @@ final class SettingsTaxRateMapRestTest extends SettingsRestTestCase {
 	}
 
 	/**
-	 * Invalid add bodies; `%d` stands for a rate already in another group.
+	 * Invalid add bodies; `%d` stands for a rate already in another group, `%free` for an existing unmapped rate.
 	 *
 	 * @return array<string, array{array<string, mixed>}>
 	 */
 	public static function invalid_adds(): array {
 		return array(
-			'unknown group'  => array( array( 'group' => 'vat7' ) ),
-			'empty group'    => array( array( 'group' => '' ) ),
-			'array group'    => array( array( 'group' => array( 'vat10' ) ) ),
-			'missing group'  => array( array() ),
+			'unknown group'  => array(
+				array(
+					'group'   => 'vat7',
+					'rate_id' => '%free',
+				),
+			),
+			'empty group'    => array(
+				array(
+					'group'   => '',
+					'rate_id' => '%free',
+				),
+			),
+			'array group'    => array(
+				array(
+					'group'   => array( 'vat10' ),
+					'rate_id' => '%free',
+				),
+			),
+			'missing group'  => array( array( 'rate_id' => '%free' ) ),
 			'text rate'      => array(
 				array(
 					'group'   => 'vat10',
@@ -229,6 +259,9 @@ final class SettingsTaxRateMapRestTest extends SettingsRestTestCase {
 		( new Settings() )->save_tax_rate_map( $before );
 		if ( '%d' === ( $params['rate_id'] ?? '' ) ) {
 			$params['rate_id'] = (string) $this->other_id;
+		}
+		if ( '%free' === ( $params['rate_id'] ?? '' ) ) {
+			$params['rate_id'] = (string) $this->ten_id;
 		}
 
 		$response = $this->htmx( 'POST', self::ADD, $params );
@@ -369,18 +402,28 @@ final class SettingsTaxRateMapRestTest extends SettingsRestTestCase {
 	}
 
 	public function test_access_control(): void {
-		$params = array(
+		$before = array( 'kct' => array( $this->kct_id ) );
+		( new Settings() )->save_tax_rate_map( $before );
+		$add    = array(
 			'group'   => 'vat10',
 			'rate_id' => (string) $this->ten_id,
 		);
+		$remove = array(
+			'group'   => 'kct',
+			'rate_id' => (string) $this->kct_id,
+		);
 
 		$this->login_as( 'shop_manager' );
-		$this->assertSame( 403, $this->htmx( 'POST', self::ADD, $params )->get_status() );
-		$this->assertSame( 403, $this->htmx( 'POST', self::REMOVE, $params )->get_status() );
+		$this->assertSame( 403, $this->htmx( 'POST', self::ADD, $add )->get_status() );
+		$this->assertSame( $before, ( new Settings() )->tax_rate_map() );
+		$this->assertSame( 403, $this->htmx( 'POST', self::REMOVE, $remove )->get_status() );
+		$this->assertSame( $before, ( new Settings() )->tax_rate_map() );
 
 		$this->login_as( 'administrator' );
-		$this->assertSame( 403, $this->htmx( 'POST', self::ADD, $params, 'bad-nonce' )->get_status() );
-		$this->assertSame( array(), ( new Settings() )->tax_rate_map() );
+		$this->assertSame( 403, $this->htmx( 'POST', self::ADD, $add, 'bad-nonce' )->get_status() );
+		$this->assertSame( $before, ( new Settings() )->tax_rate_map() );
+		$this->assertSame( 403, $this->htmx( 'POST', self::REMOVE, $remove, 'bad-nonce' )->get_status() );
+		$this->assertSame( $before, ( new Settings() )->tax_rate_map() );
 	}
 
 	public function test_label_escapes_rate_name(): void {
@@ -396,16 +439,69 @@ final class SettingsTaxRateMapRestTest extends SettingsRestTestCase {
 	}
 
 	/**
+	 * Row of one group in the rendered card.
+	 *
+	 * @param string $html  Card or page HTML.
+	 * @param string $group Group code.
+	 * @param string $query XPath suffix.
+	 * @return \DOMNodeList<\DOMNode>
+	 */
+	private function row_nodes( string $html, string $group, string $query ): \DOMNodeList {
+		$dom = new \DOMDocument();
+		libxml_use_internal_errors( true );
+		$dom->loadHTML( '<?xml encoding="utf-8"?>' . $html );
+		libxml_clear_errors();
+		$nodes = ( new \DOMXPath( $dom ) )->query( '//*[@data-einv-map-group="' . $group . '"]' . $query );
+		$this->assertInstanceOf( \DOMNodeList::class, $nodes );
+
+		return $nodes;
+	}
+
+	/**
+	 * Badge rate IDs inside one group row.
+	 *
+	 * @param string $html  HTML.
+	 * @param string $group Group code.
+	 * @return list<int>
+	 */
+	private function badge_ids( string $html, string $group ): array {
+		$this->assertSame( 1, $this->row_nodes( $html, $group, '' )->length, $group );
+		$ids = array();
+		foreach ( $this->row_nodes( $html, $group, '//*[@data-einv-badge]' ) as $node ) {
+			$ids[] = (int) ( $node instanceof \DOMElement ? $node->getAttribute( 'data-einv-badge' ) : 0 );
+		}
+
+		return $ids;
+	}
+
+	/**
+	 * Option texts of one group's picker.
+	 *
+	 * @param string $html  HTML.
+	 * @param string $group Group code.
+	 * @return list<string>
+	 */
+	private function option_texts( string $html, string $group ): array {
+		$texts = array();
+		foreach ( $this->row_nodes( $html, $group, '//option' ) as $node ) {
+			$texts[] = $node->textContent; // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase -- DOM API.
+		}
+
+		return $texts;
+	}
+
+	/**
 	 * Inserts a WooCommerce tax rate.
 	 *
 	 * @param string $class_slug Tax class slug; '' is Standard.
 	 * @param string $percent    Percent.
 	 * @param string $name       Rate name.
+	 * @param string $country    Country code; '' for any.
 	 */
-	private function insert_rate( string $class_slug, string $percent, string $name ): int {
+	private function insert_rate( string $class_slug, string $percent, string $name, string $country = '' ): int {
 		return (int) WC_Tax::_insert_tax_rate(
 			array(
-				'tax_rate_country'  => '',
+				'tax_rate_country'  => $country,
 				'tax_rate_state'    => '',
 				'tax_rate'          => $percent,
 				'tax_rate_name'     => $name,
