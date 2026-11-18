@@ -12,6 +12,7 @@ use LTTech\EinvoiceMatbao\Invoice\DraftInvoiceWorkflow;
 use LTTech\EinvoiceMatbao\Invoice\InvoiceErrorCode;
 use LTTech\EinvoiceMatbao\Invoice\InvoiceRecord;
 use LTTech\EinvoiceMatbao\Invoice\InvoiceStatus;
+use LTTech\EinvoiceMatbao\Invoice\TaxRateMap;
 use LTTech\EinvoiceMatbao\Settings;
 use LTTech\EinvoiceMatbao\Tests\Integration\Support\InvoiceWorkflowTestCase;
 use WC_Order;
@@ -64,10 +65,36 @@ final class BlockedDraftInvoiceTest extends InvoiceWorkflowTestCase {
 
 		$this->complete_and_run( $order );
 
-		$this->assert_blocked( $order, InvoiceErrorCode::TAX_RATE_UNSUPPORTED, 'data', InvoiceStatus::FAILED, '7%' );
+		$this->assert_blocked( $order, InvoiceErrorCode::TAX_RATE_MISMATCH, 'data', InvoiceStatus::FAILED, 'VAT 7' );
+		$this->assertStringContainsString( 'chưa được ánh xạ', (string) $this->invoice_of( $order )?->status_reason );
 	}
 
 	public function test_line_with_several_tax_rates_blocks_the_draft(): void {
+		$rate_ids = $this->create_double_rate_class();
+		$this->map_rates( array( TaxRateMap::GROUP_VAT5 => $rate_ids ) );
+		$order = $this->order_for_double_rate_class();
+
+		$this->complete_and_run( $order );
+
+		$this->assert_blocked( $order, InvoiceErrorCode::LINE_TAX_RATE_COUNT, 'data', InvoiceStatus::FAILED, 'đúng một thuế suất' );
+	}
+
+	public function test_several_rates_with_an_unmapped_one_are_blocked_as_rate_count(): void {
+		$rate_ids = $this->create_double_rate_class();
+		$this->map_rates( array( TaxRateMap::GROUP_VAT5 => array( $rate_ids[0] ) ) );
+		$order = $this->order_for_double_rate_class();
+
+		$this->complete_and_run( $order );
+
+		$this->assert_blocked( $order, InvoiceErrorCode::LINE_TAX_RATE_COUNT, 'data', InvoiceStatus::FAILED, 'đúng một thuế suất' );
+	}
+
+	/**
+	 * Creates the `einv-double` class with two 5% rates.
+	 *
+	 * @return list<int> Rate IDs, in priority order.
+	 */
+	private function create_double_rate_class(): array {
 		$this->create_tax_rate( 'einv-double', 5 );
 		WC_Tax::_insert_tax_rate(
 			array(
@@ -82,13 +109,18 @@ final class BlockedDraftInvoiceTest extends InvoiceWorkflowTestCase {
 				'tax_rate_class'    => 'einv-double',
 			)
 		);
+
+		return array_values( array_map( static fn( $rate ): int => (int) $rate->tax_rate_id, WC_Tax::get_rates_for_tax_class( 'einv-double' ) ) );
+	}
+
+	/**
+	 * A configured shop and an order with one product of the `einv-double` class.
+	 */
+	private function order_for_double_rate_class(): WC_Order {
 		$this->configure_matbao();
 		$this->fake_create_invoice_ok();
-		$order = $this->create_order( array( array( $this->create_product( 'Hai thuế', '100000', 'einv-double' ), 1 ) ) );
 
-		$this->complete_and_run( $order );
-
-		$this->assert_blocked( $order, InvoiceErrorCode::LINE_TAX_RATE_COUNT, 'data', InvoiceStatus::FAILED, 'đúng một thuế suất' );
+		return $this->create_order( array( array( $this->create_product( 'Hai thuế', '100000', 'einv-double' ), 1 ) ) );
 	}
 
 	public function test_line_totals_that_differ_from_the_order_total_block_the_draft(): void {
@@ -405,62 +437,63 @@ final class BlockedDraftInvoiceTest extends InvoiceWorkflowTestCase {
 		$this->assertSame( array( 'A' ), array_column( $this->sent_invoices()[0]['DSHHDVu'], 'THHDVu' ) );
 	}
 
-	public function test_exempt_rate_with_tax_amount_is_blocked(): void {
-		// The rate was assigned KCT, then edited to 10%: the order keeps a tax amount on it.
-		$this->assert_exempt_rate_with_tax_is_blocked( true );
-	}
-
-	public function test_kkknt_rate_with_tax_amount_is_blocked(): void {
-		$this->assert_exempt_rate_with_tax_is_blocked( false );
-	}
-
-	public function test_several_rates_including_kct_are_blocked_as_rate_count(): void {
-		$this->create_tax_rate( 'einv-double', 0 );
-		WC_Tax::_insert_tax_rate(
-			array(
-				'tax_rate_country'  => '',
-				'tax_rate_state'    => '',
-				'tax_rate'          => '5',
-				'tax_rate_name'     => 'Second 5',
-				'tax_rate_priority' => 2,
-				'tax_rate_compound' => 0,
-				'tax_rate_shipping' => 1,
-				'tax_rate_order'    => 1,
-				'tax_rate_class'    => 'einv-double',
-			)
-		);
-		( new Settings() )->save_exempt_tax_rates( array( $this->rate_id_of( 'einv-double' ) ), array() );
+	public function test_percent_differing_from_its_group_is_blocked(): void {
+		$this->map_rates( array( TaxRateMap::GROUP_VAT8 => array( $this->rate_id_of( '' ) ) ) );
 		$this->configure_matbao();
 		$this->fake_create_invoice_ok();
-		$order = $this->create_order( array( array( $this->create_product( 'Hai thuế', '100000', 'einv-double' ), 1 ) ) );
-		$item  = current( $order->get_items() );
-		$this->assertInstanceOf( WC_Order_Item_Product::class, $item );
-		$this->assertCount( 2, $item->get_taxes()['total'] );
-		$this->assertSame( 5000.0, (float) $order->get_total_tax() );
+		$order = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
 
 		$this->complete_and_run( $order );
 
-		$this->assert_blocked( $order, InvoiceErrorCode::LINE_TAX_RATE_COUNT, 'data', InvoiceStatus::FAILED, 'đúng một thuế suất' );
+		$this->assert_blocked( $order, InvoiceErrorCode::TAX_RATE_MISMATCH, 'data', InvoiceStatus::FAILED, '10%' );
+		$this->assertStringContainsString( '8%', (string) $this->invoice_of( $order )?->status_reason );
 	}
 
 	/**
-	 * Assigns the standard 10% rate as KCT or KKKNT and expects the taxed line to block.
+	 * A zero group holding the taxed 10% rate blocks the line.
 	 *
-	 * @param bool $as_kct True for KCT, false for KKKNT.
+	 * @dataProvider zero_groups
+	 *
+	 * @param string $group Group key.
+	 * @param string $label Group label in the reason.
 	 */
-	private function assert_exempt_rate_with_tax_is_blocked( bool $as_kct ): void {
+	public function test_zero_group_with_tax_amount_is_blocked( string $group, string $label ): void {
+		$this->map_rates( array( $group => array( $this->rate_id_of( '' ) ) ) );
 		$this->configure_matbao();
 		$this->fake_create_invoice_ok();
-		$order   = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
-		$rate_id = $this->rate_id_of( '' );
-		( new Settings() )->save_exempt_tax_rates( $as_kct ? array( $rate_id ) : array(), $as_kct ? array() : array( $rate_id ) );
+		$order = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
 
 		$this->complete_and_run( $order );
 
-		$this->assert_blocked( $order, InvoiceErrorCode::UNTAXED_LINE_WITH_TAX, 'data', InvoiceStatus::FAILED, 'dùng thuế KCT/KKKNT nhưng có tiền thuế' );
+		$this->assert_blocked( $order, InvoiceErrorCode::TAX_RATE_MISMATCH, 'data', InvoiceStatus::FAILED, 'có tiền thuế' );
+		$this->assertStringContainsString( $label, (string) $this->invoice_of( $order )?->status_reason );
 	}
 
-	public function test_line_whose_rate_percent_is_not_stored_blocks_the_draft(): void {
+	/**
+	 * Zero groups with their labels.
+	 *
+	 * @return array<string, array{0: string, 1: string}>
+	 */
+	public static function zero_groups(): array {
+		return array(
+			'vat0'  => array( TaxRateMap::GROUP_VAT0, '0%' ),
+			'kct'   => array( TaxRateMap::GROUP_KCT, 'KCT' ),
+			'kkknt' => array( TaxRateMap::GROUP_KKKNT, 'KKKNT' ),
+		);
+	}
+
+	public function test_other_group_with_a_standard_percent_is_blocked(): void {
+		$this->map_rates( array( TaxRateMap::GROUP_OTHER => array( $this->rate_id_of( self::CLASS_EIGHT ) ) ) );
+		$this->configure_matbao();
+		$this->fake_create_invoice_ok();
+		$order = $this->create_order( array( array( $this->create_product( 'Tám', '100000', self::CLASS_EIGHT ), 1 ) ) );
+
+		$this->complete_and_run( $order );
+
+		$this->assert_blocked( $order, InvoiceErrorCode::TAX_RATE_MISMATCH, 'data', InvoiceStatus::FAILED, 'nhóm Khác' );
+	}
+
+	public function test_percent_not_stored_is_blocked(): void {
 		$this->configure_matbao();
 		$this->fake_create_invoice_ok();
 		$order = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
@@ -475,7 +508,22 @@ final class BlockedDraftInvoiceTest extends InvoiceWorkflowTestCase {
 
 		$this->complete_and_run( $order );
 
-		$this->assert_blocked( $order, InvoiceErrorCode::TAX_RATE_NOT_STORED, 'data', InvoiceStatus::FAILED, 'thuế suất đã lưu' );
+		$this->assert_blocked( $order, InvoiceErrorCode::TAX_RATE_MISMATCH, 'data', InvoiceStatus::FAILED, 'Tính lại' );
+	}
+
+	public function test_unnamed_tax_rate_is_named_by_its_id_in_the_reason(): void {
+		$this->map_rates( array() );
+		$this->configure_matbao();
+		$this->fake_create_invoice_ok();
+		$order = $this->create_order( array( array( $this->create_product( 'Bảy', '100000', self::CLASS_SEVEN ), 1 ) ) );
+		foreach ( $order->get_taxes() as $tax ) {
+			$tax->set_label( '' );
+			$tax->save();
+		}
+
+		$this->complete_and_run( $order );
+
+		$this->assert_blocked( $order, InvoiceErrorCode::TAX_RATE_MISMATCH, 'data', InvoiceStatus::FAILED, '#' . $this->rate_id_of( self::CLASS_SEVEN ) );
 	}
 
 	public function test_failing_to_queue_the_action_leaves_it_pending_for_the_sweep_without_attention(): void {

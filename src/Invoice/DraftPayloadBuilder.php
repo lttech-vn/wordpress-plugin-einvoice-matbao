@@ -19,8 +19,8 @@ use WC_Order_Item_Shipping;
  * Builds a draft VAT invoice (`LoaiHDon=0`) from the amounts and taxes WooCommerce stored on each
  * order line; nothing is recalculated from the current tax settings.
  *
- * `TSuat` comes only from the rate stored on the line: rates the admin assigned as KCT/KKKNT map to
- * -1/-2, the others by their stored percent. A line without a stored rate is refused.
+ * `TSuat` comes only from the rate stored on the line and the Mat Bao tax mapping table the admin
+ * maintains (`TaxRateMap`). A line without a stored rate, or whose rate the table does not accept, is refused.
  *
  * Each line is sent at its price after discounts, without discount lines
  * (`ThTienChuaCK = ThTien`, `TLCKhau = 0`, `STCKhau = 0`). Fees and shipping are separate lines.
@@ -29,9 +29,6 @@ use WC_Order_Item_Shipping;
  * order totals.
  */
 final class DraftPayloadBuilder {
-
-	/** `TSuat` values accepted from WooCommerce rates. */
-	public const ALLOWED_TAX_RATES = array( 0, 5, 8, 10 );
 
 	/** `DVTTe` for VND. */
 	private const CURRENCY_VND = 704;
@@ -70,11 +67,12 @@ final class DraftPayloadBuilder {
 		// Read once per payload so the units are a snapshot of the settings when the draft is built.
 		$settings     = new Settings();
 		$default_unit = $settings->default_unit();
-		$exempt       = $settings->exempt_tax_rates();
+		$map          = new TaxRateMap( $settings->tax_rate_map() );
+		$rate_names   = $this->stored_rate_names( $order );
 		$lines        = array();
 		$items        = $order->get_items( array( 'line_item', 'fee', 'shipping' ) );
 		foreach ( $items as $item ) {
-			$line = $this->line( $item, count( $lines ) + 1, $rates, $default_unit, $exempt );
+			$line = $this->line( $item, count( $lines ) + 1, $rates, $default_unit, $map, $rate_names );
 			if ( null !== $line ) {
 				$lines[] = $line;
 			}
@@ -132,11 +130,12 @@ final class DraftPayloadBuilder {
 	 * @param int                $index        `STT`.
 	 * @param array<int, string> $rates        Stored rate percent by tax rate ID.
 	 * @param string             $default_unit Store default `DVTinh`.
-	 * @param array<int, int>    $exempt       `TSuat` (-1 or -2) of the rates assigned KCT/KKKNT, by tax rate ID.
+	 * @param TaxRateMap         $map          Mat Bao tax mapping table.
+	 * @param array<int, string> $rate_names   Tax names from the order's tax items, by tax rate ID.
 	 * @return array<string, int|float|string>|null Null for a fee or shipping line of 0 đồng, which is left off.
 	 * @throws InvoiceDataError When the line has an unusable tax rate, a negative or fractional amount.
 	 */
-	private function line( WC_Order_Item $item, int $index, array $rates, string $default_unit, array $exempt ): ?array {
+	private function line( WC_Order_Item $item, int $index, array $rates, string $default_unit, TaxRateMap $map, array $rate_names ): ?array {
 		$failure = LineFailure::from_item( $item );
 		$name    = $failure->name;
 		if ( $item instanceof WC_Order_Item_Product ) {
@@ -169,7 +168,7 @@ final class DraftPayloadBuilder {
 			return null;
 		}
 
-		$rate = $this->tax_rate( $failure, $line_taxes, $tax, $rates, $exempt );
+		$rate = $this->tax_rate( $failure, $line_taxes, $tax, $rates, $map, $rate_names );
 
 		$line = array(
 			'TChat'  => self::LINE_KIND_GOODS,
@@ -196,16 +195,17 @@ final class DraftPayloadBuilder {
 	}
 
 	/**
-	 * `TSuat` of a line from the rate stored on it, checked in the order the spec fixes.
+	 * `TSuat` of a line from the rate stored on it and the mapping table, checked in the order the spec fixes.
 	 *
 	 * @param LineFailure               $line       Offending line; its name goes in the error message.
 	 * @param array<int|string, string> $line_taxes Tax amounts by rate ID.
 	 * @param int                       $tax        Whole-VND tax amount of the line.
 	 * @param array<int, string>        $rates      Stored rate percent by tax rate ID.
-	 * @param array<int, int>           $exempt     `TSuat` of the rates assigned KCT/KKKNT, by tax rate ID.
-	 * @throws InvoiceDataError When the line has no rate, several rates, an exempt rate with tax, or an unusable percent.
+	 * @param TaxRateMap                $map        Mat Bao tax mapping table.
+	 * @param array<int, string>        $rate_names Tax names from the order's tax items, by tax rate ID.
+	 * @throws InvoiceDataError When the line has no rate, several rates, or a rate the table does not accept.
 	 */
-	private function tax_rate( LineFailure $line, array $line_taxes, int $tax, array $rates, array $exempt ): int {
+	private function tax_rate( LineFailure $line, array $line_taxes, int $tax, array $rates, TaxRateMap $map, array $rate_names ): int|float {
 		$name = $line->name;
 		if ( array() === $line_taxes ) {
 			/* translators: %s: order line name. */
@@ -218,37 +218,64 @@ final class DraftPayloadBuilder {
 		}
 
 		$rate_id = (int) array_key_first( $line_taxes );
-		if ( isset( $exempt[ $rate_id ] ) ) {
-			if ( 0 !== $tax ) {
-				/* translators: %s: order line name. */
-				self::fail( InvoiceErrorCode::UNTAXED_LINE_WITH_TAX, sprintf( __( 'Dòng "%s" dùng thuế KCT/KKKNT nhưng có tiền thuế.', 'einvoice-matbao' ), $name ), $line );
-			}
-
-			return $exempt[ $rate_id ];
+		$group   = $map->group_of( $rate_id );
+		if ( null === $group ) {
+			self::fail(
+				InvoiceErrorCode::TAX_RATE_MISMATCH,
+				/* translators: 1: tax name, 2: order line name. */
+				sprintf( __( 'Thuế suất "%1$s" của dòng "%2$s" chưa được ánh xạ sang thuế Mắt Bão.', 'einvoice-matbao' ), self::rate_name( $rate_id, $rate_names ), $name ),
+				$line
+			);
 		}
 
 		$percent = $rates[ $rate_id ] ?? '';
-		if ( '' === $percent ) {
+		$tsuat   = TaxRateMap::tsuat_for( $group, $percent, $tax );
+		if ( null === $tsuat ) {
+			self::fail( InvoiceErrorCode::TAX_RATE_MISMATCH, self::mismatch_reason( $group, $percent, $name ), $line );
+		}
+
+		return $tsuat;
+	}
+
+	/**
+	 * Why a stored rate does not fit its group.
+	 *
+	 * @param string $group   Group of the rate.
+	 * @param string $percent Stored percent, '' when the order has none.
+	 * @param string $name    Order line name.
+	 */
+	private static function mismatch_reason( string $group, string $percent, string $name ): string {
+		$label = TaxRateMap::label( $group );
+		if ( in_array( $group, array( TaxRateMap::GROUP_VAT0, TaxRateMap::GROUP_KCT, TaxRateMap::GROUP_KKKNT ), true ) ) {
+			/* translators: 1: order line name, 2: group label. */
+			return sprintf( __( 'Dòng "%1$s" được ánh xạ sang %2$s nhưng có tiền thuế.', 'einvoice-matbao' ), $name, $label );
+		}
+
+		if ( ! is_numeric( $percent ) ) {
 			/* translators: %s: order line name. */
-			self::fail( InvoiceErrorCode::TAX_RATE_NOT_STORED, sprintf( __( 'Không tìm thấy thuế suất đã lưu của dòng "%s".', 'einvoice-matbao' ), $name ), $line );
+			return sprintf( __( 'Không tìm thấy phần trăm thuế đã lưu của dòng "%s". Bấm "Tính lại" trong đơn.', 'einvoice-matbao' ), $name );
 		}
 
-		foreach ( self::ALLOWED_TAX_RATES as $allowed ) {
-			if ( self::same( (float) $percent, (float) $allowed ) ) {
-				return $allowed;
-			}
+		$shown = wc_format_localized_decimal( $percent );
+		if ( TaxRateMap::GROUP_OTHER === $group ) {
+			/* translators: 1: order line name, 2: tax percent. */
+			return sprintf( __( 'Thuế suất của dòng "%1$s" là %2$s%%, không dùng được cho nhóm Khác.', 'einvoice-matbao' ), $name, $shown );
 		}
 
-		self::fail(
-			InvoiceErrorCode::TAX_RATE_UNSUPPORTED,
-			sprintf(
-				/* translators: 1: tax rate percent, 2: order line name. */
-				__( 'Thuế suất %1$s%% của dòng "%2$s" không thuộc 0%%, 5%%, 8%%, 10%%.', 'einvoice-matbao' ),
-				wc_format_localized_decimal( $percent ),
-				$name
-			),
-			$line
-		);
+		/* translators: 1: order line name, 2: tax percent, 3: group label. */
+		return sprintf( __( 'Thuế suất của dòng "%1$s" là %2$s%% nhưng được ánh xạ sang %3$s.', 'einvoice-matbao' ), $name, $shown, $label );
+	}
+
+	/**
+	 * Tax name for a reason: the order's own label, or the rate ID when it has none.
+	 *
+	 * @param int                $rate_id    Tax rate ID.
+	 * @param array<int, string> $rate_names Tax names by tax rate ID.
+	 */
+	private static function rate_name( int $rate_id, array $rate_names ): string {
+		$name = $rate_names[ $rate_id ] ?? '';
+
+		return '' === $name ? '#' . $rate_id : $name;
 	}
 
 	/**
@@ -265,6 +292,22 @@ final class DraftPayloadBuilder {
 		}
 
 		return $rates;
+	}
+
+	/**
+	 * Tax names stored on the order's tax items, keyed by tax rate ID. The `edit` context keeps an
+	 * empty label empty (`view` would answer "Tax").
+	 *
+	 * @param WC_Order $order Order.
+	 * @return array<int, string>
+	 */
+	private function stored_rate_names( WC_Order $order ): array {
+		$names = array();
+		foreach ( $order->get_taxes() as $tax ) {
+			$names[ (int) $tax->get_rate_id() ] = (string) $tax->get_label( 'edit' );
+		}
+
+		return $names;
 	}
 
 	/**

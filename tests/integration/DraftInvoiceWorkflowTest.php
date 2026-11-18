@@ -10,6 +10,7 @@ namespace LTTech\EinvoiceMatbao\Tests\Integration;
 use LTTech\EinvoiceMatbao\Invoice\DraftInvoiceWorkflow;
 use LTTech\EinvoiceMatbao\Invoice\InvoiceRepository;
 use LTTech\EinvoiceMatbao\Invoice\InvoiceStatus;
+use LTTech\EinvoiceMatbao\Invoice\TaxRateMap;
 use LTTech\EinvoiceMatbao\Settings;
 use LTTech\EinvoiceMatbao\Tests\Integration\Support\InvoiceWorkflowTestCase;
 use WC_Coupon;
@@ -192,97 +193,86 @@ final class DraftInvoiceWorkflowTest extends InvoiceWorkflowTestCase {
 		$this->assertSame( (float) $order->get_total(), (float) $invoice['TgTTTBSo'] );
 	}
 
-	public function test_rates_map_to_tsuat_including_assigned_kct_and_kkknt(): void {
-		( new Settings() )->save_exempt_tax_rates( array( $this->rate_id_of( self::CLASS_KCT ) ), array( $this->rate_id_of( self::CLASS_KKKNT ) ) );
+	public function test_mapped_rates_send_their_tsuat(): void {
 		$this->configure_matbao();
 		$this->fake_create_invoice_ok();
 		$order = $this->create_order(
 			array(
 				array( $this->create_product( 'Mười', '100000' ), 1 ),
-				array( $this->create_product( 'Năm', '100000', self::CLASS_FIVE ), 1 ),
 				array( $this->create_product( 'Tám', '100000', self::CLASS_EIGHT ), 1 ),
+				array( $this->create_product( 'Năm', '100000', self::CLASS_FIVE ), 1 ),
 				array( $this->create_product( 'Không', '100000', self::CLASS_ZERO ), 1 ),
 				array( $this->create_product( 'KCT', '100000', self::CLASS_KCT ), 1 ),
 				array( $this->create_product( 'KKKNT', '100000', self::CLASS_KKKNT ), 1 ),
+				array( $this->create_product( 'Khác', '100000', self::CLASS_OTHER ), 1 ),
 			)
 		);
 
 		$this->complete_and_run( $order );
 
 		$lines = $this->sent_invoices()[0]['DSHHDVu'];
-		$this->assertSame( array( 10, 5, 8, 0, -1, -2 ), array_column( $lines, 'TSuat' ) );
-		$this->assertSame( array( 10000, 5000, 8000, 0, 0, 0 ), array_column( $lines, 'TThue' ) );
-		$this->assertSame( array( 1, 2, 3, 4, 5, 6 ), array_column( $lines, 'STT' ) );
-		$this->assertSame( 23000, $this->sent_invoices()[0]['TgTThue'] );
-		$this->assertSame( 623000, $this->sent_invoices()[0]['TgTTTBSo'] );
+		$this->assertSame( array( 10, 8, 5, 0, -1, -2, 3.5 ), array_column( $lines, 'TSuat' ) );
+		$this->assertSame( array( 10000, 8000, 5000, 0, 0, 0, 3500 ), array_column( $lines, 'TThue' ) );
+		$this->assertSame( array( 1, 2, 3, 4, 5, 6, 7 ), array_column( $lines, 'STT' ) );
+		$this->assertSame( 26500, $this->sent_invoices()[0]['TgTThue'] );
 	}
 
-	public function test_standard_and_additional_zero_rates_assigned_kct_both_map(): void {
-		WC_Tax::_delete_tax_rate( $this->rate_id_of( '' ) );
-		$this->create_tax_rate( '', 0 );
-		$rate_ids = array( $this->rate_id_of( '' ), $this->rate_id_of( self::CLASS_KCT ) );
-		( new Settings() )->save_exempt_tax_rates( $rate_ids, array() );
+	public function test_several_rates_in_one_group(): void {
+		$this->create_tax_rate( 'einv-ten2', 10 );
+		$this->map_rates(
+			array(
+				TaxRateMap::GROUP_VAT10 => array( $this->rate_id_of( '' ), $this->rate_id_of( 'einv-ten2' ) ),
+			)
+		);
 		$this->configure_matbao();
 		$this->fake_create_invoice_ok();
 		$order = $this->create_order(
 			array(
 				array( $this->create_product( 'Chuẩn', '100000' ), 1 ),
-				array( $this->create_product( 'Lớp KCT', '100000', self::CLASS_KCT ), 1 ),
+				array( $this->create_product( 'Lớp bổ sung', '100000', 'einv-ten2' ), 1 ),
 			)
 		);
 
 		$this->complete_and_run( $order );
 
-		$this->assertSame( array( -1, -1 ), array_column( $this->sent_invoices()[0]['DSHHDVu'], 'TSuat' ) );
+		$this->assertSame( array( 10, 10 ), array_column( $this->sent_invoices()[0]['DSHHDVu'], 'TSuat' ) );
 	}
 
-	public function test_old_order_with_deleted_kct_rate_still_maps(): void {
-		$rate_id = $this->rate_id_of( self::CLASS_KCT );
-		( new Settings() )->save_exempt_tax_rates( array( $rate_id ), array() );
+	public function test_empty_mapping_blocks_every_taxed_line(): void {
+		$this->map_rates( array() );
 		$this->configure_matbao();
 		$this->fake_create_invoice_ok();
-		$order = $this->create_order( array( array( $this->create_product( 'KCT', '100000', self::CLASS_KCT ), 1 ) ) );
-		WC_Tax::_delete_tax_rate( $rate_id );
+		$order = $this->create_order( array( array( $this->create_product( 'Mười', '100000' ), 1 ) ) );
 
 		$this->complete_and_run( $order );
 
-		$this->assertSame( array( -1 ), array_column( $this->sent_invoices()[0]['DSHHDVu'], 'TSuat' ) );
+		$this->assertCount( 0, $this->http->requests_to( self::CREATE_ROUTE ) );
+		$record = $this->invoice_of( $order );
+		$this->assertSame( InvoiceStatus::FAILED, $record?->status );
+		$this->assertSame( 'tax_rate_mismatch', $record?->error_code );
+		$this->assertStringContainsString( 'chưa được ánh xạ', (string) $record?->status_reason );
 	}
 
-	public function test_unassigned_stale_rate_maps_by_its_stored_percent(): void {
-		$rate_id = $this->rate_id_of( self::CLASS_KCT );
-		( new Settings() )->save_exempt_tax_rates( array( $rate_id ), array() );
-		WC_Tax::_update_tax_rate( $rate_id, array( 'tax_rate' => '10' ) );
-		( new Settings() )->save_exempt_tax_rates( array(), array() );
+	public function test_mapping_read_when_sending(): void {
+		$this->map_rates( array() );
 		$this->configure_matbao();
 		$this->fake_create_invoice_ok();
-		$order = $this->create_order( array( array( $this->create_product( 'KCT', '100000', self::CLASS_KCT ), 1 ) ) );
-
-		$this->complete_and_run( $order );
-
-		$lines = $this->sent_invoices()[0]['DSHHDVu'];
-		$this->assertSame( array( 10 ), array_column( $lines, 'TSuat' ) );
-		$this->assertSame( array( 10000 ), array_column( $lines, 'TThue' ) );
-	}
-
-	public function test_zero_rate_not_assigned_stays_zero(): void {
-		$this->configure_matbao();
-		$this->fake_create_invoice_ok();
-		$order = $this->create_order( array( array( $this->create_product( 'Không', '100000', self::CLASS_ZERO ), 1 ) ) );
-
-		$this->complete_and_run( $order );
-
-		$this->assertSame( array( 0 ), array_column( $this->sent_invoices()[0]['DSHHDVu'], 'TSuat' ) );
-	}
-
-	public function test_assignment_is_read_when_sending(): void {
-		$this->configure_matbao();
-		$this->fake_create_invoice_ok();
-		$order = $this->create_order( array( array( $this->create_product( 'Không', '100000', self::CLASS_ZERO ), 1 ) ) );
+		$order = $this->create_order( array( array( $this->create_product( 'Mười', '100000' ), 1 ) ) );
 		$order->update_status( 'completed' );
 
-		( new Settings() )->save_exempt_tax_rates( array( $this->rate_id_of( self::CLASS_ZERO ) ), array() );
+		$this->map_rates( array( TaxRateMap::GROUP_VAT10 => array( $this->rate_id_of( '' ) ) ) );
 		$this->run_queued_draft_actions();
+
+		$this->assertSame( array( 10 ), array_column( $this->sent_invoices()[0]['DSHHDVu'], 'TSuat' ) );
+	}
+
+	public function test_deleted_rate_keeps_mapping_old_orders(): void {
+		$this->configure_matbao();
+		$this->fake_create_invoice_ok();
+		$order = $this->create_order( array( array( $this->create_product( 'KCT', '100000', self::CLASS_KCT ), 1 ) ) );
+		WC_Tax::_delete_tax_rate( $this->rate_id_of( self::CLASS_KCT ) );
+
+		$this->complete_and_run( $order );
 
 		$this->assertSame( array( -1 ), array_column( $this->sent_invoices()[0]['DSHHDVu'], 'TSuat' ) );
 	}
@@ -326,7 +316,8 @@ final class DraftInvoiceWorkflowTest extends InvoiceWorkflowTestCase {
 		$this->assertCount( 0, $this->http->requests_to( self::CREATE_ROUTE ) );
 		$record = $this->invoice_of( $order );
 		$this->assertSame( InvoiceStatus::FAILED, $record?->status );
-		$this->assertStringContainsString( '7', (string) $record?->status_reason );
+		$this->assertSame( 'tax_rate_mismatch', $record?->error_code );
+		$this->assertStringContainsString( 'VAT 7', (string) $record?->status_reason );
 		$this->assertSame( array(), $this->attempts_of( $record ) );
 	}
 

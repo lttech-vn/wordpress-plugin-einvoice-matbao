@@ -11,6 +11,7 @@ use ActionScheduler;
 use LTTech\EinvoiceMatbao\Invoice\DraftInvoiceWorkflow;
 use LTTech\EinvoiceMatbao\Invoice\InvoiceRecord;
 use LTTech\EinvoiceMatbao\Invoice\InvoiceRepository;
+use LTTech\EinvoiceMatbao\Invoice\TaxRateMap;
 use LTTech\EinvoiceMatbao\Settings;
 use WC_Order;
 use WC_Product_Simple;
@@ -36,6 +37,7 @@ abstract class InvoiceWorkflowTestCase extends SettingsRestTestCase {
 	protected const CLASS_SEVEN = 'einv-seven';
 	protected const CLASS_KCT   = 'einv-kct';
 	protected const CLASS_KKKNT = 'einv-kkknt';
+	protected const CLASS_OTHER = 'einv-other';
 
 	public function set_up(): void {
 		parent::set_up();
@@ -53,6 +55,28 @@ abstract class InvoiceWorkflowTestCase extends SettingsRestTestCase {
 		$this->create_tax_rate( self::CLASS_SEVEN, 7 );
 		$this->create_tax_rate( self::CLASS_KCT, 0 );
 		$this->create_tax_rate( self::CLASS_KKKNT, 0 );
+		$this->create_tax_rate( self::CLASS_OTHER, 3.5 );
+
+		$this->map_rates(
+			array(
+				TaxRateMap::GROUP_VAT10 => array( $this->rate_id_of( '' ) ),
+				TaxRateMap::GROUP_VAT5  => array( $this->rate_id_of( self::CLASS_FIVE ) ),
+				TaxRateMap::GROUP_VAT8  => array( $this->rate_id_of( self::CLASS_EIGHT ) ),
+				TaxRateMap::GROUP_VAT0  => array( $this->rate_id_of( self::CLASS_ZERO ) ),
+				TaxRateMap::GROUP_KCT   => array( $this->rate_id_of( self::CLASS_KCT ) ),
+				TaxRateMap::GROUP_KKKNT => array( $this->rate_id_of( self::CLASS_KKKNT ) ),
+				TaxRateMap::GROUP_OTHER => array( $this->rate_id_of( self::CLASS_OTHER ) ),
+			)
+		);
+	}
+
+	/**
+	 * Replaces the Mat Bao tax mapping table.
+	 *
+	 * @param array<string, list<int>> $map `group => rate IDs`.
+	 */
+	protected function map_rates( array $map ): void {
+		( new Settings() )->save_tax_rate_map( $map );
 	}
 
 	/**
