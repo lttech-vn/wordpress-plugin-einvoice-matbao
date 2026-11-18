@@ -223,6 +223,14 @@ final class SettingsPageTest extends WP_UnitTestCase {
 	}
 
 	public function test_tabs_group_the_existing_forms(): void {
+		\WC_Tax::_insert_tax_rate(
+			array(
+				'tax_rate'       => '0',
+				'tax_rate_name'  => 'VAT 0',
+				'tax_rate_class' => '',
+			)
+		);
+
 		$connection = SettingsPage::render_tabs( 'connection' );
 		$this->assertStringContainsString( 'settings/matbao', $connection );
 		$this->assertStringContainsString( 'einv-reload-templates', $connection );
@@ -231,6 +239,9 @@ final class SettingsPageTest extends WP_UnitTestCase {
 		$invoicing = SettingsPage::render_tabs( 'invoicing' );
 		$this->assertStringContainsString( 'settings/invoicing', $invoicing );
 		$this->assertStringContainsString( 'settings/unit', $invoicing );
+		$this->assertStringContainsString( 'settings/tax-rates', $invoicing );
+		$this->assertStringNotContainsString( 'settings/tax-rates', $connection );
+		$this->assertStringNotContainsString( 'settings/tax-rates', SettingsPage::render_tabs( 'notifications' ) );
 		$this->assertStringNotContainsString( 'settings/lark', $invoicing );
 		$this->assertStringNotContainsString( 'einv-sentry-dsn', $invoicing );
 

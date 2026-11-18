@@ -238,7 +238,9 @@ final class SettingsPage {
 	 * Reference prefix, walk-in buyer and unit cards.
 	 */
 	private static function render_invoicing_panel(): string {
-		$settings = new Settings();
+		$settings   = new Settings();
+		$zero_rates = ExemptTaxRateOptions::zero_rates();
+		$assigned   = $settings->exempt_tax_rates();
 
 		ob_start();
 		?>
@@ -280,6 +282,37 @@ final class SettingsPage {
 						<button type="submit" class="<?php echo esc_attr( self::BUTTON ); ?>"><?php esc_html_e( 'Lưu', 'einvoice-matbao' ); ?></button>
 					</form>
 					<div class="einv-result" aria-live="polite"></div>
+				</section>
+
+				<section class="<?php echo esc_attr( self::CARD ); ?>">
+					<h2 class="<?php echo esc_attr( self::TITLE ); ?>"><?php esc_html_e( 'Thuế KCT/KKKNT', 'einvoice-matbao' ); ?></h2>
+					<?php if ( array() === $zero_rates ) : ?>
+						<p class="<?php echo esc_attr( self::HELP ); ?> mt-4"><?php esc_html_e( 'Chưa có thuế suất 0% nào. Tạo thuế suất 0% trong WooCommerce → Cài đặt → Thuế, rồi tải lại trang.', 'einvoice-matbao' ); ?></p>
+					<?php else : ?>
+						<p class="<?php echo esc_attr( self::HELP ); ?> mb-4"><?php esc_html_e( 'Chọn thuế suất 0% nào là KCT (không chịu thuế) hoặc KKKNT (không kê khai, nộp thuế). Thuế suất để "0%" xuất hóa đơn thuế suất 0%.', 'einvoice-matbao' ); ?></p>
+						<form hx-post="<?php echo esc_url( rest_url( SettingsController::NAMESPACE . '/settings/tax-rates' ) ); ?>" hx-target="next .einv-result" class="space-y-4">
+							<?php foreach ( $zero_rates as $rate ) : ?>
+								<?php
+								$field_id = 'einv-tax-rate-' . $rate['id'];
+								$current  = match ( $assigned[ $rate['id'] ] ?? null ) {
+									Settings::TAX_RATE_KCT   => 'kct',
+									Settings::TAX_RATE_KKKNT => 'kkknt',
+									default                  => 'vat0',
+								};
+	?>
+								<div>
+									<label class="<?php echo esc_attr( self::LABEL ); ?>" for="<?php echo esc_attr( $field_id ); ?>"><?php echo esc_html( $rate['name'] . ' · ' . $rate['class'] . ' · ' . $rate['country'] ); ?></label>
+									<select id="<?php echo esc_attr( $field_id ); ?>" name="tax_rate_kind[<?php echo esc_attr( (string) $rate['id'] ); ?>]" class="<?php echo esc_attr( self::FIELD ); ?>">
+										<option value="vat0" <?php echo 'vat0' === $current ? 'selected' : ''; ?>>0%</option>
+										<option value="kct" <?php echo 'kct' === $current ? 'selected' : ''; ?>>KCT</option>
+										<option value="kkknt" <?php echo 'kkknt' === $current ? 'selected' : ''; ?>>KKKNT</option>
+									</select>
+								</div>
+							<?php endforeach; ?>
+							<button type="submit" class="<?php echo esc_attr( self::BUTTON ); ?>"><?php esc_html_e( 'Lưu', 'einvoice-matbao' ); ?></button>
+						</form>
+						<div class="einv-result" aria-live="polite"></div>
+					<?php endif; ?>
 				</section>
 
 		<?php
