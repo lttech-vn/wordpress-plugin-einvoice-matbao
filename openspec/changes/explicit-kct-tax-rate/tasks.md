@@ -2,8 +2,8 @@
 
 Blocked by: none
 
-- [ ] 1.1 `Settings`: đọc gán `kct_tax_rate_ids`/`kkknt_tax_rate_ids` thành map `rate_id => TSuat` (-1/-2), lưu thay toàn bộ, bỏ giá trị không phải số nguyên dương (design D1)
-- [ ] 1.2 Test integration cho đọc/ghi gán (chưa lưu → rỗng; lưu rồi đọc lại; một rate không thuộc hai nhóm)
+- [x] 1.1 `Settings`: đọc gán `kct_tax_rate_ids`/`kkknt_tax_rate_ids` thành map `rate_id => TSuat` (-1/-2), lưu thay toàn bộ, bỏ giá trị không phải số nguyên dương (design D1)
+- [x] 1.2 Test integration cho đọc/ghi gán (chưa lưu → rỗng; lưu rồi đọc lại; một rate không thuộc hai nhóm)
 
 ## 2. Ánh xạ thuế suất và lỗi dòng chưa cài thuế
 
