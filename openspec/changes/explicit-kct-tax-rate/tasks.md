@@ -33,5 +33,5 @@ Blocked by: 2, 3
 
 Blocked by: 2, 3
 
-- [ ] 5.1 `docs/thiet-lap-thue.md`: KCT/KKKNT là thuế suất 0% được gán ở tab Xuất hóa đơn; trạng thái *Không* là lỗi; cài thuế cho phí/vận chuyển; bảng lỗi
-- [ ] 5.2 `docs/huong-dan-su-dung.md` (mục cấu hình, bảng lỗi) và `README.md` (tính năng) theo hành vi mới
+- [x] 5.1 `docs/thiet-lap-thue.md`: KCT/KKKNT là thuế suất 0% được gán ở tab Xuất hóa đơn; trạng thái *Không* là lỗi; cài thuế cho phí/vận chuyển; bảng lỗi
+- [x] 5.2 `docs/huong-dan-su-dung.md` (mục cấu hình, bảng lỗi) và `README.md` (tính năng) theo hành vi mới
