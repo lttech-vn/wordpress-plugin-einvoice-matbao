@@ -211,7 +211,7 @@
     - response: notice `Đã bỏ "KCT" khỏi KCT.`, hàng KCT không còn badge, `<option value="<kct>"` có lại trong các select;
     - map `['vat10'=>[ten]]`.
   - `test_deleted_rate_badge_can_be_removed`: badge đã xóa A trong `kkknt` → remove 200, map rỗng.
-  - `test_remove_rejects_invalid_input`: rate không thuộc `group`, `group` lạ/rỗng/mảng/thiếu, `rate_id` rỗng/mảng/âm/thiếu → mỗi lần 422, map không đổi (assert sau từng request).
+  - `test_remove_rejects_invalid_input`: rate không thuộc `group`, `group` lạ/rỗng/mảng/thiếu, `rate_id` `abc`/rỗng/mảng/âm/thiếu → mỗi lần 422, map không đổi (assert sau từng request).
   - `test_access_control`: `shop_manager` → 403 cho add và remove; nonce sai → 403; map không đổi.
   - `test_label_escapes_rate_name`: rate tên `<b>x</b>` → hiện dạng escape trong option và badge.
   - `test_added_rate_reaches_the_invoice` (trong `DraftInvoiceWorkflowTest`, vì cần workflow): `map_rates([])`, POST add `group=vat10&rate_id=<rate chuẩn 10%>` qua REST (đăng nhập admin), rồi đơn sản phẩm 10% → `TSuat` 10.
@@ -230,8 +230,9 @@
   - Thành công: notice `Đã thêm "%1$s" vào %2$s.` / `Đã bỏ "%1$s" khỏi %2$s.`; tên rate đã xóa dùng `#<id>`.
 - [ ] **Step 6: Thay** card "Thuế KCT/KKKNT" trong `SettingsPage::render_invoicing_panel()` bằng `TaxRateMapCard::render()`. Xóa:
   - route `tax-rates`, `tax-rates/unassign` và các method riêng của chúng;
-  - `ExemptTaxRateOptions`, `SettingsTaxRatesRestTest.php`;
-  - phần exempt deprecated trong `Settings`.
+  - `ExemptTaxRateOptions`, `SettingsTaxRatesRestTest.php`.
+
+  Phần exempt deprecated trong `Settings` chỉ xóa ở cuối Step 6b, sau khi đổi consumer e2e.
 
   Cập nhật `SettingsPageTest::test_tabs_group_the_existing_forms`: `invoicing` chứa `settings/tax-rate-map/add`, không chứa `settings/tax-rates`.
 - [ ] **Step 6b: Đổi e2e seam** `/settings`: `exempt` → `tax_map` (`{ <group>: string[] }` tên thuế suất → ID, `save_tax_rate_map()`); `support.ts` `resetWorld` gửi bảng mặc định của fixture (Task 4 Step 2); `failures.army.ts` lời gọi `exempt` → `tax_map`. Chưa record cache (Task 4). Sau đó xóa `Settings::exempt_tax_rates()`, `save_exempt_tax_rates()`, `TAX_RATE_KCT|KKKNT` và helper exempt trong `BlockedDraftInvoiceTest`.
