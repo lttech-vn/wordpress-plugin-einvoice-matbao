@@ -34,5 +34,5 @@ Blocked by: 2, 3
 
 Blocked by: 2, 3
 
-- [ ] 5.1 `docs/thiet-lap-thue.md`: điền bảng ánh xạ cho từng loại thuế (kể cả KCT, KKKNT, Khác), bảng lỗi theo ba mã thuế mới
-- [ ] 5.2 `docs/huong-dan-su-dung.md`, `README.md`, `docs/discovery.md` theo bảng ánh xạ
+- [x] 5.1 `docs/thiet-lap-thue.md`: điền bảng ánh xạ cho từng loại thuế (kể cả KCT, KKKNT, Khác), bảng lỗi theo ba mã thuế mới
+- [x] 5.2 `docs/huong-dan-su-dung.md`, `README.md`, `docs/discovery.md` theo bảng ánh xạ
