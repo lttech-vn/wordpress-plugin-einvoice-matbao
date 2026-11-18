@@ -1,17 +1,8 @@
 {
   "schemaVersion": "trace-1",
-  "createdAt": "2026-11-18T08:40:13.928Z",
+  "createdAt": "2026-11-18T12:52:13.019Z",
   "payload": {
     "actions": [
-      {
-        "name": "type",
-        "summary": "type \"0000000001:0000000000\" into textbox \"Mã số thuế\"",
-        "target": {
-          "role": "textbox",
-          "name": "Mã số thuế"
-        },
-        "value": "0000000001:0000000000"
-      },
       {
         "name": "type",
         "summary": "type \"0000000001\" into textbox \"Mã số thuế\"",
@@ -46,7 +37,7 @@
       "provider": "e2e-text-agent.chat",
       "model": "gpt-6-luna"
     },
-    "summary": "Entered MST 0000000001 and clicked Lưu kết nối. A red Vietnamese error notice appeared: “Lỗi: Cần nhập đủ mã số thuế, tên đăng nhập và mật khẩu.”.",
+    "summary": "Entered Mã số thuế 0000000001 and clicked Lưu kết nối, leaving the other fields untouched. The page displayed the Vietnamese error notice: “Lỗi: Cần nhập đủ mã số thuế, tên đăng nhập và mật khẩu.”.",
     "startPath": "/wp-admin/admin.php?page=einvoice-matbao-settings&tab=connection",
     "endPath": "/wp-admin/admin.php?page=einvoice-matbao-settings&tab=connection",
     "endAnchors": [
@@ -66,7 +57,7 @@
         "name": "Mã số thuế"
       }
     ],
-    "endWaitMs": 13289,
+    "endWaitMs": 13576,
     "keyedBy": {
       "cacheSchema": "trace-1",
       "policyVersion": "conservative/6",

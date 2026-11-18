@@ -87,7 +87,7 @@ wp option update woocommerce_cod_settings --format=json '{"enabled":"yes","title
 	}
 	// Extra fixtures for the failure scenarios: a tax class per rate (one rate per order line), a tax-exempt
 	// product and a free one. Idempotent; synthetic names and prices.
-	foreach ( array( "vat-7" => array( "VAT 7 (unsupported)", "7" ), "vat-8" => array( "VAT 8", "8" ), "vat-5" => array( "VAT 5", "5" ), "kct" => array( "KCT", "0" ), "kkknt" => array( "KKKNT", "0" ) ) as $slug => $def ) {
+	foreach ( array( "vat-7" => array( "VAT 7 (unsupported)", "7" ), "vat-8" => array( "VAT 8", "8" ), "vat-5" => array( "VAT 5", "5" ), "kct" => array( "KCT", "0" ), "kkknt" => array( "KKKNT", "0" ), "other" => array( "VAT 3,5", "3.5" ) ) as $slug => $def ) {
 		if ( ! in_array( $slug, WC_Tax::get_tax_class_slugs(), true ) ) {
 			WC_Tax::create_tax_class( $def[0], $slug );
 		}
@@ -101,6 +101,7 @@ wp option update woocommerce_cod_settings --format=json '{"enabled":"yes","title
 		"E2E-VAT5"  => array( "Dịch vụ thuế 5%", "100000", "taxable", "vat-5" ),
 		"E2E-KCT"   => array( "Dịch vụ KCT", "100000", "taxable", "kct" ),
 		"E2E-KKKNT" => array( "Dịch vụ KKKNT", "100000", "taxable", "kkknt" ),
+		"E2E-OTHER" => array( "Dịch vụ thuế 3,5%", "100000", "taxable", "other" ),
 		"E2E-NOTAX" => array( "Dịch vụ không chịu thuế", "100000", "none", "" ),
 		"E2E-FREE"  => array( "Dịch vụ miễn phí", "0", "taxable", "" ),
 	) as $sku => $def ) {
@@ -126,6 +127,23 @@ wp option update woocommerce_cod_settings --format=json '{"enabled":"yes","title
 	if ( $checkout && false === strpos( $checkout->post_content, "data-block-name=\"einvoice-matbao/invoice-request\"" ) && false !== strpos( $checkout->post_content, $anchor ) ) {
 		wp_update_post( array( "ID" => $checkout->ID, "post_content" => str_replace( $anchor, $anchor . "\n\n<!-- wp:einvoice-matbao/invoice-request -->\n<div data-block-name=\"einvoice-matbao/invoice-request\" class=\"wp-block-einvoice-matbao-invoice-request\"></div>\n<!-- /wp:einvoice-matbao/invoice-request -->", str_replace( "<!-- wp:einvoice-matbao/invoice-request /-->", "", $checkout->post_content ) ) ) );
 	}
+	// Default Mat Bao tax map, the same one resetWorld sends: without it every 10% line is blocked. Rates are resolved by
+	// name and class so reruns stay idempotent.
+	$rate_id = function ( $name, $class ) use ( $wpdb ) {
+		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT tax_rate_id FROM {$wpdb->prefix}woocommerce_tax_rates WHERE tax_rate_name = %s AND tax_rate_class = %s", $name, $class ) );
+	};
+	$map = array(
+		"vat10" => array( $rate_id( "VAT 10", "" ) ),
+		"vat8"  => array( $rate_id( "VAT 8", "vat-8" ) ),
+		"vat5"  => array( $rate_id( "VAT 5", "vat-5" ) ),
+		"kct"   => array( $rate_id( "KCT", "kct" ) ),
+		"kkknt" => array( $rate_id( "KKKNT", "kkknt" ) ),
+		"other" => array( $rate_id( "VAT 3,5", "other" ) ),
+	);
+	if ( in_array( 0, array_merge( ...array_values( $map ) ), true ) ) {
+		throw new \RuntimeException( "tax rate missing for the default Mat Bao tax map" );
+	}
+	( new \LTTech\EinvoiceMatbao\Settings() )->save_tax_rate_map( $map );
 	echo "product ", wc_get_product_id_by_sku( "E2E-SVC" ), "\n";
 ' 2>/dev/null
 

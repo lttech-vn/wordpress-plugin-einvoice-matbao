@@ -15,22 +15,22 @@ describe("blocked drafts", { serial: false, agent: "admin" }, () => {
 		await signInAdmin(ctx);
 	});
 
-	test("an unsupported tax rate blocks the draft, names the cause and sends nothing", async ({ app, screen, browser }) => {
+	test("a tax rate missing from the Mat Bao table blocks the draft, names the cause and sends nothing", async ({ app, screen, browser }) => {
 		const orderId = await completedOrder({ app }, lines("E2E-VAT7"));
 		const row = await waitForStatus({ app }, orderId, "failed");
-		expect(row.invoice.error_code).toBe("tax_rate_unsupported");
+		expect(row.invoice.error_code).toBe("tax_rate_mismatch");
 		expect(await sent()).toBe(0);
 
 		await app.open(PAGES.order(orderId));
-		await expect(browser.locator("[data-einv-error-code='tax_rate_unsupported']")).toBeVisible();
+		await expect(browser.locator("[data-einv-error-code='tax_rate_mismatch']")).toBeVisible();
 		await expect(browser.locator("[data-einv-error-kind='data']")).toBeVisible();
-		await expect(screen.getByText("Thuế suất không hỗ trợ", { exact: false }).first()).toBeVisible();
+		await expect(screen.getByText("Thuế không khớp với thông tin thuế gửi tới Mắt Bão", { exact: false }).first()).toBeVisible();
 	});
 
 	test("supported rates 5/8/10, KCT and KKKNT are sent with the right TSuat", async ({ app }) => {
-		await seam({ app }, "/settings", { tax_map: { vat10: ["VAT 10"], vat8: ["VAT 8"], vat5: ["VAT 5"], kct: ["KCT"], kkknt: ["KKKNT"] } });
+		await seam({ app }, "/settings", { tax_map: { vat10: ["VAT 10"], vat8: ["VAT 8"], vat5: ["VAT 5"], kct: ["KCT"], kkknt: ["KKKNT"], other: ["VAT 3,5"] } });
 		const ids: Record<string, number> = {};
-		for (const sku of ["E2E-SVC", "E2E-VAT5", "E2E-VAT8", "E2E-KCT", "E2E-KKKNT"]) ids[sku] = await completedOrder({ app }, lines(sku));
+		for (const sku of ["E2E-SVC", "E2E-VAT5", "E2E-VAT8", "E2E-KCT", "E2E-KKKNT", "E2E-OTHER"]) ids[sku] = await completedOrder({ app }, lines(sku));
 		for (const id of Object.values(ids)) await waitForStatus({ app }, id, "draft_created");
 
 		const bodies = (await fake("requests?endpoint=create-invoice")).map((r: any) => r.body[0]);
@@ -40,6 +40,7 @@ describe("blocked drafts", { serial: false, agent: "admin" }, () => {
 		expect(rateOf("E2E-VAT8")).toBe(8);
 		expect(rateOf("E2E-KCT")).toBe(-1);
 		expect(rateOf("E2E-KKKNT")).toBe(-2);
+		expect(rateOf("E2E-OTHER")).toBe(3.5);
 	});
 
 	test("a not-taxable product is blocked until its tax is configured", async ({ app, screen, browser }) => {
@@ -50,7 +51,7 @@ describe("blocked drafts", { serial: false, agent: "admin" }, () => {
 
 		await app.open(PAGES.order(orderId));
 		await expect(browser.locator("[data-einv-error-code='line_tax_not_configured']")).toBeVisible();
-		await expect(screen.getByText("Dòng chưa cài thuế", { exact: false }).first()).toBeVisible();
+		await expect(screen.getByText("Sản phẩm chưa được cài đặt thuế", { exact: false }).first()).toBeVisible();
 	});
 
 	test("totals that do not match the order total block the draft", async ({ app }) => {

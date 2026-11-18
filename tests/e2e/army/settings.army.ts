@@ -130,14 +130,19 @@ describe("settings page", { serial: false, agent: "admin" }, () => {
 		await expect(okNotice(screen)).toContainText("Đã lưu. Đơn vị tính mặc định: Lượt.");
 	});
 
-	test("admin assigns KCT from the tax rate list", async ({ agent, screen, app }) => {
+	test("admin maps a tax rate to KCT and removes it", async ({ agent, app, browser, screen }) => {
+		// Seam: the table without KCT, so the KCT row starts empty. Replaces the whole table.
+		await seam({ app }, "/settings", { tax_map: { vat10: ["VAT 10"], vat8: ["VAT 8"], vat5: ["VAT 5"], kkknt: ["KKKNT"], other: ["VAT 3,5"] } });
 		await app.open(PAGES.invoicing);
-		await agent.act("In the 'Thuế KCT/KKKNT' card choose 'KCT' in the dropdown of the rate named 'KCT'. Do not click any button; stop once the dropdown shows KCT.");
-		await expect(screen.getByLabel("KCT", { exact: false }).first()).toHaveValue("kct");
-		// Exact step: three buttons are named "Lưu"; the tax-rate card is the third one.
-		await screen.getByRole("button", "Lưu").nth(2).tap();
-		await expect(okNotice(screen)).toContainText("Đã lưu. 1 thuế suất KCT, 0 thuế suất KKKNT.");
-		await app.open(PAGES.invoicing);
-		await expect(screen.getByLabel("KCT", { exact: false }).first()).toHaveValue("kct");
+		const kctRow = '#einv-tax-rate-map [data-einv-map-group="kct"]';
+		await expect(browser.locator(`${kctRow} [data-einv-badge]`)).toHaveCount(0);
+
+		await agent.act("In the 'Ánh xạ thuế Mắt Bão' card, in the row labelled 'KCT', choose the tax rate named 'KCT' in that row's dropdown and click that row's 'Thêm' button. Stop once a badge appears in the KCT row.");
+		await expect(browser.locator(`${kctRow} [data-einv-badge]`)).toContainText("KCT");
+		await expect(okNotice(screen)).toContainText('Đã thêm "KCT" vào KCT.');
+
+		await screen.getByRole("button", { name: "Bỏ KCT khỏi KCT" }).tap();
+		await expect(okNotice(screen)).toContainText('Đã bỏ "KCT" khỏi KCT.');
+		await expect(browser.locator(`${kctRow} [data-einv-badge]`)).toHaveCount(0);
 	});
 });
