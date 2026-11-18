@@ -347,14 +347,9 @@ final class SettingsController {
 		$map[ $group ][] = $rate_id;
 		( new Settings() )->save_tax_rate_map( $map );
 
-		return Fragment::response(
-			TaxRateMapCard::render(
-				Fragment::notice(
-					Fragment::STATUS_SUCCESS,
-					/* translators: 1: tax rate name, 2: group label. */
-					sprintf( __( 'Đã thêm "%1$s" vào %2$s.', 'einvoice-matbao' ), $rate['name'], TaxRateMap::label( $group ) )
-				)
-			)
+		return $this->tax_map_saved(
+			/* translators: 1: tax rate name, 2: group label. */
+			sprintf( __( 'Đã thêm "%1$s" vào %2$s.', 'einvoice-matbao' ), $rate['name'], TaxRateMap::label( $group ) )
 		);
 	}
 
@@ -377,14 +372,9 @@ final class SettingsController {
 
 		$rate = TaxRateCatalog::find( $rate_id );
 
-		return Fragment::response(
-			TaxRateMapCard::render(
-				Fragment::notice(
-					Fragment::STATUS_SUCCESS,
-					/* translators: 1: tax rate name, 2: group label. */
-					sprintf( __( 'Đã bỏ "%1$s" khỏi %2$s.', 'einvoice-matbao' ), $rate['name'] ?? '#' . $rate_id, TaxRateMap::label( $group ) )
-				)
-			)
+		return $this->tax_map_saved(
+			/* translators: 1: tax rate name, 2: group label. */
+			sprintf( __( 'Đã bỏ "%1$s" khỏi %2$s.', 'einvoice-matbao' ), $rate['name'] ?? '#' . $rate_id, TaxRateMap::label( $group ) )
 		);
 	}
 
@@ -405,7 +395,16 @@ final class SettingsController {
 	 * @param string $message Plain-text message.
 	 */
 	private function tax_map_error( string $message ): WP_REST_Response {
-		return Fragment::response( TaxRateMapCard::render( Fragment::notice( Fragment::STATUS_ERROR, $message ) ), 422 );
+		return Fragment::response( TaxRateMapCard::render( Fragment::notice( Fragment::STATUS_ERROR, $message ) ) . TaxRateMapCard::oob_notice( '' ), 422 );
+	}
+
+	/**
+	 * 200 response: the fresh card plus the success notice swapped out-of-band into the persistent live region.
+	 *
+	 * @param string $message Plain-text message.
+	 */
+	private function tax_map_saved( string $message ): WP_REST_Response {
+		return Fragment::response( TaxRateMapCard::render() . TaxRateMapCard::oob_notice( Fragment::notice( Fragment::STATUS_SUCCESS, $message ) ) );
 	}
 
 	/**

@@ -283,6 +283,7 @@ final class SettingsPage {
 				</section>
 
 				<?php echo TaxRateMapCard::render(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in TaxRateMapCard. ?>
+				<?php echo TaxRateMapCard::notice_region(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in TaxRateMapCard. ?>
 
 		<?php
 		return (string) ob_get_clean();

@@ -63,6 +63,7 @@ final class TaxRateMap {
 			self::GROUP_VAT0  => '0%',
 			self::GROUP_KCT   => 'KCT',
 			self::GROUP_KKKNT => 'KKKNT',
+			self::GROUP_OTHER => __( 'Khác', 'einvoice-matbao' ),
 			default           => __( 'Khác', 'einvoice-matbao' ),
 		};
 	}

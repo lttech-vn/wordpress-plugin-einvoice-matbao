@@ -52,6 +52,29 @@ final class SettingsTaxRateMapRestTest extends SettingsRestTestCase {
 		$this->other_id = $this->insert_rate( 'other', '3.5', 'VAT 3,5' );
 	}
 
+	public function test_forms_serialize_and_disable_their_button(): void {
+		( new Settings() )->save_tax_rate_map( array( 'vat10' => array( $this->ten_id ) ) );
+		$page = SettingsPage::render_tabs( 'invoicing' );
+		$html = $this->card_html( $page );
+
+		$this->assertSame( 8, substr_count( $html, '<form hx-post=' ), 'seven add forms and one remove form' );
+		$this->assertSame( 8, substr_count( $html, 'hx-sync="#einv-tax-rate-map:queue all"' ) );
+		$this->assertSame( 8, substr_count( $html, 'hx-disabled-elt="find button"' ) );
+		$this->assertSame( 1, substr_count( $page, 'id="einv-tax-rate-map-notice" aria-live="polite"' ) );
+		$this->assertStringNotContainsString( 'aria-live', $html );
+	}
+
+	/**
+	 * The `<section id="einv-tax-rate-map">` part of a response.
+	 *
+	 * @param string $html Response or page HTML.
+	 */
+	private function card_html( string $html ): string {
+		preg_match( '#<section id="einv-tax-rate-map".*?</section>#s', $html, $match );
+
+		return $match[0] ?? '';
+	}
+
 	public function test_empty_table(): void {
 		$html = SettingsPage::render_tabs( 'invoicing' );
 
@@ -143,8 +166,10 @@ final class SettingsTaxRateMapRestTest extends SettingsRestTestCase {
 
 		$this->assertSame( 200, $response->get_status() );
 		$this->assertStringContainsString( 'id="einv-tax-rate-map"', $html );
+		$this->assertStringContainsString( 'hx-swap-oob="innerHTML:#einv-tax-rate-map-notice"', $html );
 		$this->assertStringContainsString( 'data-einv-status="success"', $html );
 		$this->assertStringContainsString( 'Đã thêm &quot;VAT 10&quot; vào 10%.', $html );
+		$this->assertStringNotContainsString( 'data-einv-status="success"', $this->card_html( $html ) );
 		$this->assertSame( array( $this->ten_id ), $this->badge_ids( $html, 'vat10' ) );
 		foreach ( array_diff( TaxRateMap::groups(), array( 'vat10' ) ) as $group ) {
 			$this->assertSame( array(), $this->badge_ids( $html, $group ), $group );
@@ -292,6 +317,7 @@ final class SettingsTaxRateMapRestTest extends SettingsRestTestCase {
 		$html     = $this->html( $response );
 
 		$this->assertSame( 200, $response->get_status() );
+		$this->assertStringContainsString( 'hx-swap-oob="innerHTML:#einv-tax-rate-map-notice"', $html );
 		$this->assertStringContainsString( 'Đã bỏ &quot;KCT&quot; khỏi KCT.', $html );
 		$this->assertStringNotContainsString( 'data-einv-badge="' . $this->kct_id . '"', $html );
 		$this->assertSame( 7, substr_count( $html, '<option value="' . $this->kct_id . '"' ) );

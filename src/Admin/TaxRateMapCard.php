@@ -15,18 +15,20 @@ use LTTech\EinvoiceMatbao\Settings;
  */
 final class TaxRateMapCard {
 
-	public const ID = 'einv-tax-rate-map';
+	public const ID        = 'einv-tax-rate-map';
+	public const NOTICE_ID = 'einv-tax-rate-map-notice';
 
 	/**
 	 * The card.
 	 *
-	 * @param string $notice_html Already-escaped notice from `Fragment::notice()`; '' for none.
+	 * @param string $notice_html Already-escaped error notice from `Fragment::notice()`; '' for none (success goes out-of-band).
 	 */
 	public static function render( string $notice_html = '' ): string {
 		$map       = ( new Settings() )->tax_rate_map();
+		$table     = new TaxRateMap( $map );
 		$rates     = TaxRateCatalog::all_rates();
 		$by_id     = array_column( $rates, null, 'id' );
-		$available = array_values( array_filter( $rates, static fn( array $rate ): bool => ! self::is_mapped( $map, $rate['id'] ) ) );
+		$available = array_values( array_filter( $rates, static fn( array $rate ): bool => null === $table->group_of( $rate['id'] ) ) );
 		$no_rates  = array() === $rates && array() === array_filter( $map );
 
 		ob_start();
@@ -40,11 +42,27 @@ final class TaxRateMapCard {
 					<?php foreach ( TaxRateMap::groups() as $group ) : ?>
 						<?php echo self::render_row( $group, $map[ $group ] ?? array(), $by_id, $available ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in render_row(). ?>
 					<?php endforeach; ?>
-					<div aria-live="polite"><?php echo $notice_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built by Fragment::notice(). ?></div>
+					<?php echo $notice_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built by Fragment::notice(). ?>
 				</section>
 
 		<?php
 		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Persistent live region next to the card; it is never swapped away, so screen readers announce what lands in it.
+	 */
+	public static function notice_region(): string {
+		return '<div id="' . esc_attr( self::NOTICE_ID ) . '" aria-live="polite"></div>';
+	}
+
+	/**
+	 * Out-of-band swap that fills (or, with '', clears) the live region.
+	 *
+	 * @param string $notice_html Already-escaped notice from `Fragment::notice()`.
+	 */
+	public static function oob_notice( string $notice_html ): string {
+		return '<div hx-swap-oob="innerHTML:#' . esc_attr( self::NOTICE_ID ) . '">' . $notice_html . '</div>';
 	}
 
 	/**
@@ -70,7 +88,7 @@ final class TaxRateMapCard {
 								<?php $name = isset( $by_id[ $id ] ) ? $by_id[ $id ]['name'] : '#' . $id; ?>
 								<span class="inline-flex items-center gap-1 rounded-full border border-einv-hairline bg-white px-3 py-1 text-[13px] text-einv-ink" data-einv-badge="<?php echo esc_attr( (string) $id ); ?>">
 									<?php echo esc_html( isset( $by_id[ $id ] ) ? self::badge_text( $by_id[ $id ] ) : sprintf( /* translators: %d: tax rate ID. */ __( '#%d (đã xóa)', 'einvoice-matbao' ), $id ) ); ?>
-									<form hx-post="<?php echo esc_url( $remove ); ?>" hx-target="#<?php echo esc_attr( self::ID ); ?>" hx-swap="outerHTML" class="m-0 inline">
+									<form hx-post="<?php echo esc_url( $remove ); ?>" hx-target="#<?php echo esc_attr( self::ID ); ?>" hx-swap="outerHTML" hx-sync="#<?php echo esc_attr( self::ID ); ?>:queue all" hx-disabled-elt="find button" class="m-0 inline">
 										<input type="hidden" name="group" value="<?php echo esc_attr( $group ); ?>" />
 										<input type="hidden" name="rate_id" value="<?php echo esc_attr( (string) $id ); ?>" />
 										<button type="submit" class="cursor-pointer border-0 bg-transparent px-1 text-einv-ink-mute" aria-label="<?php echo esc_attr( sprintf( /* translators: 1: tax rate name, 2: group label. */ __( 'Bỏ %1$s khỏi %2$s', 'einvoice-matbao' ), $name, $label ) ); ?>">×</button>
@@ -79,7 +97,7 @@ final class TaxRateMapCard {
 							<?php endforeach; ?>
 						</div>
 						<?php if ( array() !== $available ) : ?>
-							<form hx-post="<?php echo esc_url( $add ); ?>" hx-target="#<?php echo esc_attr( self::ID ); ?>" hx-swap="outerHTML" class="mt-2 flex flex-wrap items-center gap-2">
+							<form hx-post="<?php echo esc_url( $add ); ?>" hx-target="#<?php echo esc_attr( self::ID ); ?>" hx-swap="outerHTML" hx-sync="#<?php echo esc_attr( self::ID ); ?>:queue all" hx-disabled-elt="find button" class="mt-2 flex flex-wrap items-center gap-2">
 								<input type="hidden" name="group" value="<?php echo esc_attr( $group ); ?>" />
 								<label class="sr-only" for="<?php echo esc_attr( $field_id ); ?>"><?php echo esc_html( sprintf( /* translators: %s: group label. */ __( 'Thêm thuế suất vào %s', 'einvoice-matbao' ), $label ) ); ?></label>
 								<select id="<?php echo esc_attr( $field_id ); ?>" name="rate_id" class="<?php echo esc_attr( SettingsPage::FIELD ); ?>">
@@ -102,15 +120,5 @@ final class TaxRateMapCard {
 	 */
 	private static function badge_text( array $rate ): string {
 		return $rate['name'] . ' · ' . $rate['class'] . ' · ' . $rate['country'];
-	}
-
-	/**
-	 * Whether a rate belongs to any group.
-	 *
-	 * @param array<string, list<int>> $map     Stored table.
-	 * @param int                      $rate_id Rate ID.
-	 */
-	private static function is_mapped( array $map, int $rate_id ): bool {
-		return null !== ( new TaxRateMap( $map ) )->group_of( $rate_id );
 	}
 }
