@@ -10,13 +10,20 @@ namespace LTTech\EinvoiceMatbao;
 use LTTech\EinvoiceMatbao\Matbao\TemplateCache;
 
 /**
- * Default template, `MTChieu` prefix, walk-in buyer name, default unit and the delete-on-uninstall
- * switch, the Lark and monitoring switches, stored in one option.
+ * Default template, `MTChieu` prefix, walk-in buyer name, default unit, the delete-on-uninstall
+ * switch, the Lark and monitoring switches, and the KCT and KKKNT tax rate assignment, stored in
+ * one option.
  * Secrets never go here; see CredentialStore.
  */
 final class Settings {
 
 	public const OPTION = 'einvoice_matbao_settings';
+
+	/** `TSuat` code for tax rates assigned to KCT (not subject to tax). */
+	public const TAX_RATE_KCT = -1;
+
+	/** `TSuat` code for tax rates assigned to KKKNT (not declared for tax). */
+	public const TAX_RATE_KKKNT = -2;
 
 	public const DEFAULT_WALK_IN_BUYER_NAME = 'Khách hàng không lấy hóa đơn';
 
@@ -207,12 +214,68 @@ final class Settings {
 	}
 
 	/**
+	 * Tax rate IDs assigned to KCT or KKKNT, mapped to their `TSuat` code. A rate in both lists is KKKNT.
+	 *
+	 * @return array<int, int> `tax_rate_id => TSuat`.
+	 */
+	public function exempt_tax_rates(): array {
+		$rates = array();
+		foreach ( $this->positive_ids( 'kct_tax_rate_ids' ) as $id ) {
+			$rates[ $id ] = self::TAX_RATE_KCT;
+		}
+		foreach ( $this->positive_ids( 'kkknt_tax_rate_ids' ) as $id ) {
+			$rates[ $id ] = self::TAX_RATE_KKKNT;
+		}
+
+		return $rates;
+	}
+
+	/**
+	 * Replaces the KCT and KKKNT rate ID lists. Callers pass disjoint, valid IDs.
+	 *
+	 * @param array<int> $kct   Rate IDs assigned to KCT.
+	 * @param array<int> $kkknt Rate IDs assigned to KKKNT.
+	 */
+	public function save_exempt_tax_rates( array $kct, array $kkknt ): void {
+		$this->update(
+			array(
+				'kct_tax_rate_ids'   => $kct,
+				'kkknt_tax_rate_ids' => $kkknt,
+			)
+		);
+	}
+
+	/**
 	 * Merges values into the option.
 	 *
-	 * @param array<string, string> $values Values to set.
+	 * @param array<string, mixed> $values Values to set.
 	 */
 	private function update( array $values ): void {
 		update_option( self::OPTION, array_merge( $this->all(), $values ) );
+	}
+
+	/**
+	 * Stored tax rate IDs that are positive integers; anything else is dropped.
+	 *
+	 * @param string $key Option key holding the list.
+	 * @return list<int>
+	 */
+	private function positive_ids( string $key ): array {
+		$stored = $this->all()[ $key ] ?? array();
+		if ( ! is_array( $stored ) ) {
+			return array();
+		}
+
+		$ids = array();
+		foreach ( $stored as $value ) {
+			if ( is_int( $value ) && $value > 0 ) {
+				$ids[] = $value;
+			} elseif ( is_string( $value ) && 1 === preg_match( '/^[1-9][0-9]{0,18}$/', $value ) && (string) (int) $value === $value ) {
+				$ids[] = (int) $value;
+			}
+		}
+
+		return $ids;
 	}
 
 	/**
