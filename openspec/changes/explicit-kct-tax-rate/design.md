@@ -54,7 +54,7 @@
 - Truy vấn WooCommerce gom trong `TaxRateCatalog` (`src/Admin/TaxRateCatalog.php`):
   - `all_rates(): list<array{id, name, class, country, percent}>`, gồm lớp Standard và mọi lớp bổ sung;
   - `find( int $id ): ?array`.
-- Card do `TaxRateMapCard::render( ?string $notice_html ): string` dựng, để `SettingsPage` và controller dùng chung.
+- Card do `TaxRateMapCard::render( string $notice_html = '' ): string` dựng, để `SettingsPage` và controller dùng chung.
 
 **D3. Thứ tự kiểm tra một dòng trong `DraftPayloadBuilder`.**
 1. Như cũ: loại dòng, `whole_vnd(net)`, số lượng/số tiền âm, `whole_vnd(tax)`.
@@ -89,8 +89,9 @@
   - Khác không hợp lệ: `Thuế suất của dòng "<tên>" là <p>%, không dùng được cho nhóm Khác.`
   - Thiếu phần trăm đã lưu: `Không tìm thấy phần trăm thuế đã lưu của dòng "<tên>". Bấm "Tính lại" trong đơn.`
 
-  Tên thuế lấy từ tax item của đơn; vắng thì dùng `#<rate_id>`.
-- Giữ `TAX_RATE_NOT_STORED`, `TAX_RATE_UNSUPPORTED`, `UNTAXED_LINE_WITH_TAX` trong enum với nhãn/hint hiện có, vì hóa đơn đã lỗi trước đó vẫn hiển thị chúng. Builder không phát các mã này nữa.
+  Tên thuế lấy từ `WC_Order_Item_Tax::get_label( 'edit' )` của đơn; rỗng hoặc không có tax item thì dùng `#<rate_id>`.
+- Giữ `TAX_RATE_NOT_STORED`, `TAX_RATE_UNSUPPORTED`, `UNTAXED_LINE_WITH_TAX` trong enum và nhãn hiện có, vì hóa đơn đã lỗi trước đó vẫn hiển thị chúng. Builder không phát các mã này nữa. Hint của cả ba đổi sang cách sửa qua bảng ánh xạ (hint cũ hướng dẫn gán KCT/KKKNT hay đổi sang 0/5/8/10, không còn đúng):
+  - `tax_rate_not_stored`, `tax_rate_unsupported`, `untaxed_line_with_tax`: `Mở tab "Xuất hóa đơn", bảng "Ánh xạ thuế Mắt Bão": kiểm tra thuế suất của dòng nằm đúng nhóm, bấm "Tính lại" trong đơn rồi bấm "Gửi lại".`
 - Hint dùng chung cho Lark, notice, meta box, chi tiết và Sentry:
   - `line_tax_not_configured`: `Cài thuế cho sản phẩm (cả biến thể), phí hoặc phương thức vận chuyển của dòng bị nêu: trạng thái thuế "Chịu thuế" và lớp thuế có thuế suất. Sau đó bấm "Tính lại" trong đơn rồi bấm "Gửi lại".`
   - `line_tax_rate_count`: `Lớp thuế của sản phẩm chỉ được có một thuế suất áp dụng cho đơn. Sửa lớp thuế, bấm "Tính lại" trong đơn rồi bấm "Gửi lại".`

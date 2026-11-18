@@ -7,10 +7,11 @@ Hướng dẫn của các mã thuế SHALL đúng nguyên văn sau:
 - `line_tax_not_configured`: `Cài thuế cho sản phẩm (cả biến thể), phí hoặc phương thức vận chuyển của dòng bị nêu: trạng thái thuế "Chịu thuế" và lớp thuế có thuế suất. Sau đó bấm "Tính lại" trong đơn rồi bấm "Gửi lại".`
 - `line_tax_rate_count`: `Lớp thuế của sản phẩm chỉ được có một thuế suất áp dụng cho đơn. Sửa lớp thuế, bấm "Tính lại" trong đơn rồi bấm "Gửi lại".`
 - `tax_rate_mismatch`: `Mở tab "Xuất hóa đơn", bảng "Ánh xạ thuế Mắt Bão": thêm thuế suất của dòng vào đúng nhóm, hoặc sửa thuế suất trong WooCommerce cho khớp nhóm. Bấm "Tính lại" trong đơn nếu đã sửa thuế, rồi bấm "Gửi lại".`
+- `tax_rate_not_stored`, `tax_rate_unsupported`, `untaxed_line_with_tax` (mã cũ, chỉ còn trên hóa đơn đã lỗi trước đây): `Mở tab "Xuất hóa đơn", bảng "Ánh xạ thuế Mắt Bão": kiểm tra thuế suất của dòng nằm đúng nhóm, bấm "Tính lại" trong đơn rồi bấm "Gửi lại".`
 
 #### Scenario: Every code has a hint
 - **WHEN** liệt kê mọi mã lỗi hóa đơn
-- **THEN** mỗi mã có hướng dẫn không rỗng, và hướng dẫn của ba mã thuế trên đúng nguyên văn
+- **THEN** mỗi mã có hướng dẫn không rỗng, và hướng dẫn của các mã thuế trên đúng nguyên văn
 
 #### Scenario: Data error hint
 - **WHEN** hóa đơn dừng với `line_tax_rate_count`
@@ -23,6 +24,10 @@ Hướng dẫn của các mã thuế SHALL đúng nguyên văn sau:
 #### Scenario: Mismatch hint
 - **WHEN** hóa đơn dừng với `tax_rate_mismatch`
 - **THEN** hướng dẫn chỉ tới tab "Xuất hóa đơn", bảng "Ánh xạ thuế Mắt Bão" và nút "Gửi lại"
+
+#### Scenario: Legacy tax code hint
+- **WHEN** một hóa đơn đã lỗi trước đây còn mang `tax_rate_unsupported`
+- **THEN** hướng dẫn chỉ tới bảng "Ánh xạ thuế Mắt Bão" ở tab "Xuất hóa đơn", không còn nói gán KCT/KKKNT hay chỉ dùng 0/5/8/10
 
 #### Scenario: Config error hint
 - **WHEN** hóa đơn dừng với `credentials_missing`

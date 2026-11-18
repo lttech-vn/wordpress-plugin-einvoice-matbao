@@ -51,7 +51,7 @@
 | `DraftPayloadBuilder::tax_rate( LineFailure, array $line_taxes, int $tax, array $rates, TaxRateMap $map, array $rate_names ): int\|float` | modified | thay bản dùng `$exempt`; ném lỗi theo design D3/D4 | no |
 | `DraftPayloadBuilder::TAX_RATE_NOT_TAXABLE`, `ALLOWED_TAX_RATES` | removed (nếu không còn dùng) | quy tắc chuyển vào `TaxRateMap` | no |
 | `TaxRateCatalog` (`src/Admin/TaxRateCatalog.php`) | new | `final class`, static: `all_rates(): list<array{id: int, name: string, class: string, country: string, percent: string}>` (lớp Standard tên `Tiêu chuẩn` + mọi lớp bổ sung; country `*` khi trống; percent dạng hiển thị, ví dụ `3,5`); `find( int $id ): ?array` cùng shape, null khi rate không tồn tại | no |
-| `TaxRateMapCard` (`src/Admin/TaxRateMapCard.php`) | new | `final class`, static `render( string $notice_html = '' ): string` → toàn bộ `<section id="einv-tax-rate-map" …>` | no |
+| `TaxRateMapCard` (`src/Admin/TaxRateMapCard.php`) | new | `final class`, static `render( string $notice_html = '' ): string` → toàn bộ `<section id="einv-tax-rate-map" …>`; `''` = không có notice | no |
 | `ExemptTaxRateOptions`, route `settings/tax-rates`, `settings/tax-rates/unassign`, card "Thuế KCT/KKKNT" | removed | thay bằng card và route mới | yes → removed (route admin chưa phát hành) |
 | REST `POST einvoice-matbao/v1/settings/tax-rate-map/add` | new | body `group` (một trong `TaxRateMap::groups()`), `rate_id` (qua `parse_rate_id`, nhận cả số nguyên JSON); rate phải tồn tại (`TaxRateCatalog::find`) và chưa thuộc nhóm nào. 200: `Fragment::response( TaxRateMapCard::render( success notice ) )`. 422: card hiện tại kèm error notice, không ghi. 403 như route khác | yes (route admin) |
 | REST `POST einvoice-matbao/v1/settings/tax-rate-map/remove` | new | body `group`, `rate_id`; rate phải đang thuộc đúng `group` (kể cả rate đã xóa khỏi WooCommerce). 200/422/403 như trên | yes (route admin) |
@@ -62,7 +62,7 @@
 
 ## Task 1: Lưu bảng ánh xạ thuế — implements 1
 
-**Covers:** 1.1, 1.2, 1.3
+**Covers:** 1.1, 1.2
 **Difficulty:** Normal
 **Blocked by:** none
 
@@ -70,7 +70,7 @@
 - Create: `src/Invoice/TaxRateMap.php`, `tests/integration/TaxRateMapTest.php`, `tests/integration/SettingsTaxRateMapTest.php`
 - Modify: `src/Settings.php`
 - Delete: `tests/integration/SettingsExemptTaxRatesTest.php`; chuyển test `parse_rate_id` của nó (PHP_INT_MAX, tràn số, số 0 đầu) sang `SettingsTaxRateMapTest`.
-- Note: `src/Invoice/DraftPayloadBuilder.php`, `src/Admin/*` còn gọi `exempt_tax_rates()` cho tới Task 2/3. Để suite và `analyse` xanh sau Task 1, giữ `exempt_tax_rates()`/`save_exempt_tax_rates()`/hằng KCT/KKKNT tạm thời, đánh dấu `@deprecated Removed by tasks 2 and 3`. Task 3 xóa chúng ở bước cuối. Checkbox 1.2 hoàn tất khi Task 3 xóa xong; parent tick 1.2 sau Task 3.
+- Note: builder, admin và e2e seam còn gọi `exempt_tax_rates()`/`save_exempt_tax_rates()`. Để suite và `analyse` xanh, Task 1 giữ chúng cùng hằng KCT/KKKNT, đánh dấu `@deprecated Removed by task 3`. Task 3 (sau Task 2) đổi consumer cuối cùng rồi xóa (checkbox 3.4).
 
 **Interfaces:**
 - Produces: `TaxRateMap`, `Settings::tax_rate_map()`, `Settings::save_tax_rate_map()` (Contracts).
@@ -86,7 +86,7 @@
     - `('kct','0.0000',100)` → null; `('vat0',null,0)` → 0.
   - `test_tsuat_for_other`:
     - `('other','3.5000',3500)` → `3.5` (float); `('other','7.0000',7000)` → `7` (int);
-    - `('other','8.0000',8000)` → null; `('other','0',0)` → null; `('other',null,100)` → null.
+    - `('other','5.0000',500)`, `('other','8.0000',8000)`, `('other','10.0000',1000)`, `('other','0',0)`, `('other','-3',0)`, `('other',null,100)`, `('other','',100)` → đều null.
   - `test_unknown_group`: `tsuat_for('vat7','7',700)` → null.
 - [ ] **Step 2: Test thất bại** `SettingsTaxRateMapTest`:
   - `test_empty_before_saving`: `tax_rate_map()` = `[]`.
@@ -126,7 +126,7 @@
   - thêm dòng `'tax_rate_mismatch' => ['tax_rate_mismatch','data','failed',false]`; đổi `assertCount( 35 → 36 )`;
   - `test_tax_hints_match_the_design`: viết lại cho ba hint nguyên văn trong `specs/failure-alerts/spec.md`; nhãn `Sản phẩm chưa được cài đặt thuế`, `Sản phẩm có quá nhiều dòng thuế`, `Thuế không khớp với thông tin thuế gửi tới Mắt Bão`;
   - `test_data_error_hint`: hint `line_tax_rate_count` chứa `"Tính lại"` và `"Gửi lại"`;
-  - giữ assert nhãn/hint ba mã cũ không đổi.
+  - giữ assert nhãn ba mã cũ không đổi; hint của `tax_rate_not_stored`, `tax_rate_unsupported`, `untaxed_line_with_tax` bằng nguyên văn hint mã cũ trong spec (`test_legacy_tax_codes_point_to_the_mapping_table`).
 - [ ] **Step 2: Cài đặt** enum theo Contracts/spec. Chạy `--filter 'InvoiceErrorCodeTest'`. Kỳ vọng: PASS. Sửa `NeedsAttentionEventTest` message thành `Hóa đơn cần xử lý: Sản phẩm có quá nhiều dòng thuế – Đơn #…`. Commit `feat(invoice): add tax_rate_mismatch and rename tax error labels`.
 - [ ] **Step 3: Test support:**
   - thêm `CLASS_OTHER='einv-other'` (rate 3,5%);
@@ -153,15 +153,16 @@
   - `test_not_taxable_product_is_blocked_as_not_configured`: giữ (`line_tax_not_configured`, `'chưa có thuế GTGT'`).
   - `test_fee_without_a_stored_rate_is_blocked`, `test_shipping_without_a_stored_rate_is_blocked`, `test_free_fee_and_shipping_without_rate_are_left_off`: giữ.
   - `test_line_with_several_tax_rates_blocks_the_draft`: giữ, ánh xạ cả hai rate của `einv-double` vào `vat5` → `LINE_TAX_RATE_COUNT`.
+  - `test_several_rates_with_an_unmapped_one_are_blocked_as_rate_count`: như trên nhưng chỉ ánh xạ rate đầu → vẫn `LINE_TAX_RATE_COUNT` (đếm rate trước khi tra bảng).
   - `test_unusual_tax_rate_blocks_the_draft`: `CLASS_SEVEN` không ánh xạ → `TAX_RATE_MISMATCH`, lý do chứa `'VAT 7'` và `'chưa được ánh xạ'`.
   - `test_percent_differing_from_its_group_is_blocked`: `map_rates` đặt rate 10% chuẩn vào `vat8` → `TAX_RATE_MISMATCH`, lý do chứa `'10%'` và `'8%'`.
-  - `test_zero_group_with_tax_amount_is_blocked`: `map_rates` đặt rate 10% chuẩn vào `kct` → `TAX_RATE_MISMATCH`, lý do chứa `'KCT'` và `'có tiền thuế'`.
+  - `test_zero_group_with_tax_amount_is_blocked` (data provider `vat0`, `kct`, `kkknt`): `map_rates` đặt rate 10% chuẩn vào nhóm → `TAX_RATE_MISMATCH`, lý do chứa nhãn nhóm (`0%`/`KCT`/`KKKNT`) và `'có tiền thuế'`.
   - `test_other_group_with_a_standard_percent_is_blocked`: đặt `CLASS_EIGHT` vào `other` → `TAX_RATE_MISMATCH`, lý do chứa `'nhóm Khác'`.
   - `test_percent_not_stored_is_blocked`: đổi từ `test_line_whose_rate_percent_is_not_stored_blocks_the_draft` (xóa tax item của đơn) → `TAX_RATE_MISMATCH`, lý do chứa `'Tính lại'`.
   - Xóa `test_exempt_rate_with_tax_amount_is_blocked`, `test_kkknt_rate_with_tax_amount_is_blocked`, `test_several_rates_including_kct_are_blocked_as_rate_count`.
 - [ ] **Step 6: Chạy** `--filter 'DraftInvoiceWorkflowTest|BlockedDraftInvoiceTest'`. Kỳ vọng: test mới/đổi FAIL.
 - [ ] **Step 7: Cài đặt** `DraftPayloadBuilder`:
-  - `build()`: `$map = new TaxRateMap( $settings->tax_rate_map() )`; `$rate_names` từ `$order->get_taxes()` (`get_rate_id()` → `get_label()`, rỗng thì `get_name()`).
+  - `build()`: `$map = new TaxRateMap( $settings->tax_rate_map() )`; `$rate_names` từ `$order->get_taxes()`: `get_rate_id()` → `get_label( 'edit' )` (không dùng `'view'`, vì nó trả `"Tax"` khi rỗng); chuỗi rỗng hoặc không có tax item thì lý do dùng `#<rate_id>`. Test trong `BlockedDraftInvoiceTest::test_unusual_tax_rate_blocks_the_draft` biến thể: label rỗng → lý do chứa `#<id>`.
   - `tax_rate()`: thứ tự design D3 bước 3–6, lý do design D4. Nhóm in trong lý do dùng `TaxRateMap::label()`. Không nhóm → `'Thuế suất "%1$s" của dòng "%2$s" chưa được ánh xạ sang thuế Mắt Bão.'` với tên thuế hoặc `#<id>`.
   - Bỏ `$exempt` và ánh xạ theo phần trăm. Xóa `ALLOWED_TAX_RATES` nếu không còn dùng.
   - `TSuat` kiểu `int|float` trong payload; `number()` đã xử lý.
@@ -172,15 +173,18 @@
 
 ## Task 3: Card ánh xạ thuế — implements 3
 
-**Covers:** 3.1, 3.2, 3.3 (và hoàn tất 1.2)
+**Covers:** 3.1, 3.2, 3.3, 3.4
 **Difficulty:** Normal
-**Blocked by:** Task 1
+**Blocked by:** Task 2 (Task 2 bỏ consumer `exempt_tax_rates()` trong builder; Task 3 xóa API đó)
 
 **Files:**
 - Create:
   - `src/Admin/TaxRateCatalog.php`, `src/Admin/TaxRateMapCard.php`
   - `tests/integration/SettingsTaxRateMapRestTest.php`
-- Modify: `src/Admin/SettingsController.php`, `src/Admin/SettingsPage.php`, `src/Settings.php` (xóa phần exempt deprecated), `tests/integration/SettingsPageTest.php`
+- Modify:
+  - `src/Admin/SettingsController.php`, `src/Admin/SettingsPage.php`, `src/Settings.php` (xóa phần exempt deprecated)
+  - `tests/integration/SettingsPageTest.php`, `tests/integration/BlockedDraftInvoiceTest.php` (xóa helper exempt nếu còn)
+  - `tests/e2e/wordpress/einv-e2e-http.php`, `tests/e2e/army/support.ts`, `tests/e2e/army/failures.army.ts` (chỉ đổi `exempt` → `tax_map` trong seam và lời gọi; ghi cache/record để Task 4)
 - Delete: `src/Admin/ExemptTaxRateOptions.php`, `tests/integration/SettingsTaxRatesRestTest.php`
 
 **Interfaces:**
@@ -190,24 +194,28 @@
 - [ ] **Step 1: Test thất bại** `SettingsTaxRateMapRestTest` (extends `SettingsRestTestCase`, administrator). `set_up()` tạo rate 10% Standard (`VAT 10`, VN), lớp `kct` có rate 0% tên `KCT`, lớp `other` có rate 3,5% tên `VAT 3,5`.
   - `test_empty_table`: HTML tab `invoicing` có `id="einv-tax-rate-map"`, bảy hàng nhãn `10%`…`Khác` theo thứ tự, không badge. Mỗi `<select name="rate_id">` liệt kê cả ba rate với `tên · lớp · quốc gia · phần trăm%` (ví dụ `VAT 10 · Tiêu chuẩn · VN · 10%`) và có `<label for>`.
   - `test_badges_per_group`:
-    - `save_tax_rate_map(['vat10'=>[ten],'kct'=>[kct]])`;
-    - hàng 10% có badge `VAT 10 · Tiêu chuẩn · VN` với nút × `aria-label="Bỏ VAT 10 khỏi 10%"`; hàng KCT có badge `KCT`.
+    - thêm rate 10% thứ hai `VAT 10 B` ở lớp `kct`;
+    - `save_tax_rate_map(['vat10'=>[ten, ten_b],'kct'=>[kct]])`;
+    - hàng 10% có **hai** badge `VAT 10 · Tiêu chuẩn · VN` và `VAT 10 B · …`, mỗi badge một nút × (`aria-label="Bỏ VAT 10 khỏi 10%"`, `aria-label="Bỏ VAT 10 B khỏi 10%"`); hàng KCT có một badge `KCT`.
   - `test_mapped_rate_leaves_the_pickers`: ten trong `vat8` → không `<option value="<ten>"` nào trong mọi select.
   - `test_deleted_rate_badge`: map kkknt=[A], `WC_Tax::_delete_tax_rate(A)` → badge chứa `(đã xóa)` và nút ×.
   - `test_no_woocommerce_rate`: xóa mọi rate, bảng trống → HTML có `'Chưa có thuế suất nào'`, không có nút `Thêm`.
   - `test_add_a_rate`:
     - POST `/settings/tax-rate-map/add` `group=vat10&rate_id=<ten>` → 200;
-    - body chứa `id="einv-tax-rate-map"` và notice success `Đã thêm "VAT 10" vào 10%.`;
+    - body chứa `id="einv-tax-rate-map"`, notice success `Đã thêm "VAT 10" vào 10%.`, badge `VAT 10` trong hàng 10% và **không** có `<option value="<ten>"` nào;
     - `tax_rate_map()` = `['vat10'=>[ten]]`.
   - `test_add_accepts_json_integer_rate_id`: JSON body `{"group":"kct","rate_id":<kct int>}` → 200, map có kct.
-  - `test_add_rejects_invalid_input`: lần lượt `group=vat7`, `rate_id=abc`, `rate_id=0`, `rate_id=999999`, rate đã thuộc nhóm khác, thiếu `group` → mỗi lần 422, body có card và notice lỗi, map không đổi (assert sau từng request).
+  - `test_add_rejects_invalid_input`: lần lượt `group=vat7`, `group=''`, `group[]=vat10` (mảng), thiếu `group`, `rate_id=abc`, `rate_id=''`, `rate_id[]=1` (mảng), `rate_id=0`, `rate_id=-1`, `rate_id=1.5`, thiếu `rate_id`, `rate_id=999999`, rate đã thuộc nhóm khác → mỗi lần 422, body có card và notice lỗi, map không đổi (assert sau từng request).
   - `test_remove_a_rate`:
     - map `vat10=[ten]`, `kct=[kct]`; POST remove `group=kct&rate_id=<kct>` → 200;
-    - notice `Đã bỏ "KCT" khỏi KCT.`; map `['vat10'=>[ten]]`; option `kct` trở lại các select.
+    - response: notice `Đã bỏ "KCT" khỏi KCT.`, hàng KCT không còn badge, `<option value="<kct>"` có lại trong các select;
+    - map `['vat10'=>[ten]]`.
   - `test_deleted_rate_badge_can_be_removed`: badge đã xóa A trong `kkknt` → remove 200, map rỗng.
-  - `test_remove_rejects_invalid_input`: rate không thuộc `group`, `group` lạ, `rate_id` sai → 422, map không đổi.
+  - `test_remove_rejects_invalid_input`: rate không thuộc `group`, `group` lạ/rỗng/mảng/thiếu, `rate_id` rỗng/mảng/âm/thiếu → mỗi lần 422, map không đổi (assert sau từng request).
   - `test_access_control`: `shop_manager` → 403 cho add và remove; nonce sai → 403; map không đổi.
   - `test_label_escapes_rate_name`: rate tên `<b>x</b>` → hiện dạng escape trong option và badge.
+  - `test_added_rate_reaches_the_invoice` (trong `DraftInvoiceWorkflowTest`, vì cần workflow): `map_rates([])`, POST add `group=vat10&rate_id=<rate chuẩn 10%>` qua REST (đăng nhập admin), rồi đơn sản phẩm 10% → `TSuat` 10.
+  - `test_saving_lark_leaves_the_monitoring_card` (trong `SettingsPageTest`): POST `/settings/lark` hợp lệ, response chỉ là notice (không chứa `einv-sentry-dsn`), và tab `notifications` render lại vẫn có form giám sát lỗi với giá trị không đổi.
 - [ ] **Step 2: Chạy** `--filter SettingsTaxRateMapRestTest`. Kỳ vọng: FAIL.
 - [ ] **Step 3: Cài đặt** `TaxRateCatalog` (mọi rate của `''` + `WC_Tax::get_tax_class_slugs()`; tên lớp như `ExemptTaxRateOptions::class_names()` hiện có; percent định dạng `wc_format_localized_decimal` bỏ số 0 thừa).
 - [ ] **Step 4: Cài đặt** `TaxRateMapCard::render()`:
@@ -226,7 +234,8 @@
   - phần exempt deprecated trong `Settings`.
 
   Cập nhật `SettingsPageTest::test_tabs_group_the_existing_forms`: `invoicing` chứa `settings/tax-rate-map/add`, không chứa `settings/tax-rates`.
-- [ ] **Step 7: Chạy** filter rồi toàn bộ `test:integration`, `lint`, `analyse`; `rg -n "exempt_tax_rates|ExemptTaxRateOptions|tax-rates/unassign" src tests` rỗng. Kỳ vọng: PASS/sạch.
+- [ ] **Step 6b: Đổi e2e seam** `/settings`: `exempt` → `tax_map` (`{ <group>: string[] }` tên thuế suất → ID, `save_tax_rate_map()`); `support.ts` `resetWorld` gửi bảng mặc định của fixture (Task 4 Step 2); `failures.army.ts` lời gọi `exempt` → `tax_map`. Chưa record cache (Task 4). Sau đó xóa `Settings::exempt_tax_rates()`, `save_exempt_tax_rates()`, `TAX_RATE_KCT|KKKNT` và helper exempt trong `BlockedDraftInvoiceTest`.
+- [ ] **Step 7: Chạy** filter rồi toàn bộ `test:integration`, `lint`, `analyse`; `rg -n "exempt_tax_rates|save_exempt_tax_rates|ExemptTaxRateOptions|tax-rates/unassign|TAX_RATE_KCT|TAX_RATE_KKKNT" src tests` rỗng. Kỳ vọng: PASS/sạch.
 - [ ] **Step 8: Commit** `feat(admin-settings): Mat Bao tax mapping card replaces the KCT/KKKNT card`.
 
 ---
@@ -242,9 +251,7 @@
 - Đọc trước: skill `e2e-army-testing`, `tests/e2e/README.md`
 
 - [ ] **Step 1:** `setup-site.sh` thêm lớp `other` có rate 3,5% (`VAT 3,5`) và sản phẩm `E2E-OTHER` (100000). Giữ `vat-7` (không ánh xạ), `E2E-NOTAX`, `E2E-KCT`, `E2E-KKKNT`.
-- [ ] **Step 2:** Seam `/settings`:
-  - thay `exempt` bằng `tax_map` (nhóm → tên thuế suất → ID qua `woocommerce_tax_rates`), gọi `save_tax_rate_map()`;
-  - `resetWorld` đặt `tax_map` mặc định `{vat10:["VAT 10"], vat8:["VAT 8"], vat5:["VAT 5"], kct:["KCT"], kkknt:["KKKNT"], other:["VAT 3,5"]}` để các test cũ vẫn gửi được.
+- [ ] **Step 2:** Seam `/settings` đã nhận `tax_map` từ Task 3 Step 6b. `resetWorld` **thay toàn bộ** bảng bằng bảng mặc định của fixture `{vat10:["VAT 10"], vat8:["VAT 8"], vat5:["VAT 5"], kct:["KCT"], kkknt:["KKKNT"], other:["VAT 3,5"]}` để các test cũ vẫn gửi được; test cần bảng trống gửi `tax_map: {}` tường minh.
 - [ ] **Step 3:** `failures.army.ts`:
   - test thuế suất: `E2E-SVC`, `E2E-VAT5`, `E2E-VAT8`, `E2E-KCT`, `E2E-KKKNT`, `E2E-OTHER` → `TSuat` 10, 5, 8, -1, -2, 3.5;
   - test `E2E-NOTAX` → `line_tax_not_configured`, nhãn `Sản phẩm chưa được cài đặt thuế`;
@@ -293,7 +300,7 @@
 - Mapping read when sending → `DraftInvoiceWorkflowTest::test_mapping_read_when_sending` (Task 2 Step 4)
 - Not taxable line is not configured → `BlockedDraftInvoiceTest::test_not_taxable_product_is_blocked_as_not_configured` (Task 2 Step 5); e2e `E2E-NOTAX` (Task 4 Step 3)
 - Taxable line without a stored rate → `BlockedDraftInvoiceTest::test_fee_without_a_stored_rate_is_blocked`, `::test_shipping_without_a_stored_rate_is_blocked` (Task 2 Step 5)
-- Several rates on one line → `BlockedDraftInvoiceTest::test_line_with_several_tax_rates_blocks_the_draft` (Task 2 Step 5)
+- Several rates on one line → `BlockedDraftInvoiceTest::test_line_with_several_tax_rates_blocks_the_draft`, `::test_several_rates_with_an_unmapped_one_are_blocked_as_rate_count` (Task 2 Step 5)
 - Percent differs from its group → `BlockedDraftInvoiceTest::test_percent_differing_from_its_group_is_blocked` (Task 2 Step 5)
 - Zero group with tax amount → `BlockedDraftInvoiceTest::test_zero_group_with_tax_amount_is_blocked` (Task 2 Step 5)
 - Unsupported rate → `BlockedDraftInvoiceTest::test_unusual_tax_rate_blocks_the_draft`, `DraftInvoiceWorkflowTest::test_unusual_tax_rate_is_not_sent_and_marks_the_invoice_failed` (Task 2); e2e `vat-7` (Task 4 Step 3)
@@ -309,7 +316,7 @@
 - Mapped rate leaves the pickers → `SettingsTaxRateMapRestTest::test_mapped_rate_leaves_the_pickers` (Task 3 Step 1)
 - Deleted rate badge → `SettingsTaxRateMapRestTest::test_deleted_rate_badge` (Task 3 Step 1)
 - No WooCommerce rate → `SettingsTaxRateMapRestTest::test_no_woocommerce_rate` (Task 3 Step 1)
-- Add a rate → `SettingsTaxRateMapRestTest::test_add_a_rate`, `::test_add_accepts_json_integer_rate_id` (Task 3 Step 1); mapping qua `DraftInvoiceWorkflowTest::test_mapped_rates_send_their_tsuat`; e2e "admin maps a tax rate to KCT and removes it" (Task 4 Step 4)
+- Add a rate → `SettingsTaxRateMapRestTest::test_add_a_rate`, `::test_add_accepts_json_integer_rate_id` (Task 3 Step 1); `DraftInvoiceWorkflowTest::test_added_rate_reaches_the_invoice` (Task 3 Step 1); e2e "admin maps a tax rate to KCT and removes it" (Task 4 Step 4)
 - Remove a rate → `SettingsTaxRateMapRestTest::test_remove_a_rate` (Task 3 Step 1); e2e như trên
 - Remove a deleted rate → `SettingsTaxRateMapRestTest::test_deleted_rate_badge_can_be_removed` (Task 3 Step 1)
 - Add rejected → `SettingsTaxRateMapRestTest::test_add_rejects_invalid_input` (Task 3 Step 1)
@@ -317,7 +324,7 @@
 - Access control → `SettingsTaxRateMapRestTest::test_access_control` (Task 3 Step 1)
 - Invoicing tab contents → `SettingsPageTest::test_tabs_group_the_existing_forms` (Task 3 Step 6)
 - Notifications tab contents → giữ `SettingsPageTest::test_notifications_tab_contents` (Task 3 Step 7)
-- Saving one notification card → giữ `SettingsPageTest::test_notifications_tab_contents` (Task 3 Step 7)
+- Saving one notification card → `SettingsPageTest::test_saving_lark_leaves_the_monitoring_card` (Task 3 Step 1)
 - Monitoring tab contents → giữ `SettingsPageTest::test_deep_link_renders_the_notifications_tab` (Task 3 Step 7)
 - Advanced tab contents → giữ `SettingsPageTest::test_tabs_group_the_existing_forms` (Task 3 Step 6)
 - Template list stays with credentials → giữ `SettingsPageTest::test_tabs_group_the_existing_forms`; e2e `tabs.army.ts` "switching to the connection tab loads the template list" (Task 4 Step 5)
@@ -327,10 +334,11 @@
 - Data error hint → `InvoiceErrorCodeTest::test_data_error_hint` (Task 2 Step 1)
 - Tax not configured hint → `InvoiceErrorCodeTest::test_tax_hints_match_the_design` (Task 2 Step 1)
 - Mismatch hint → `InvoiceErrorCodeTest::test_tax_hints_match_the_design` (Task 2 Step 1)
+- Legacy tax code hint → `InvoiceErrorCodeTest::test_legacy_tax_codes_point_to_the_mapping_table` (Task 2 Step 1)
 - Config error hint → giữ `InvoiceErrorCodeTest::test_config_error_hint` (Task 2 Step 2)
 - Uncertain send hint → giữ `InvoiceErrorCodeTest::test_uncertain_send_hint` (Task 2 Step 2)
 - Same hint everywhere → giữ `Monitoring/SameHintEverywhereTest::test_same_hint_everywhere` (Task 2 Step 8)
 
 **error-monitoring**
 - Readable title → `Monitoring/NeedsAttentionEventTest` (message mới, Task 2 Step 2)
-- Unexpected error while sending / Action Scheduler action throws / Action Scheduler exception echoes the buyer / Action without an order / Needs attention once per alert / Same error code on two orders → giữ các test hiện có trong `tests/integration/Monitoring/` (chạy ở Task 2 Step 8)
+- Unexpected error while sending / Action Scheduler action throws / Action Scheduler exception echoes the buyer / Action without an order / Needs attention once per alert / Same error code on two orders → giữ các test hiện có trong `tests/integration/Monitoring/WorkflowMonitoringTest.php`, `ExceptionContextTest.php`, `NeedsAttentionEventTest.php` (chạy ở Task 2 Step 8)

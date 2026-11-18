@@ -3,8 +3,7 @@
 Blocked by: none
 
 - [ ] 1.1 `TaxRateMap` (src/Invoice): bảy nhóm cố định, `TSuat` của từng nhóm, kiểm tra khớp `tsuat_for()`; `Settings::tax_rate_map()` / `save_tax_rate_map()` đọc/ghi key `tax_rate_map`, đọc phòng thủ (design D1, D3)
-- [ ] 1.2 Xóa phần lưu KCT/KKKNT cũ: `Settings::TAX_RATE_KCT|KKKNT`, `exempt_tax_rates()`, `save_exempt_tax_rates()` và test của chúng (design D5)
-- [ ] 1.3 Test integration cho lưu/đọc bảng và cho `tsuat_for()` của từng nhóm (khớp, lệch, thiếu phần trăm, Khác 3.5)
+- [ ] 1.2 Test integration cho lưu/đọc bảng và cho `tsuat_for()` của từng nhóm (khớp, lệch, thiếu phần trăm, Khác 3.5)
 
 ## 2. Tra bảng khi tạo hóa đơn và mã lỗi
 
@@ -16,17 +15,18 @@ Blocked by: 1
 
 ## 3. Card ánh xạ thuế trong tab Xuất hóa đơn
 
-Blocked by: 1
+Blocked by: 2
 
 - [ ] 3.1 `TaxRateCatalog` đọc thuế suất WooCommerce; `TaxRateMapCard` dựng card (badge ×, ô chọn chỉ gồm thuế suất chưa thuộc nhóm, "(đã xóa)", hướng dẫn khi không có thuế suất) (design D2)
 - [ ] 3.2 `SettingsController`: route `tax-rate-map/add` và `tax-rate-map/remove`, trả card đã cập nhật, 422 không ghi; xóa route `tax-rates`, `tax-rates/unassign`, `ExemptTaxRateOptions` và card cũ (design D2, D5)
 - [ ] 3.3 Test integration `SettingsTaxRateMapRestTest` cho mọi scenario của `specs/admin-settings`; cập nhật `SettingsPageTest`; xóa test của card cũ
+- [ ] 3.4 Đổi e2e seam `/settings` sang `tax_map`, rồi xóa phần lưu KCT/KKKNT cũ: `Settings::TAX_RATE_KCT|KKKNT`, `exempt_tax_rates()`, `save_exempt_tax_rates()` và mọi chỗ còn dùng (design D5)
 
 ## 4. Browser E2E
 
 Blocked by: 2, 3
 
-- [ ] 4.1 `tests/e2e/setup-site.sh` và seam `/settings`: thuế suất KCT, KKKNT, 3,5%; seam ghi bảng ánh xạ theo tên thuế suất; `resetWorld` xóa bảng
+- [ ] 4.1 `tests/e2e/setup-site.sh`: thuế suất KCT, KKKNT, 3,5%; `resetWorld` thay toàn bộ bảng bằng bảng mặc định của fixture (test cần bảng trống gửi `tax_map: {}`)
 - [ ] 4.2 `tests/e2e/army/failures.army.ts`: `TSuat` 10/5/8/-1/-2/3.5 qua bảng; sản phẩm *Không* dừng `line_tax_not_configured`; thuế suất chưa ánh xạ dừng `tax_rate_mismatch`
 - [ ] 4.3 `tests/e2e/army/settings.army.ts`: thêm thuế suất vào hàng KCT và bấm × xóa qua UI; ghi lại cache replay
 
