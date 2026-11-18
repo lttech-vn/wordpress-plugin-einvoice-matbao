@@ -2,8 +2,8 @@
 
 Blocked by: none
 
-- [ ] 1.1 `TaxRateMap` (src/Invoice): bảy nhóm cố định, `TSuat` của từng nhóm, kiểm tra khớp `tsuat_for()`; `Settings::tax_rate_map()` / `save_tax_rate_map()` đọc/ghi key `tax_rate_map`, đọc phòng thủ (design D1, D3)
-- [ ] 1.2 Test integration cho lưu/đọc bảng và cho `tsuat_for()` của từng nhóm (khớp, lệch, thiếu phần trăm, Khác 3.5)
+- [x] 1.1 `TaxRateMap` (src/Invoice): bảy nhóm cố định, `TSuat` của từng nhóm, kiểm tra khớp `tsuat_for()`; `Settings::tax_rate_map()` / `save_tax_rate_map()` đọc/ghi key `tax_rate_map`, đọc phòng thủ (design D1, D3)
+- [x] 1.2 Test integration cho lưu/đọc bảng và cho `tsuat_for()` của từng nhóm (khớp, lệch, thiếu phần trăm, Khác 3.5)
 
 ## 2. Tra bảng khi tạo hóa đơn và mã lỗi
 
