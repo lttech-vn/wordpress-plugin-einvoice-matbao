@@ -9,9 +9,9 @@ Blocked by: none
 
 Blocked by: 1
 
-- [ ] 2.1 `InvoiceErrorCode`: thêm `TAX_RATE_MISMATCH`; đổi nhãn `LINE_TAX_NOT_CONFIGURED`, `LINE_TAX_RATE_COUNT`; hint ba mã thuế theo spec failure-alerts (design D4)
-- [ ] 2.2 `DraftPayloadBuilder`: kiểm tra theo thứ tự design D3, tra `TSuat` qua `TaxRateMap`, lý do lỗi theo design D4; bỏ phần gán KCT/KKKNT và ánh xạ theo phần trăm
-- [ ] 2.3 Cập nhật test integration (workflow, blocked draft, error code, monitoring title, test support) theo bảng ánh xạ; thêm test cho mọi scenario của `specs/draft-invoice-creation`, `specs/failure-alerts`, `specs/error-monitoring`
+- [x] 2.1 `InvoiceErrorCode`: thêm `TAX_RATE_MISMATCH`; đổi nhãn `LINE_TAX_NOT_CONFIGURED`, `LINE_TAX_RATE_COUNT`; hint ba mã thuế theo spec failure-alerts (design D4)
+- [x] 2.2 `DraftPayloadBuilder`: kiểm tra theo thứ tự design D3, tra `TSuat` qua `TaxRateMap`, lý do lỗi theo design D4; bỏ phần gán KCT/KKKNT và ánh xạ theo phần trăm
+- [x] 2.3 Cập nhật test integration (workflow, blocked draft, error code, monitoring title, test support) theo bảng ánh xạ; thêm test cho mọi scenario của `specs/draft-invoice-creation`, `specs/failure-alerts`, `specs/error-monitoring`
 
 ## 3. Card ánh xạ thuế trong tab Xuất hóa đơn
 
