@@ -29,6 +29,7 @@ final class InvoiceErrorCodeTest extends WP_UnitTestCase {
 			'line_type_unsupported'      => array( 'line_type_unsupported', 'data', 'failed', false ),
 			'line_amount_invalid'        => array( 'line_amount_invalid', 'data', 'failed', false ),
 			'amount_not_whole_vnd'       => array( 'amount_not_whole_vnd', 'data', 'failed', false ),
+			'line_tax_not_configured'    => array( 'line_tax_not_configured', 'data', 'failed', false ),
 			'line_tax_rate_count'        => array( 'line_tax_rate_count', 'data', 'failed', false ),
 			'tax_rate_not_stored'        => array( 'tax_rate_not_stored', 'data', 'failed', false ),
 			'tax_rate_unsupported'       => array( 'tax_rate_unsupported', 'data', 'failed', false ),
@@ -95,7 +96,7 @@ final class InvoiceErrorCodeTest extends WP_UnitTestCase {
 		sort( $listed );
 		sort( $cases );
 		$this->assertSame( $listed, $cases );
-		$this->assertCount( 34, $cases );
+		$this->assertCount( 35, $cases );
 	}
 
 	/**
@@ -145,6 +146,16 @@ final class InvoiceErrorCodeTest extends WP_UnitTestCase {
 
 		$this->assertStringContainsString( 'thuế', $hint );
 		$this->assertStringContainsString( 'Gửi lại', $hint );
+		$this->assertStringContainsString( 'Tính lại', $hint );
+	}
+
+	public function test_tax_hints_match_the_design(): void {
+		$this->assertSame( 'Cài thuế cho sản phẩm (cả biến thể), phí hoặc phương thức vận chuyển của dòng bị nêu: trạng thái thuế "Chịu thuế" và lớp thuế có thuế suất. Hàng KCT/KKKNT dùng thuế suất 0% đã gán ở tab "Xuất hóa đơn". Sau đó bấm "Tính lại" trong đơn rồi bấm "Gửi lại".', InvoiceErrorCode::LINE_TAX_NOT_CONFIGURED->hint() );
+		$this->assertSame( 'Kiểm tra lớp thuế của sản phẩm và thuế trên dòng trong đơn: lớp thuế chỉ được có một thuế suất áp dụng. Sửa rồi bấm "Tính lại" trong đơn và bấm "Gửi lại".', InvoiceErrorCode::LINE_TAX_RATE_COUNT->hint() );
+		$this->assertSame( 'Thuế suất gán KCT/KKKNT phải là 0%. Sửa thuế suất trong WooCommerce hoặc gán lại ở tab "Xuất hóa đơn", bấm "Tính lại" trong đơn rồi bấm "Gửi lại".', InvoiceErrorCode::UNTAXED_LINE_WITH_TAX->hint() );
+		$this->assertSame( 'Đổi thuế suất của dòng sang 0%, 5%, 8%, 10%, hoặc gán thuế suất 0% là KCT/KKKNT ở tab "Xuất hóa đơn", rồi bấm "Gửi lại".', InvoiceErrorCode::TAX_RATE_UNSUPPORTED->hint() );
+		$this->assertSame( 'Dòng chưa cài thuế', InvoiceErrorCode::LINE_TAX_NOT_CONFIGURED->label() );
+		$this->assertSame( 'Dòng KCT/KKKNT có tiền thuế', InvoiceErrorCode::UNTAXED_LINE_WITH_TAX->label() );
 	}
 
 	public function test_config_error_hint(): void {
