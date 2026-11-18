@@ -33,7 +33,7 @@ Mở **WooCommerce → Cài đặt → Chung** (*Settings → General*):
 | Số chữ số thập phân | `0` |
 | Bật thuế và tính thuế (*Enable tax rates and calculations*) | **Bật** |
 
-Tắt tính thuế thì đơn không lưu thuế nào và mọi dòng chịu thuế đều bị chặn với *Sản phẩm chưa được cài đặt thuế*.
+Đơn được tổng tiền khi tắt tính thuế không lưu thuế nào, nên mọi dòng chịu thuế của đơn đó bị chặn với *Sản phẩm chưa được cài đặt thuế*. Đơn đã lưu thuế từ trước vẫn gửi bình thường.
 
 Mở tab **Thuế** (*Tax*), phần **Tùy chọn thuế** (*Tax options*):
 
@@ -141,8 +141,10 @@ Mở sản phẩm → **Dữ liệu sản phẩm → Chung** (*Product data → 
 Khi hóa đơn báo *Sản phẩm chưa được cài đặt thuế*, *Sản phẩm có quá nhiều dòng thuế* hoặc *Thuế không khớp với thông tin thuế gửi tới Mắt Bão*:
 
 1. Với *chưa được cài đặt thuế* hoặc *quá nhiều dòng thuế*: mở sản phẩm/biến thể, phí hoặc phương thức vận chuyển có tên trong lỗi, kiểm tra theo [Bước 4](#bước-4-gán-thuế-cho-từng-loại-sản-phẩm). Với *Thuế không khớp*: mở card **Ánh xạ thuế Mắt Bão** theo [Bước 3](#bước-3-điền-bảng-ánh-xạ-thuế-mắt-bão), thêm thuế suất vào đúng hàng, hoặc sửa thuế suất trong WooCommerce cho khớp hàng.
-2. Mở đơn, bấm **Tính lại** (*Recalculate*). Kiểm tra dòng đã có đúng một thuế suất khớp bảng.
+2. Sau khi sửa, mở đơn, bấm **Tính lại** (*Recalculate*) rồi kiểm tra dòng đã có đúng một thuế suất khớp bảng. Riêng lỗi *Thuế không khớp* chỉ thêm vào bảng thì không cần bước này (xem đoạn dưới).
 3. Trong hộp **Hóa đơn Mắt Bão** trên đơn, bấm **Gửi lại**.
+
+**Lỗi *Thuế không khớp*:** nếu chỉ thêm hoặc đổi thuế suất trong bảng Ánh xạ, bảng được đọc lúc gửi nên chỉ cần **Gửi lại**. Nếu bạn đã sửa thuế trong WooCommerce (phần trăm, lớp thuế) hoặc lỗi ghi *đơn không lưu phần trăm* của thuế suất, bấm **Tính lại** trước, kiểm tra dòng, rồi **Gửi lại**. **Tính lại** tính lại thuế của đơn theo cấu hình hiện tại, nên chỉ bấm khi kế toán xác nhận đơn đó phải theo cấu hình mới.
 
 **Hóa đơn lỗi từ trước khi có bảng ánh xạ:** có thể còn hiện mã cũ *Thiếu thuế suất đã lưu*, *Thuế suất không hỗ trợ* hoặc *Dòng KCT/KKKNT có tiền thuế*. Gợi ý của các mã này cũng trỏ tới card **Ánh xạ thuế Mắt Bão**; xử lý như mục trên.
 

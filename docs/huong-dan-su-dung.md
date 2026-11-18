@@ -131,8 +131,8 @@ Plugin chỉ đọc thuế WooCommerce đã lưu trên đơn. Mỗi dòng chịu
 1. Chọn môi trường **Demo**, nhập thông tin đăng nhập demo của Mắt Bão, chọn mẫu demo.
 2. Đặt một đơn thử và chuyển sang **Hoàn thành**.
 3. Sau khoảng một phút (khi WP-Cron chạy), mở đơn và xem hộp **Hóa đơn Mắt Bão** báo *Đã tạo nháp*.
-4. Kiểm tra nháp trên trang demo của Mắt Bão, rồi chuyển sang **Production** và chọn mẫu thật.
-5. Trước khi dùng thật, thử thêm một đơn có dòng **KKKNT** (kiểm `TSuat = -2`) và một dòng thuế suất **Khác** (ví dụ 3,5%) trên Demo, vì hai loại này cần kiểm trên Mắt Bão.
+4. Trước khi dùng thật, thử thêm một đơn có dòng **KKKNT** (kiểm `TSuat = -2`) và một dòng thuế suất **Khác** (ví dụ 3,5%) trên Demo, vì hai loại này cần kiểm trên Mắt Bão.
+5. Kiểm tra nháp trên trang demo của Mắt Bão, rồi chuyển sang **Production** và chọn mẫu thật.
 
 ## Checkout: khách yêu cầu xuất hóa đơn
 
@@ -244,7 +244,7 @@ Cách xử lý đầy đủ của mỗi lỗi giống nhau ở mọi nơi: hộp
 | Số tiền không nguyên đồng | Có dòng tiền/thuế lẻ đồng | Sửa giá hoặc cấu hình thuế để ra số nguyên |
 | Sản phẩm chưa được cài đặt thuế | Dòng sản phẩm (kể cả 0 đồng), hoặc phí/vận chuyển có tiền, không lưu thuế suất nào (kể cả trạng thái thuế *Không*) | Cài thuế theo [Thiết lập thuế GTGT](thiet-lap-thue.md#bước-4-gán-thuế-cho-từng-loại-sản-phẩm), bấm **Tính lại** trong đơn, rồi **Gửi lại** |
 | Sản phẩm có quá nhiều dòng thuế | Dòng có hai thuế suất trở lên (thường do lớp thuế của sản phẩm có nhiều dòng thuế suất) | Chỉ giữ một dòng thuế suất trong lớp thuế, sửa thuế trên dòng trong đơn, rồi bấm **Tính lại** và **Gửi lại**. Xem [Thiết lập thuế GTGT](thiet-lap-thue.md#sửa-đơn-bị-chặn-vì-thuế) |
-| Thuế không khớp với thông tin thuế gửi tới Mắt Bão | Thuế suất của dòng không thuộc hàng nào trong bảng, hoặc không khớp hàng (sai phần trăm, dòng 0%/KCT/KKKNT có tiền thuế, hàng Khác dùng 0/5/8/10%, đơn không lưu phần trăm) | Mở tab **Xuất hóa đơn**, card **Ánh xạ thuế Mắt Bão**: thêm thuế suất vào đúng hàng hoặc sửa thuế suất trong WooCommerce cho khớp hàng, bấm **Tính lại** trong đơn, rồi **Gửi lại**. Xem [Bước 3](thiet-lap-thue.md#bước-3-điền-bảng-ánh-xạ-thuế-mắt-bão) |
+| Thuế không khớp với thông tin thuế gửi tới Mắt Bão | Thuế suất của dòng không thuộc hàng nào trong bảng, hoặc không khớp hàng (sai phần trăm, dòng 0%/KCT/KKKNT có tiền thuế, hàng Khác dùng 0/5/8/10%, đơn không lưu phần trăm) | Mở tab **Xuất hóa đơn**, card **Ánh xạ thuế Mắt Bão**: thêm thuế suất vào đúng hàng rồi bấm **Gửi lại**. Nếu đã sửa thuế trong WooCommerce hoặc đơn không lưu phần trăm, bấm **Tính lại** trong đơn trước khi **Gửi lại** (**Tính lại** dùng cấu hình thuế hiện tại). Xem [Bước 3](thiet-lap-thue.md#bước-3-điền-bảng-ánh-xạ-thuế-mắt-bão) |
 | Mã cũ: *Thiếu thuế suất đã lưu*, *Thuế suất không hỗ trợ*, *Dòng KCT/KKKNT có tiền thuế* | Chỉ còn trên hóa đơn lỗi trước khi có bảng ánh xạ | Làm theo *Thuế không khớp* ở trên: mở card **Ánh xạ thuế Mắt Bão**, bấm **Tính lại** trong đơn, rồi **Gửi lại** |
 | Tổng tiền lệch tổng đơn hàng | Tổng các dòng không khớp tổng đơn | Kiểm tra phí, giảm giá, làm tròn của đơn |
 | Mã tham chiếu quá dài | Prefix + `WC` + mã đơn vượt 20 ký tự. Mã của đơn này đã cố định nên không gửi lại được | Xuất hóa đơn tay trên Mắt Bão. Rút ngắn prefix ở tab **Xuất hóa đơn** để các đơn sau không bị lỗi này |
