@@ -37,6 +37,7 @@ final class SettingsPageTest extends WP_UnitTestCase {
 		wp_dequeue_script( SettingsPage::HANDLE );
 		wp_deregister_style( SettingsPage::HANDLE );
 		wp_deregister_script( SettingsPage::HANDLE );
+		\LTTech\EinvoiceMatbao\Monitoring\Monitor::reset_for_tests();
 		parent::tear_down();
 	}
 
@@ -235,13 +236,13 @@ final class SettingsPageTest extends WP_UnitTestCase {
 		$this->assertTrue( ( new Settings() )->monitoring_enabled() );
 		$this->assertSame( 0.25, ( new Settings() )->traces_sample_rate() );
 		$this->assertTrue( ( new CredentialStore() )->has_sentry_dsn() );
+		$this->assertSame( 'https://key@sentry.example/3', ( new CredentialStore() )->sentry_dsn() );
 		$after = SettingsPage::render_tabs( 'notifications' );
 		$this->assertStringContainsString( 'einv-sentry-dsn', $after );
 		$this->assertSame( 1, preg_match( '/name="traces_sample_rate"[^>]*value="0\.25"/', $after ) );
 		$this->assertSame( 1, preg_match( '/name="traces_sample_rate"[^>]*value="0\.25"/', $before ) );
 		$GLOBALS['wp_rest_server'] = null; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited, WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- reset.
 		remove_all_filters( 'einvoice_matbao_encryption_key' );
-		\LTTech\EinvoiceMatbao\Monitoring\Monitor::reset_for_tests();
 	}
 
 	public function test_lark_switch_is_checked_for_a_site_with_a_saved_webhook_and_unchecked_for_a_new_site(): void {

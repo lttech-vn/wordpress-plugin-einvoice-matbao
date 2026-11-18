@@ -447,10 +447,14 @@ final class SettingsTaxRateMapRestTest extends SettingsRestTestCase {
 	 * @return \DOMNodeList<\DOMNode>
 	 */
 	private function row_nodes( string $html, string $group, string $query ): \DOMNodeList {
-		$dom = new \DOMDocument();
-		libxml_use_internal_errors( true );
-		$dom->loadHTML( '<?xml encoding="utf-8"?>' . $html );
-		libxml_clear_errors();
+		$dom      = new \DOMDocument();
+		$previous = libxml_use_internal_errors( true );
+		try {
+			$dom->loadHTML( '<?xml encoding="utf-8"?>' . $html );
+		} finally {
+			libxml_clear_errors();
+			libxml_use_internal_errors( $previous );
+		}
 		$nodes = ( new \DOMXPath( $dom ) )->query( '//*[@data-einv-map-group="' . $group . '"]' . $query );
 		$this->assertInstanceOf( \DOMNodeList::class, $nodes );
 
