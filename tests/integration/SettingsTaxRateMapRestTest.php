@@ -52,14 +52,14 @@ final class SettingsTaxRateMapRestTest extends SettingsRestTestCase {
 		$this->other_id = $this->insert_rate( 'other', '3.5', 'VAT 3,5' );
 	}
 
-	public function test_forms_serialize_and_disable_their_button(): void {
+	public function test_every_form_locks_all_card_buttons_while_a_request_runs(): void {
 		( new Settings() )->save_tax_rate_map( array( 'vat10' => array( $this->ten_id ) ) );
 		$page = SettingsPage::render_tabs( 'invoicing' );
 		$html = $this->card_html( $page );
 
 		$this->assertSame( 8, substr_count( $html, '<form hx-post=' ), 'seven add forms and one remove form' );
-		$this->assertSame( 8, substr_count( $html, 'hx-sync="#einv-tax-rate-map:queue all"' ) );
-		$this->assertSame( 8, substr_count( $html, 'hx-disabled-elt="find button"' ) );
+		$this->assertStringNotContainsString( 'hx-sync', $html );
+		$this->assertSame( 8, substr_count( $html, 'hx-disabled-elt="#einv-tax-rate-map button"' ) );
 		$this->assertSame( 1, substr_count( $page, 'id="einv-tax-rate-map-notice" aria-live="polite"' ) );
 		$this->assertStringNotContainsString( 'aria-live', $html );
 	}

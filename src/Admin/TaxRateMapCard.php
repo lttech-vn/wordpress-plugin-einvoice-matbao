@@ -88,7 +88,7 @@ final class TaxRateMapCard {
 								<?php $name = isset( $by_id[ $id ] ) ? $by_id[ $id ]['name'] : '#' . $id; ?>
 								<span class="inline-flex items-center gap-1 rounded-full border border-einv-hairline bg-white px-3 py-1 text-[13px] text-einv-ink" data-einv-badge="<?php echo esc_attr( (string) $id ); ?>">
 									<?php echo esc_html( isset( $by_id[ $id ] ) ? self::badge_text( $by_id[ $id ] ) : sprintf( /* translators: %d: tax rate ID. */ __( '#%d (đã xóa)', 'einvoice-matbao' ), $id ) ); ?>
-									<form hx-post="<?php echo esc_url( $remove ); ?>" hx-target="#<?php echo esc_attr( self::ID ); ?>" hx-swap="outerHTML" hx-sync="#<?php echo esc_attr( self::ID ); ?>:queue all" hx-disabled-elt="find button" class="m-0 inline">
+									<form hx-post="<?php echo esc_url( $remove ); ?>" hx-target="#<?php echo esc_attr( self::ID ); ?>" hx-swap="outerHTML" hx-disabled-elt="#<?php echo esc_attr( self::ID ); ?> button" class="m-0 inline">
 										<input type="hidden" name="group" value="<?php echo esc_attr( $group ); ?>" />
 										<input type="hidden" name="rate_id" value="<?php echo esc_attr( (string) $id ); ?>" />
 										<button type="submit" class="cursor-pointer border-0 bg-transparent px-1 text-einv-ink-mute" aria-label="<?php echo esc_attr( sprintf( /* translators: 1: tax rate name, 2: group label. */ __( 'Bỏ %1$s khỏi %2$s', 'einvoice-matbao' ), $name, $label ) ); ?>">×</button>
@@ -97,7 +97,7 @@ final class TaxRateMapCard {
 							<?php endforeach; ?>
 						</div>
 						<?php if ( array() !== $available ) : ?>
-							<form hx-post="<?php echo esc_url( $add ); ?>" hx-target="#<?php echo esc_attr( self::ID ); ?>" hx-swap="outerHTML" hx-sync="#<?php echo esc_attr( self::ID ); ?>:queue all" hx-disabled-elt="find button" class="mt-2 flex flex-wrap items-center gap-2">
+							<form hx-post="<?php echo esc_url( $add ); ?>" hx-target="#<?php echo esc_attr( self::ID ); ?>" hx-swap="outerHTML" hx-disabled-elt="#<?php echo esc_attr( self::ID ); ?> button" class="mt-2 flex flex-wrap items-center gap-2">
 								<input type="hidden" name="group" value="<?php echo esc_attr( $group ); ?>" />
 								<label class="sr-only" for="<?php echo esc_attr( $field_id ); ?>"><?php echo esc_html( sprintf( /* translators: %s: group label. */ __( 'Thêm thuế suất vào %s', 'einvoice-matbao' ), $label ) ); ?></label>
 								<select id="<?php echo esc_attr( $field_id ); ?>" name="rate_id" class="<?php echo esc_attr( SettingsPage::FIELD ); ?>">
