@@ -86,7 +86,7 @@ Chỉ lập spec triển khai sau khi giải quyết các quyết định còn m
 - Quyết định 2026-11-12 bổ sung cho dòng trên: người mua vãng lai gửi tên, địa chỉ, số điện thoại và email từ thông tin thanh toán khi hợp lệ; trường sai hoặc trống bị bỏ qua. Có tên thanh toán thì thay `NMua_Ten` mặc định.
 - Quyết định 2026-11-12: Mắt Bão chỉ bắt buộc `NMua_Ten` (theo demo ngày 14/10/2026); các trường cá nhân/doanh nghiệp vẫn bắt buộc theo quy tắc nghiệp vụ `BuyerRules`, không theo bảng API.
 - Tiền, thuế, fee, coupon lấy từ số liệu WooCommerce đã lưu trên từng dòng. Mỗi dòng gửi giá sau giảm; không tạo dòng chiết khấu (`ThTienChuaCK = ThTien`, `TLCKhau = 0`, `STCKhau = 0`). Fee là dòng riêng.
-- `TSuat` suy từ rate WC đã lưu: 0, 5, 8, 10. `tax_status = none` thì `-1` (KCT). Rate khác (ví dụ 7%, 3.5%) thì chặn nháp và báo admin.
+- `TSuat` suy từ rate WC đã lưu: 0, 5, 8, 10. `tax_status = none` thì `-1` (KCT) *(đã bị thay thế bởi change `explicit-kct-tax-rate`: KCT/KKKNT là thuế suất 0% được gán ở tab Xuất hóa đơn; dòng không có thuế suất bị chặn)*. Rate khác (ví dụ 7%, 3.5%) thì chặn nháp và báo admin.
 - Tổng dòng phải bằng `TgThTien`, `TgTThue`, `TgTTTBSo` và `order total` WC; lệch thì chặn nháp. Không tính lại hay điều chỉnh.
 - Đơn 0 đồng: đánh dấu bỏ qua có lý do, không có nút tạo.
 - Snapshot người mua chụp khi `completed`, gửi từ snapshot. Admin sửa trước khi nháp thành công thì chụp lại.
