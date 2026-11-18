@@ -57,6 +57,15 @@ final class SettingsExemptTaxRatesTest extends WP_UnitTestCase {
 		);
 	}
 
+	public function test_int_max_string_is_accepted_and_overflow_or_leading_zeros_are_not(): void {
+		update_option(
+			Settings::OPTION,
+			array( 'kct_tax_rate_ids' => array( (string) PHP_INT_MAX, '9223372036854775808', '0009' ) )
+		);
+
+		$this->assertSame( array( PHP_INT_MAX => -1 ), ( new Settings() )->exempt_tax_rates() );
+	}
+
 	public function test_id_in_both_lists_reads_as_kkknt(): void {
 		update_option(
 			Settings::OPTION,
