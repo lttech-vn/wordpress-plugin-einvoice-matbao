@@ -137,7 +137,7 @@ Khi giám sát bật, hệ thống SHALL gửi một event lỗi kèm stacktrace
 
 #### Scenario: Readable title
 - **WHEN** đơn 901399 dừng với `line_tax_rate_count`
-- **THEN** event có message `Hóa đơn cần xử lý: Dòng không có đúng một thuế suất – Đơn #901399`
+- **THEN** event có message `Hóa đơn cần xử lý: Sản phẩm có quá nhiều dòng thuế – Đơn #901399`
 
 #### Scenario: Same error code on two orders
 - **WHEN** hai đơn khác nhau cùng dừng với `matbao_http`

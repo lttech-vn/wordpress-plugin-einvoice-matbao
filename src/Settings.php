@@ -7,11 +7,13 @@
 
 namespace LTTech\EinvoiceMatbao;
 
+use LTTech\EinvoiceMatbao\Invoice\TaxRateMap;
 use LTTech\EinvoiceMatbao\Matbao\TemplateCache;
 
 /**
- * Default template, `MTChieu` prefix, walk-in buyer name, default unit and the delete-on-uninstall
- * switch, the Lark and monitoring switches, stored in one option.
+ * Default template, `MTChieu` prefix, walk-in buyer name, default unit, the delete-on-uninstall
+ * switch, the Lark and monitoring switches, and the Mat Bao tax mapping table, stored in
+ * one option.
  * Secrets never go here; see CredentialStore.
  */
 final class Settings {
@@ -207,12 +209,70 @@ final class Settings {
 	}
 
 	/**
+	 * Mat Bao tax mapping table. Unknown groups and invalid IDs are dropped; a rate keeps the first
+	 * group in `TaxRateMap::groups()` order.
+	 *
+	 * @return array<string, list<int>> `group => tax rate IDs`; empty groups are omitted.
+	 */
+	public function tax_rate_map(): array {
+		$stored = $this->all()['tax_rate_map'] ?? array();
+		if ( ! is_array( $stored ) ) {
+			return array();
+		}
+
+		$map  = array();
+		$seen = array();
+		foreach ( TaxRateMap::groups() as $group ) {
+			$values = $stored[ $group ] ?? array();
+			if ( ! is_array( $values ) ) {
+				continue;
+			}
+
+			foreach ( $values as $value ) {
+				$id = self::parse_rate_id( $value );
+				if ( null !== $id && ! isset( $seen[ $id ] ) ) {
+					$seen[ $id ]     = true;
+					$map[ $group ][] = $id;
+				}
+			}
+		}
+
+		return $map;
+	}
+
+	/**
+	 * Replaces the tax mapping table. Callers pass valid, disjoint IDs.
+	 *
+	 * @param array<string, list<int>> $map `group => tax rate IDs`.
+	 */
+	public function save_tax_rate_map( array $map ): void {
+		$this->update( array( 'tax_rate_map' => $map ) );
+	}
+
+	/**
 	 * Merges values into the option.
 	 *
-	 * @param array<string, string> $values Values to set.
+	 * @param array<string, mixed> $values Values to set.
 	 */
 	private function update( array $values ): void {
 		update_option( self::OPTION, array_merge( $this->all(), $values ) );
+	}
+
+	/**
+	 * A positive integer tax rate ID from an int or canonical decimal string, or null.
+	 *
+	 * @param mixed $value Candidate value.
+	 */
+	public static function parse_rate_id( mixed $value ): ?int {
+		if ( is_int( $value ) ) {
+			return $value > 0 ? $value : null;
+		}
+
+		if ( is_string( $value ) && 1 === preg_match( '/^[1-9][0-9]{0,18}$/', $value ) && (string) (int) $value === $value ) {
+			return (int) $value;
+		}
+
+		return null;
 	}
 
 	/**

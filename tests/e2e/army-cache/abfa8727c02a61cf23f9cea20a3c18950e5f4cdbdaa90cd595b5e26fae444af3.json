@@ -1,6 +1,6 @@
 {
   "schemaVersion": "trace-1",
-  "createdAt": "2026-11-13T02:05:18.684Z",
+  "createdAt": "2026-11-18T12:51:54.287Z",
   "payload": {
     "actions": [
       {
@@ -28,7 +28,7 @@
       "provider": "e2e-text-agent.chat",
       "model": "gpt-6-luna"
     },
-    "summary": "Clicked “Lưu kết nối.” A success notice confirms the credentials were saved encrypted; the password remains secure and is not rendered back.",
+    "summary": "Clicked “Lưu kết nối”; a success notice appeared stating the Mat Bao connection information was saved encrypted.",
     "startPath": "/wp-admin/admin.php?page=einvoice-matbao-settings&tab=connection",
     "endPath": "/wp-admin/admin.php?page=einvoice-matbao-settings&tab=connection",
     "endAnchors": [
@@ -37,7 +37,7 @@
         "name": "Thành công: Đã lưu thông tin kết nối Mắt Bão (mã hóa)."
       }
     ],
-    "endWaitMs": 12796,
+    "endWaitMs": 13714,
     "keyedBy": {
       "cacheSchema": "trace-1",
       "policyVersion": "conservative/6",

@@ -102,7 +102,7 @@ Khi đơn chuyển sang `completed` (chỉ lúc plugin đang bật; đơn cũ kh
 
 Trạng thái, `MTChieu`, mã hóa đơn Mắt Bão và lỗi hiện trong hộp **Hóa đơn Mắt Bão** ở màn hình đơn (HPOS và legacy). Lý do tách bảng invoice/attempt và order meta: ADR [0002](adr/0002-invoice-tables-and-order-meta-split.md).
 
-Payload dùng số tiền và thuế đã lưu trên từng dòng đơn: giá sau giảm, fee và shipping là dòng riêng, `TSuat` 0/5/8/10 hoặc -1 khi tax status `none`. Tổng phải khớp tổng đơn; nếu không, không gửi gì và hóa đơn bị đánh dấu `failed`. Đơn 0 VND bị `skipped` kèm lý do.
+Payload dùng số tiền và thuế đã lưu trên từng dòng đơn: giá sau giảm, fee và shipping là dòng riêng. `TSuat` lấy từ ID thuế suất WooCommerce đã lưu trên dòng, tra qua bảng ánh xạ `TaxRateMap` (nhóm 10/8/5/0/KCT/KKKNT/Khác → `TSuat` 10/8/5/0/-1/-2/phần trăm đã lưu); không suy từ tax status, tên hay lớp thuế. Dòng không có thuế suất nào, có từ hai thuế suất trở lên, hoặc thuế suất không khớp hàng (kể cả chưa có trong bảng) bị chặn trước khi gửi. Chi tiết quy tắc và cách sửa: [Thiết lập thuế GTGT](thiet-lap-thue.md). Tổng phải khớp tổng đơn; nếu không, không gửi gì và hóa đơn bị đánh dấu `failed`. Đơn 0 VND bị `skipped` kèm lý do.
 
 Trước lần gọi create, action đọc lại đơn và cài đặt, rồi lấy danh sách mẫu của năm hóa đơn (`/api/invoice/templates`). Mẫu mặc định phải còn trong danh sách, là mẫu GTGT và còn số; nhờ vậy mẫu năm cũ bị chặn sau Tết Dương lịch. Danh sách được cache 5 phút (`TemplateCache`, một transient mỗi tài khoản và năm), bị xóa khi lưu mẫu mặc định hoặc credential, và khi mẫu không còn hoặc bị Mắt Bão từ chối.
 
@@ -136,7 +136,7 @@ Mọi lý do không tạo được nháp được lưu trên dòng invoice dư�
 
 | Kind | Status | Codes | Tự retry |
 |---|---|---|---|
-| `data` | `failed` | tiền tệ không phải VND, VND lẻ, thuế suất không hỗ trợ hoặc thiếu, nhiều thuế suất trên một dòng, lệch tổng, `MTChieu` > 20 ký tự, người mua không còn hợp lệ khi hoàn thành (`buyer_invalid`), snapshot người mua thiếu hoặc không dùng được (`buyer_snapshot_invalid`), không giải mã được CCCD (`buyer_id_unreadable`), ... | không |
+| `data` | `failed` | tiền tệ không phải VND, VND lẻ, dòng chưa cài thuế (`line_tax_not_configured`), dòng có quá nhiều thuế suất (`line_tax_rate_count`), thuế không khớp bảng ánh xạ (`tax_rate_mismatch`), lệch tổng, `MTChieu` > 20 ký tự, người mua không còn hợp lệ khi hoàn thành (`buyer_invalid`), snapshot người mua thiếu hoặc không dùng được (`buyer_snapshot_invalid`), không giải mã được CCCD (`buyer_id_unreadable`), ... | không |
 | `config` | `not_configured` | thiếu credential, thiếu mẫu, mẫu không còn hoặc hết số, Mắt Bão từ chối mẫu (`errorCode` 308/327), mẫu mặc định đổi sau một lần create không rõ kết quả (`template_changed`), thiếu khóa mã hóa khi gửi snapshot có CCCD (`buyer_id_key_missing`) | không |
 | `order` | `stopped` | đơn rời `completed`, hoàn tiền trước khi gửi | không |
 | `matbao` | `pending` → `needs_attention` | request không hoàn tất, HTTP 5xx/408/429, body 2xx không đọc được (create-invoice hoặc templates), trùng `MTChieu` 305 | có; retry create-invoice tra cứu `MTChieu` trước |
@@ -296,7 +296,7 @@ $this->assertSame( 1, $sink->request_count() );
 
 ## Quy tắc tạo nháp và giới hạn đã biết
 
-- **Tiền nguyên VND:** dòng có net, tax hoặc total lẻ bị từ chối (`failed`), bất kể `price_num_decimals`. Fee và shipping 0 đồng bị bỏ khỏi hóa đơn; dòng sản phẩm miễn phí được gửi với `TSuat` theo tax status (`none` → -1, còn lại 0).
+- **Tiền nguyên VND:** dòng có net, tax hoặc total lẻ bị từ chối (`failed`), bất kể `price_num_decimals`. Fee và shipping 0 đồng bị bỏ khỏi hóa đơn; dòng sản phẩm miễn phí được gửi với `TSuat` theo bảng ánh xạ như mọi dòng khác (cần thuế suất đã lưu, xem trên).
 - **Chiết khấu:** plugin gửi đơn giá sau giảm trong `DGia`, `TLCKhau` = `STCKhau` = 0 và `ThTienChuaCK` = `ThTien` = net. Demo chấp nhận cả shape này lẫn shape giá niêm yết (`DGia` gốc, `TLCKhau`, `STCKhau`) với cùng tổng; hóa đơn vì vậy không hiện giá gốc hay % chiết khấu. API **không** đối chiếu chéo các trường của dòng, nên `DraftPayloadBuilder` phải tự giữ số học nhất quán.
 - **`DGia` không chia hết** (net 100000, số lượng 3): làm tròn 6 chữ số thập phân; demo chấp nhận vì `ThTien` được gửi tường minh.
 - **`TgTTTBChu`** (tổng tiền bằng chữ) có dấu tiếng Việt; demo chấp nhận.

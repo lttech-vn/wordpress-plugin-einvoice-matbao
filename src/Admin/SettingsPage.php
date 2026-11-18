@@ -33,15 +33,15 @@ final class SettingsPage {
 	/** Capability required for the page and every settings route. */
 	public const CAPABILITY = 'manage_options';
 
-	private const FIELD     = 'mt-1 block w-full max-w-md rounded-einv-sm border border-einv-hairline-input bg-white px-3 py-2 text-[15px] text-einv-ink shadow-none focus:border-einv-primary focus:outline-none';
-	private const LABEL     = 'block text-[13px] font-medium text-einv-ink-secondary';
-	private const HELP      = 'mt-1 text-[13px] text-einv-ink-mute';
-	private const BUTTON    = 'inline-flex cursor-pointer items-center rounded-full border-0 bg-einv-primary px-4 py-2 text-[14px] font-normal text-white hover:bg-einv-primary-deep active:bg-einv-primary-press';
-	private const SECONDARY = 'inline-flex cursor-pointer items-center rounded-full border border-einv-hairline bg-white px-4 py-2 text-[14px] font-normal text-einv-primary hover:border-einv-primary';
-	private const CARD      = 'mb-6 rounded-einv-lg border border-einv-hairline bg-white p-6 shadow-einv-card';
-	private const TITLE     = 'm-0 mb-1 text-[20px] font-light tracking-[-0.2px] text-einv-ink';
-	private const TAB_BAR   = 'flex gap-6 overflow-x-auto border-b border-einv-hairline';
-	private const TAB_LINK  = '-mb-px whitespace-nowrap border-b-2 px-1 pb-3 pt-1 text-[14px] no-underline focus:!shadow-none focus-visible:!outline-2 focus-visible:!outline-solid focus-visible:!outline-offset-2 focus-visible:!outline-einv-primary';
+	public const FIELD     = 'mt-1 block w-full max-w-md rounded-einv-sm border border-einv-hairline-input bg-white px-3 py-2 text-[15px] text-einv-ink shadow-none focus:border-einv-primary focus:outline-none';
+	private const LABEL    = 'block text-[13px] font-medium text-einv-ink-secondary';
+	public const HELP      = 'mt-1 text-[13px] text-einv-ink-mute';
+	private const BUTTON   = 'inline-flex cursor-pointer items-center rounded-full border-0 bg-einv-primary px-4 py-2 text-[14px] font-normal text-white hover:bg-einv-primary-deep active:bg-einv-primary-press';
+	public const SECONDARY = 'inline-flex cursor-pointer items-center rounded-full border border-einv-hairline bg-white px-4 py-2 text-[14px] font-normal text-einv-primary hover:border-einv-primary';
+	public const CARD      = 'mb-6 rounded-einv-lg border border-einv-hairline bg-white p-6 shadow-einv-card';
+	public const TITLE     = 'm-0 mb-1 text-[20px] font-light tracking-[-0.2px] text-einv-ink';
+	private const TAB_BAR  = 'flex gap-6 overflow-x-auto border-b border-einv-hairline';
+	private const TAB_LINK = '-mb-px whitespace-nowrap border-b-2 px-1 pb-3 pt-1 text-[14px] no-underline focus:!shadow-none focus-visible:!outline-2 focus-visible:!outline-solid focus-visible:!outline-offset-2 focus-visible:!outline-einv-primary';
 
 	/**
 	 * Hooks the menu and assets.
@@ -235,7 +235,7 @@ final class SettingsPage {
 	}
 
 	/**
-	 * Reference prefix, walk-in buyer and unit cards.
+	 * Reference prefix, walk-in buyer, unit and tax mapping cards.
 	 */
 	private static function render_invoicing_panel(): string {
 		$settings = new Settings();
@@ -281,6 +281,9 @@ final class SettingsPage {
 					</form>
 					<div class="einv-result" aria-live="polite"></div>
 				</section>
+
+				<?php echo TaxRateMapCard::render(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in TaxRateMapCard. ?>
+				<?php echo TaxRateMapCard::notice_region(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in TaxRateMapCard. ?>
 
 		<?php
 		return (string) ob_get_clean();

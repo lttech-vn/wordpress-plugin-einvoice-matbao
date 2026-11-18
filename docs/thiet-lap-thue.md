@@ -1,6 +1,6 @@
 # Thiết lập thuế GTGT cho sản phẩm
 
-Tài liệu này hướng dẫn cấu hình thuế WooCommerce để mỗi dòng đơn hàng có đúng một thuế suất GTGT mà Mắt Bão chấp nhận: **0%, 5%, 8%, 10% hoặc KCT** (không chịu thuế).
+Tài liệu này hướng dẫn cấu hình thuế WooCommerce và bảng **Ánh xạ thuế Mắt Bão** để mỗi dòng đơn hàng có đúng một thuế suất mà Mắt Bão chấp nhận: **10%, 8%, 5%, 0%, KCT** (không chịu thuế), **KKKNT** (không kê khai, nộp thuế) hoặc **Khác** (thuế suất khác, ví dụ 3,5%).
 
 - **Cần biết trước:** quản trị WooCommerce cơ bản; biết sản phẩm nào chịu thuế suất nào (hỏi kế toán).
 - **Không bao gồm:** chọn thuế suất đúng luật cho từng mặt hàng. Đó là quyết định của kế toán.
@@ -9,17 +9,19 @@ Tài liệu này hướng dẫn cấu hình thuế WooCommerce để mỗi dòng
 
 ## Quy tắc plugin kiểm tra
 
-Với mỗi dòng sản phẩm, phí và vận chuyển:
+Với mỗi dòng sản phẩm, phí và vận chuyển, plugin đối chiếu thuế lưu trên dòng với bảng ánh xạ:
 
-| Trạng thái thuế của dòng | Thuế lưu trên dòng | Kết quả trên hóa đơn |
-|---|---|---|
-| Chịu thuế (*Taxable*) | Đúng **một** thuế suất 0, 5, 8 hoặc 10% | `TSuat` = thuế suất đó |
-| Chịu thuế | **Không có** thuế suất nào | Lỗi *Dòng không có đúng một thuế suất* |
-| Chịu thuế | **Hai** thuế suất trở lên | Lỗi *Dòng không có đúng một thuế suất* |
-| Chịu thuế | Thuế suất khác 0/5/8/10% (ví dụ 7%) | Lỗi *Thuế suất không hỗ trợ* |
-| Không chịu thuế (*None*) | Không có thuế | KCT (`TSuat = -1`) |
+| Thuế lưu trên dòng | Kết quả trên hóa đơn |
+|---|---|
+| **Không có** thuế suất nào (kể cả trạng thái *Không*) | Lỗi *Sản phẩm chưa được cài đặt thuế* |
+| **Hai** thuế suất trở lên | Lỗi *Sản phẩm có quá nhiều dòng thuế* |
+| Một thuế suất **không thuộc** hàng nào trong bảng (ví dụ 7%) | Lỗi *Thuế không khớp với thông tin thuế gửi tới Mắt Bão* |
+| Thuế suất thuộc hàng 10%, 8% hoặc 5% | `TSuat` = 10, 8 hoặc 5. Phần trăm lưu trên đơn phải đúng bằng hàng; sai thì lỗi *Thuế không khớp* |
+| Thuế suất thuộc hàng 0%, KCT hoặc KKKNT | `TSuat` = 0, -1 hoặc -2. Tiền thuế của dòng phải bằng 0; khác 0 thì lỗi *Thuế không khớp* |
+| Thuế suất thuộc hàng Khác | `TSuat` = phần trăm lưu trên đơn (ví dụ 3,5). Phần trăm phải lớn hơn 0 và khác 5, 8, 10; không thì lỗi *Thuế không khớp* |
+| Hàng 10%, 8%, 5% hoặc Khác mà đơn **không lưu phần trăm** của thuế suất | Lỗi *Thuế không khớp*; bấm **Tính lại** |
 
-Ngoại lệ: dòng sản phẩm 0 đồng chịu thuế mà không lưu thuế suất được gửi với 0%. Dòng phí/vận chuyển 0 đồng bị bỏ khỏi hóa đơn.
+Ngoại lệ: dòng phí/vận chuyển **0 đồng** (tiền hàng và tiền thuế đều 0) bị bỏ khỏi hóa đơn, kể cả khi không có thuế suất. Dòng sản phẩm 0 đồng vẫn cần thuế suất như mọi dòng khác.
 
 ## Bước 1: cấu hình chung của WooCommerce
 
@@ -31,7 +33,7 @@ Mở **WooCommerce → Cài đặt → Chung** (*Settings → General*):
 | Số chữ số thập phân | `0` |
 | Bật thuế và tính thuế (*Enable tax rates and calculations*) | **Bật** |
 
-Tắt tính thuế thì đơn không lưu thuế nào và mọi dòng chịu thuế đều bị chặn.
+Đơn được tổng tiền khi tắt tính thuế không lưu thuế nào, nên mọi dòng chịu thuế của đơn đó bị chặn với *Sản phẩm chưa được cài đặt thuế*. Đơn đã lưu thuế từ trước vẫn gửi bình thường.
 
 Mở tab **Thuế** (*Tax*), phần **Tùy chọn thuế** (*Tax options*):
 
@@ -53,6 +55,8 @@ Mỗi lớp thuế cần **đúng một dòng thuế suất** áp cho mọi đơ
 | `Giam 8` | `8` | `GTGT 8%` |
 | `Thue 5` | `5` | `GTGT 5%` |
 | `Thue 0` | `0` | `GTGT 0%` |
+| `KCT` | `0` | `KCT` |
+| `KKKNT` | `0` | `KKKNT` |
 
 Các cột còn lại của mỗi dòng:
 
@@ -63,11 +67,38 @@ Các cột còn lại của mỗi dòng:
 
 **Lưu ý:**
 
-- **Không thêm dòng thứ hai** trong cùng lớp với độ ưu tiên khác. WooCommerce sẽ cộng cả hai vào một dòng đơn → lỗi *Dòng không có đúng một thuế suất*.
+- **Không thêm dòng thứ hai** trong cùng lớp với độ ưu tiên khác. WooCommerce sẽ cộng cả hai vào một dòng đơn → lỗi *Sản phẩm có quá nhiều dòng thuế*.
 - **Thuế 0% vẫn phải có dòng thuế suất `0`.** Lớp thuế rỗng (không có dòng nào) không ra 0%; dòng đơn sẽ không có thuế suất và bị chặn.
-- **KCT không dùng lớp thuế.** Đặt trạng thái thuế của sản phẩm là *Không* (Bước 3).
+- **Lớp `KCT`, `KKKNT` chỉ chứa thuế suất 0%** để chọn vào hàng KCT/KKKNT ở Bước 3. Sản phẩm KCT/KKKNT vẫn ở trạng thái *Chịu thuế* (Bước 4).
 
-## Bước 3: gán thuế cho từng loại sản phẩm
+## Bước 3: điền bảng Ánh xạ thuế Mắt Bão
+
+Mở **Hóa đơn Mắt Bão → Xuất hóa đơn**, card **Ánh xạ thuế Mắt Bão**. Card có bảy hàng theo thứ tự **10%, 8%, 5%, 0%, KCT, KKKNT, Khác**. Mỗi hàng là một loại thuế Mắt Bão và nhận các thuế suất WooCommerce tương ứng:
+
+| Hàng | Thuế suất WooCommerce nên chọn |
+|---|---|
+| 10%, 8%, 5%, 0% | Thuế suất có đúng phần trăm của hàng (ví dụ lớp `Giam 8` → hàng 8%) |
+| KCT | Thuế suất 0% của lớp `KCT` |
+| KKKNT | Thuế suất 0% của lớp `KKKNT` |
+| Khác | Thuế suất khác 0/5/8/10% (ví dụ 3,5%); hóa đơn gửi đúng phần trăm đó |
+
+**Thao tác:**
+
+1. Chọn thuế suất trong ô chọn của hàng, bấm **Thêm**. Badge của thuế suất hiện trong hàng.
+2. Bấm **×** trên badge để bỏ thuế suất khỏi hàng.
+
+Cả hai thao tác lưu ngay, không cần nút Lưu.
+
+**Quy tắc:**
+
+- Mỗi thuế suất WooCommerce chỉ thuộc **một** hàng. Ô chọn chỉ liệt kê thuế suất chưa có trong bảng.
+- Hàng **Khác** không dùng cho 5%, 8%, 10%: các mức này phải dùng hàng riêng.
+- Thuế suất đã xóa khỏi WooCommerce vẫn hiện badge kèm **(đã xóa)**, để đơn cũ tiếp tục gửi đúng. Bấm **×** để bỏ khi không còn cần.
+- Bảng trống (ví dụ ngay sau khi nâng cấp plugin): mọi dòng có thuế bị chặn với *Thuế không khớp*. Điền bảng trước khi chạy thử.
+- Bảng được đọc lúc gửi hóa đơn: thêm thuế suất trước khi hóa đơn được gửi là đủ, không cần đặt lại đơn.
+- Chưa có thuế suất nào trong WooCommerce: card hướng dẫn tạo ở **WooCommerce → Cài đặt → Thuế** và không có nút **Thêm**.
+
+## Bước 4: gán thuế cho từng loại sản phẩm
 
 Mở sản phẩm → **Dữ liệu sản phẩm → Chung** (*Product data → General*):
 
@@ -77,34 +108,46 @@ Mở sản phẩm → **Dữ liệu sản phẩm → Chung** (*Product data → 
 | Giảm thuế còn 8% | Chịu thuế | `Giam 8` |
 | Thuế 5% | Chịu thuế | `Thue 5` |
 | Thuế 0% | Chịu thuế | `Thue 0` |
-| Không chịu thuế (KCT) | Không (*None*) | (bỏ qua) |
+| Không chịu thuế (KCT) | Chịu thuế | `KCT` |
+| Không kê khai, nộp thuế (KKKNT) | Chịu thuế | `KKKNT` |
 
 **Sản phẩm có biến thể:** mỗi biến thể có ô **Lớp thuế** riêng, mặc định *Giống sản phẩm cha* (*Same as parent*). Nếu biến thể đã đặt lớp khác, sửa lớp ở **từng biến thể** (*Variations*); đổi lớp ở sản phẩm cha không đè lên lớp biến thể đã chọn.
 
 **Đổi hàng loạt:** ở danh sách **Sản phẩm**, chọn nhiều sản phẩm → **Sửa** (*Bulk actions → Edit*) → đặt **Lớp thuế**. Sau đó mở vài sản phẩm có biến thể để chắc biến thể vẫn *Giống sản phẩm cha* hoặc đúng lớp mới.
 
+**KCT/KKKNT:** trạng thái *Không* không còn nghĩa là KCT. Sản phẩm có trạng thái *Không* bị chặn với *Sản phẩm chưa được cài đặt thuế*.
+
 **Phí (fee):** phí do plugin khác thêm vào dùng lớp thuế mà plugin đó chọn. Phí chịu thuế cũng phải ra đúng một thuế suất.
 
-## Bước 4: kiểm tra bằng đơn thử
+**Vận chuyển (shipping):** mỗi phương thức vận chuyển (WooCommerce → Cài đặt → Vận chuyển) đặt trạng thái thuế *Chịu thuế* và tick **Vận chuyển** ở rate dùng cho vận chuyển. Chọn thuế suất theo ý kiến kế toán. Vận chuyển miễn phí (0 đồng) không cần thuế.
+
+## Bước 5: kiểm tra bằng đơn thử
 
 1. Tạo đơn thử (môi trường **Demo**) với ít nhất một sản phẩm mỗi loại thuế và có vận chuyển.
-2. Mở đơn trong wp-admin. Mỗi dòng sản phẩm và vận chuyển phải có **đúng một cột thuế có số tiền**, đúng tên thuế mong đợi (ví dụ `GTGT 8%`). Dòng KCT không có thuế.
+2. Mở đơn trong wp-admin. Mỗi dòng sản phẩm và vận chuyển phải có **đúng một cột thuế có số tiền**, đúng tên thuế mong đợi (ví dụ `GTGT 8%`). Dòng KCT/KKKNT không có tiền thuế.
 3. Chuyển đơn sang **Hoàn thành**, rồi xem `TSuat` của từng dòng trong hóa đơn nháp trên Mắt Bão.
+
+**Khuyến nghị:** trước khi dùng thật, tạo thêm một nháp thử trên Demo có dòng **KKKNT** (kiểm `TSuat = -2`) và dòng **Khác** (ví dụ 3,5%), vì hai nhóm này cần kiểm trên Mắt Bão.
 
 ## Khi đổi thuế suất (ví dụ hết thời gian giảm thuế 8%)
 
 1. Đổi lớp thuế của sản phẩm (và biến thể) sang lớp mới, hoặc sửa tỷ lệ của dòng thuế suất trong lớp `Giam 8`. Không thêm dòng thứ hai vào lớp này.
-2. Đơn **mới** dùng thuế suất mới. Đơn **cũ** giữ thuế đã lưu. Chỉ bấm **Tính lại** ở đơn cũ khi kế toán xác nhận đơn đó phải theo thuế suất mới.
+2. Nếu chỉ sửa phần trăm mà thuế suất vẫn nằm ở hàng cũ (ví dụ hàng 8% nhưng thuế suất đã thành 10%), đơn mới bị chặn với *Thuế không khớp*. Chuyển thuế suất sang hàng đúng: ở card **Ánh xạ thuế Mắt Bão**, bấm **×** ở hàng cũ, rồi chọn lại thuế suất và bấm **Thêm** ở hàng mới (ví dụ hàng 10%).
+3. Đơn **mới** dùng thuế suất mới. Đơn **cũ** giữ thuế đã lưu. Chỉ bấm **Tính lại** ở đơn cũ khi kế toán xác nhận đơn đó phải theo thuế suất mới.
+4. Thuế suất đã xóa khỏi WooCommerce vẫn giữ ánh xạ (badge *(đã xóa)*) để đơn cũ gửi đúng. Chỉ bấm **×** khi chắc không còn đơn nào dùng thuế suất đó.
 
 ## Sửa đơn bị chặn vì thuế
 
-Khi hóa đơn báo *Dòng không có đúng một thuế suất*, *Thuế suất không hỗ trợ* hoặc *Thiếu thuế suất đã lưu*:
+Khi hóa đơn báo *Sản phẩm chưa được cài đặt thuế*, *Sản phẩm có quá nhiều dòng thuế* hoặc *Thuế không khớp với thông tin thuế gửi tới Mắt Bão*:
 
-1. Mở sản phẩm/biến thể có tên trong lỗi. Kiểm tra trạng thái thuế và lớp thuế theo [Bước 3](#bước-3-gán-thuế-cho-từng-loại-sản-phẩm).
-2. Kiểm tra lớp thuế đó có đúng một dòng thuế suất áp được cho địa chỉ của đơn, theo [Bước 2](#bước-2-tạo-lớp-thuế-và-thuế-suất).
-3. Mở đơn, bấm **Tính lại** (*Recalculate*). Kiểm tra dòng đã có đúng một thuế suất.
-4. Trong hộp **Hóa đơn Mắt Bão** trên đơn, bấm **Gửi lại**.
+1. Với *chưa được cài đặt thuế* hoặc *quá nhiều dòng thuế*: mở sản phẩm/biến thể, phí hoặc phương thức vận chuyển có tên trong lỗi, kiểm tra theo [Bước 4](#bước-4-gán-thuế-cho-từng-loại-sản-phẩm). Với *Thuế không khớp*: mở card **Ánh xạ thuế Mắt Bão** theo [Bước 3](#bước-3-điền-bảng-ánh-xạ-thuế-mắt-bão), thêm thuế suất vào đúng hàng, hoặc sửa thuế suất trong WooCommerce cho khớp hàng.
+2. Sau khi sửa, mở đơn, bấm **Tính lại** (*Recalculate*) rồi kiểm tra dòng đã có đúng một thuế suất khớp bảng. Riêng lỗi *Thuế không khớp* chỉ thêm vào bảng thì không cần bước này (xem đoạn dưới).
+3. Trong hộp **Hóa đơn Mắt Bão** trên đơn, bấm **Gửi lại**.
+
+**Lỗi *Thuế không khớp*:** nếu chỉ thêm hoặc đổi thuế suất trong bảng Ánh xạ, bảng được đọc lúc gửi nên chỉ cần **Gửi lại**. Nếu bạn đã sửa thuế trong WooCommerce (phần trăm, lớp thuế) hoặc lỗi ghi *đơn không lưu phần trăm* của thuế suất, bấm **Tính lại** trước, kiểm tra dòng, rồi **Gửi lại**. **Tính lại** tính lại thuế của đơn theo cấu hình hiện tại, nên chỉ bấm khi kế toán xác nhận đơn đó phải theo cấu hình mới.
+
+**Hóa đơn lỗi từ trước khi có bảng ánh xạ:** có thể còn hiện mã cũ *Thiếu thuế suất đã lưu*, *Thuế suất không hỗ trợ* hoặc *Dòng không chịu thuế có tiền thuế*. Gợi ý của các mã này cũng trỏ tới card **Ánh xạ thuế Mắt Bão**; xử lý như mục trên.
 
 **Mẹo đọc lỗi:** trong Sentry, `contexts.line.tax_rate_ids` là danh sách thuế suất lưu trên dòng. `[]` nghĩa là dòng **không có thuế suất nào**: sản phẩm chưa đúng lớp lúc tạo đơn, hoặc thuế suất không khớp địa chỉ. Hai ID trở lên nghĩa là lớp thuế có nhiều dòng thuế suất.
 
-**Bấm Tính lại mà dòng vẫn không có thuế:** nguyên nhân gần như luôn là thuế suất không khớp địa chỉ của đơn (Bước 2), hoặc biến thể vẫn dùng lớp cũ (Bước 3).
+**Bấm Tính lại mà dòng vẫn không có thuế:** nguyên nhân gần như luôn là thuế suất không khớp địa chỉ của đơn (Bước 2), hoặc biến thể vẫn dùng lớp cũ (Bước 4).

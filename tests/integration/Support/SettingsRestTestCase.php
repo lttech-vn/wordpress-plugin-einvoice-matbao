@@ -73,10 +73,10 @@ abstract class SettingsRestTestCase extends WP_UnitTestCase {
 	/**
 	 * Dispatches a plugin route like htmx does: form-encoded body plus the `X-WP-Nonce` header.
 	 *
-	 * @param string                $method HTTP method.
-	 * @param string                $route  Route below the plugin namespace, e.g. "/settings/matbao".
-	 * @param array<string, string> $params Form or query parameters.
-	 * @param string|null           $nonce  Nonce header value; defaults to a valid `wp_rest` nonce.
+	 * @param string               $method HTTP method.
+	 * @param string               $route  Route below the plugin namespace, e.g. "/settings/matbao".
+	 * @param array<string, mixed> $params Form or query parameters.
+	 * @param string|null          $nonce  Nonce header value; defaults to a valid `wp_rest` nonce.
 	 */
 	protected function htmx( string $method, string $route, array $params = array(), ?string $nonce = null ): WP_REST_Response {
 		$request = new WP_REST_Request( $method, self::NAMESPACE . $route );

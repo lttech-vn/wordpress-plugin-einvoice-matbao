@@ -1,0 +1,143 @@
+{
+  "schemaVersion": "trace-1",
+  "createdAt": "2026-11-18T12:52:48.493Z",
+  "payload": {
+    "actions": [
+      {
+        "name": "select",
+        "summary": "select \"KCT · KCT · * · 0%\" in combobox \"Thêm thuế suất vào KCT\"",
+        "target": {
+          "role": "combobox",
+          "name": "Thêm thuế suất vào KCT"
+        },
+        "value": "KCT · KCT · * · 0%"
+      },
+      {
+        "name": "tap",
+        "summary": "tap button \"Thêm\" (5 of 7)",
+        "target": {
+          "role": "button",
+          "name": "Thêm",
+          "position": {
+            "index": 4,
+            "of": 7
+          }
+        }
+      }
+    ],
+    "executor": {
+      "name": "e2e-default-agent",
+      "version": "2"
+    },
+    "recordedFor": {
+      "testId": "army/settings.army.ts::settings%20page::admin%20maps%20a%20tax%20rate%20to%20KCT%20and%20removes%20it",
+      "targetId": "chromium",
+      "instructionDigest": "229ba6e9d394324c4dbe1572ef77342557d895aad58585581fe444f8eca334dd",
+      "paramsDigest": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "callIndex": 0,
+      "agent": "admin"
+    },
+    "recordedBy": {
+      "provider": "e2e-text-agent.chat",
+      "model": "gpt-6-luna"
+    },
+    "summary": "Đã chọn thuế suất KCT trong hàng KCT và bấm Thêm. Badge “KCT · KCT · *” cùng thông báo thành công đã xuất hiện trong hàng KCT.",
+    "startPath": "/wp-admin/admin.php?page=einvoice-matbao-settings&tab=invoicing",
+    "endPath": "/wp-admin/admin.php?page=einvoice-matbao-settings&tab=invoicing",
+    "endAnchors": [
+      {
+        "role": "status",
+        "name": "Thành công: Đã thêm \"KCT\" vào KCT."
+      },
+      {
+        "role": "option",
+        "name": "VAT 7 (unsupported) · VAT 7 (unsupported) · * · 7%",
+        "states": [
+          "selected"
+        ]
+      },
+      {
+        "role": "button",
+        "name": "Bỏ KCT khỏi KCT",
+        "text": "×"
+      },
+      {
+        "role": "combobox",
+        "name": "Thêm thuế suất vào 10%",
+        "value": "2"
+      },
+      {
+        "role": "combobox",
+        "name": "Thêm thuế suất vào 8%",
+        "value": "2"
+      },
+      {
+        "role": "combobox",
+        "name": "Thêm thuế suất vào 5%",
+        "value": "2"
+      },
+      {
+        "role": "combobox",
+        "name": "Thêm thuế suất vào 0%",
+        "value": "2"
+      },
+      {
+        "text": "KCT · KCT · *"
+      }
+    ],
+    "goneAnchors": [
+      {
+        "role": "option",
+        "name": "KCT · KCT · * · 0%",
+        "states": [
+          "selected"
+        ]
+      },
+      {
+        "role": "option",
+        "name": "VAT 7 (unsupported) · VAT 7 (unsupported) · * · 7%"
+      },
+      {
+        "role": "combobox",
+        "name": "Thêm thuế suất vào 10%",
+        "value": "5"
+      },
+      {
+        "role": "combobox",
+        "name": "Thêm thuế suất vào 8%",
+        "value": "5"
+      },
+      {
+        "role": "combobox",
+        "name": "Thêm thuế suất vào 5%",
+        "value": "5"
+      },
+      {
+        "role": "combobox",
+        "name": "Thêm thuế suất vào 0%",
+        "value": "5"
+      },
+      {
+        "role": "combobox",
+        "name": "Thêm thuế suất vào KCT",
+        "value": "5"
+      },
+      {
+        "role": "combobox",
+        "name": "Thêm thuế suất vào KKKNT",
+        "value": "5"
+      }
+    ],
+    "endWaitMs": 14074,
+    "keyedBy": {
+      "cacheSchema": "trace-1",
+      "policyVersion": "conservative/6",
+      "project": "2b483fc49e5e740989e492050e28e6fb856764a2ed52d31c600d470a05baba44",
+      "platform": "web",
+      "engineName": "web",
+      "engineSpiVersion": 1,
+      "appIdentity": "2ce612fe684f904f96ec07f53bc449688a65d26e28e9999fd2a1cec1cbd6fc2d",
+      "agentContextDigest": "235c22cafecee64e40527527a5323a53e23fcc3bd4f4deb7cfcfc7cc6261bc9e"
+    }
+  }
+}

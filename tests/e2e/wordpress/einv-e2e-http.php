@@ -426,7 +426,7 @@ add_action(
 			}
 		);
 
-		// Sets plugin settings. Body: any of prefix (with walk_in), template (form and series), unit.
+		// Sets plugin settings. Body: any of prefix (with walk_in), template (form and series), unit, tax_map ({ group: rate names }, replaces the table).
 		$route(
 			'/settings',
 			static function ( WP_REST_Request $request ): array {
@@ -440,6 +440,21 @@ add_action(
 				}
 				if ( null !== $request->get_param( 'unit' ) ) {
 					$settings->save_default_unit( (string) $request->get_param( 'unit' ) );
+				}
+				$tax_map = $request->get_param( 'tax_map' );
+				if ( is_array( $tax_map ) ) {
+					// Rate names per group become the IDs of the matching WooCommerce tax rates; replaces the whole table.
+					global $wpdb;
+					$map = array();
+					foreach ( $tax_map as $group => $names ) {
+						foreach ( (array) $names as $name ) {
+							$id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT tax_rate_id FROM {$wpdb->prefix}woocommerce_tax_rates WHERE tax_rate_name = %s", (string) $name ) ); // phpcs:ignore WordPress.DB
+							if ( $id > 0 ) {
+								$map[ (string) $group ][] = $id;
+							}
+						}
+					}
+					$settings->save_tax_rate_map( $map );
 				}
 				delete_transient( 'einvoice_matbao_templates' );
 				return array( 'ok' => true );

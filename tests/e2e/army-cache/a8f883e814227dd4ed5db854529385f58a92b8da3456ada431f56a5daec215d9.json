@@ -1,6 +1,6 @@
 {
   "schemaVersion": "trace-1",
-  "createdAt": "2026-11-13T02:05:34.147Z",
+  "createdAt": "2026-11-18T12:52:13.019Z",
   "payload": {
     "actions": [
       {
@@ -37,7 +37,7 @@
       "provider": "e2e-text-agent.chat",
       "model": "gpt-6-luna"
     },
-    "summary": "Entered mã số thuế 0000000001 and clicked Lưu kết nối, leaving other fields untouched. The red alert appeared: “Lỗi: Cần nhập đủ mã số thuế, tên đăng nhập và mật khẩu.”.",
+    "summary": "Entered Mã số thuế 0000000001 and clicked Lưu kết nối, leaving the other fields untouched. The page displayed the Vietnamese error notice: “Lỗi: Cần nhập đủ mã số thuế, tên đăng nhập và mật khẩu.”.",
     "startPath": "/wp-admin/admin.php?page=einvoice-matbao-settings&tab=connection",
     "endPath": "/wp-admin/admin.php?page=einvoice-matbao-settings&tab=connection",
     "endAnchors": [
@@ -57,7 +57,7 @@
         "name": "Mã số thuế"
       }
     ],
-    "endWaitMs": 13909,
+    "endWaitMs": 13576,
     "keyedBy": {
       "cacheSchema": "trace-1",
       "policyVersion": "conservative/6",
