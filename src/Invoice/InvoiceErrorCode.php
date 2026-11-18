@@ -16,18 +16,18 @@ use LTTech\EinvoiceMatbao\Matbao\MatbaoError;
  */
 enum InvoiceErrorCode: string {
 
-	case CURRENCY_NOT_VND      = 'currency_not_vnd';
-	case NO_LINES              = 'no_lines';
-	case LINE_TYPE_UNSUPPORTED = 'line_type_unsupported';
-	case LINE_AMOUNT_INVALID   = 'line_amount_invalid';
-	case AMOUNT_NOT_WHOLE_VND  = 'amount_not_whole_vnd';
+	case CURRENCY_NOT_VND        = 'currency_not_vnd';
+	case NO_LINES                = 'no_lines';
+	case LINE_TYPE_UNSUPPORTED   = 'line_type_unsupported';
+	case LINE_AMOUNT_INVALID     = 'line_amount_invalid';
+	case AMOUNT_NOT_WHOLE_VND    = 'amount_not_whole_vnd';
 	case LINE_TAX_NOT_CONFIGURED = 'line_tax_not_configured';
-	case LINE_TAX_RATE_COUNT   = 'line_tax_rate_count';
-	case TAX_RATE_NOT_STORED   = 'tax_rate_not_stored';
-	case TAX_RATE_UNSUPPORTED  = 'tax_rate_unsupported';
-	case UNTAXED_LINE_WITH_TAX = 'untaxed_line_with_tax';
-	case TOTALS_MISMATCH       = 'totals_mismatch';
-	case REFERENCE_TOO_LONG    = 'reference_too_long';
+	case LINE_TAX_RATE_COUNT     = 'line_tax_rate_count';
+	case TAX_RATE_NOT_STORED     = 'tax_rate_not_stored';
+	case TAX_RATE_UNSUPPORTED    = 'tax_rate_unsupported';
+	case UNTAXED_LINE_WITH_TAX   = 'untaxed_line_with_tax';
+	case TOTALS_MISMATCH         = 'totals_mismatch';
+	case REFERENCE_TOO_LONG      = 'reference_too_long';
 
 	/** The buyer of a completed order no longer passes BuyerRules (billing edited after checkout). */
 	case BUYER_INVALID = 'buyer_invalid';

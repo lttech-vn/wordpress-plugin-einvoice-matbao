@@ -17,6 +17,7 @@ use LTTech\EinvoiceMatbao\Tests\Integration\Support\InvoiceWorkflowTestCase;
 use WC_Order;
 use WC_Order_Item_Fee;
 use WC_Order_Item_Product;
+use WC_Order_Item_Shipping;
 use WC_Tax;
 
 /**
@@ -337,23 +338,126 @@ final class BlockedDraftInvoiceTest extends InvoiceWorkflowTestCase {
 		$this->assert_blocked( $order, InvoiceErrorCode::LINE_AMOUNT_INVALID, 'data', InvoiceStatus::FAILED, 'Giảm tay' );
 	}
 
-	public function test_untaxed_line_with_tax_blocks_the_draft(): void {
+	public function test_not_taxable_product_is_blocked_as_not_configured(): void {
+		$this->configure_matbao();
+		$this->fake_create_invoice_ok();
+		$order = $this->create_order( array( array( $this->create_product( 'KCT cũ', '100000', '', 'none' ), 1 ) ) );
+
+		$this->complete_and_run( $order );
+
+		$this->assert_blocked( $order, InvoiceErrorCode::LINE_TAX_NOT_CONFIGURED, 'data', InvoiceStatus::FAILED, 'chưa có thuế GTGT' );
+	}
+
+	public function test_fee_without_a_stored_rate_is_blocked(): void {
 		$this->configure_matbao();
 		$this->fake_create_invoice_ok();
 		$order = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
-		$taxed = current( $order->get_items() );
-		$this->assertInstanceOf( WC_Order_Item_Product::class, $taxed );
-		$fee = new WC_Order_Item_Fee();
+		$fee   = new WC_Order_Item_Fee();
 		$fee->set_name( 'Phí lạ' );
 		$fee->set_total( '10000' );
-		$fee->set_tax_status( 'none' );
-		$fee->set_taxes( array( 'total' => $taxed->get_taxes()['total'] ) );
+		$fee->set_tax_status( 'taxable' );
+		$fee->set_taxes( false );
 		$order->add_item( $fee );
+		$order->calculate_totals( false );
 		$order->save();
 
 		$this->complete_and_run( $order );
 
-		$this->assert_blocked( $order, InvoiceErrorCode::UNTAXED_LINE_WITH_TAX, 'data', InvoiceStatus::FAILED, 'Phí lạ' );
+		$this->assert_blocked( $order, InvoiceErrorCode::LINE_TAX_NOT_CONFIGURED, 'data', InvoiceStatus::FAILED, 'Phí lạ' );
+	}
+
+	public function test_shipping_without_a_stored_rate_is_blocked(): void {
+		$this->configure_matbao();
+		$this->fake_create_invoice_ok();
+		$order    = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
+		$shipping = new WC_Order_Item_Shipping();
+		$shipping->set_method_title( 'Giao hàng' );
+		$shipping->set_total( '30000' );
+		$shipping->set_taxes( false );
+		$order->add_item( $shipping );
+		$order->calculate_totals( false );
+		$order->save();
+
+		$this->complete_and_run( $order );
+
+		$this->assert_blocked( $order, InvoiceErrorCode::LINE_TAX_NOT_CONFIGURED, 'data', InvoiceStatus::FAILED, 'Giao hàng' );
+	}
+
+	public function test_free_fee_and_shipping_without_rate_are_left_off(): void {
+		$this->configure_matbao();
+		$this->fake_create_invoice_ok();
+		$order = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
+		$fee   = new WC_Order_Item_Fee();
+		$fee->set_name( 'Phí 0 đồng' );
+		$fee->set_total( '0' );
+		$fee->set_taxes( false );
+		$order->add_item( $fee );
+		$shipping = new WC_Order_Item_Shipping();
+		$shipping->set_method_title( 'Miễn phí' );
+		$shipping->set_total( '0' );
+		$shipping->set_taxes( false );
+		$order->add_item( $shipping );
+		$order->calculate_totals( false );
+		$order->save();
+
+		$this->complete_and_run( $order );
+
+		$this->assertSame( array( 'A' ), array_column( $this->sent_invoices()[0]['DSHHDVu'], 'THHDVu' ) );
+	}
+
+	public function test_exempt_rate_with_tax_amount_is_blocked(): void {
+		// The rate was assigned KCT, then edited to 10%: the order keeps a tax amount on it.
+		$this->assert_exempt_rate_with_tax_is_blocked( true );
+	}
+
+	public function test_kkknt_rate_with_tax_amount_is_blocked(): void {
+		$this->assert_exempt_rate_with_tax_is_blocked( false );
+	}
+
+	public function test_several_rates_including_kct_are_blocked_as_rate_count(): void {
+		$this->create_tax_rate( 'einv-double', 0 );
+		WC_Tax::_insert_tax_rate(
+			array(
+				'tax_rate_country'  => '',
+				'tax_rate_state'    => '',
+				'tax_rate'          => '5',
+				'tax_rate_name'     => 'Second 5',
+				'tax_rate_priority' => 2,
+				'tax_rate_compound' => 0,
+				'tax_rate_shipping' => 1,
+				'tax_rate_order'    => 1,
+				'tax_rate_class'    => 'einv-double',
+			)
+		);
+		( new Settings() )->save_exempt_tax_rates( array( $this->rate_id_of( 'einv-double' ) ), array() );
+		$this->configure_matbao();
+		$this->fake_create_invoice_ok();
+		$order = $this->create_order( array( array( $this->create_product( 'Hai thuế', '100000', 'einv-double' ), 1 ) ) );
+		$item  = current( $order->get_items() );
+		$this->assertInstanceOf( WC_Order_Item_Product::class, $item );
+		$this->assertCount( 2, $item->get_taxes()['total'] );
+		$this->assertSame( 5000.0, (float) $order->get_total_tax() );
+
+		$this->complete_and_run( $order );
+
+		$this->assert_blocked( $order, InvoiceErrorCode::LINE_TAX_RATE_COUNT, 'data', InvoiceStatus::FAILED, 'đúng một thuế suất' );
+	}
+
+	/**
+	 * Assigns the standard 10% rate as KCT or KKKNT and expects the taxed line to block.
+	 *
+	 * @param bool $as_kct True for KCT, false for KKKNT.
+	 */
+	private function assert_exempt_rate_with_tax_is_blocked( bool $as_kct ): void {
+		$this->configure_matbao();
+		$this->fake_create_invoice_ok();
+		$order   = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
+		$rate_id = $this->rate_id_of( '' );
+		( new Settings() )->save_exempt_tax_rates( $as_kct ? array( $rate_id ) : array(), $as_kct ? array() : array( $rate_id ) );
+
+		$this->complete_and_run( $order );
+
+		$this->assert_blocked( $order, InvoiceErrorCode::UNTAXED_LINE_WITH_TAX, 'data', InvoiceStatus::FAILED, 'dùng thuế KCT/KKKNT nhưng có tiền thuế' );
 	}
 
 	public function test_line_whose_rate_percent_is_not_stored_blocks_the_draft(): void {

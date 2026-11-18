@@ -19,6 +19,9 @@ use WC_Order_Item_Shipping;
  * Builds a draft VAT invoice (`LoaiHDon=0`) from the amounts and taxes WooCommerce stored on each
  * order line; nothing is recalculated from the current tax settings.
  *
+ * `TSuat` comes only from the rate stored on the line: rates the admin assigned as KCT/KKKNT map to
+ * -1/-2, the others by their stored percent. A line without a stored rate is refused.
+ *
  * Each line is sent at its price after discounts, without discount lines
  * (`ThTienChuaCK = ThTien`, `TLCKhau = 0`, `STCKhau = 0`). Fees and shipping are separate lines.
  * The builder refuses (InvoiceDataError) instead of producing a payload that does not match the
@@ -26,9 +29,6 @@ use WC_Order_Item_Shipping;
  * order totals.
  */
 final class DraftPayloadBuilder {
-
-	/** `TSuat` for lines with tax status `none` (KCT, không chịu thuế). */
-	public const TAX_RATE_NOT_TAXABLE = -1;
 
 	/** `TSuat` values accepted from WooCommerce rates. */
 	public const ALLOWED_TAX_RATES = array( 0, 5, 8, 10 );
@@ -68,11 +68,13 @@ final class DraftPayloadBuilder {
 
 		$rates = $this->stored_rate_percents( $order );
 		// Read once per payload so the units are a snapshot of the settings when the draft is built.
-		$default_unit = ( new Settings() )->default_unit();
+		$settings     = new Settings();
+		$default_unit = $settings->default_unit();
+		$exempt       = $settings->exempt_tax_rates();
 		$lines        = array();
 		$items        = $order->get_items( array( 'line_item', 'fee', 'shipping' ) );
 		foreach ( $items as $item ) {
-			$line = $this->line( $item, count( $lines ) + 1, $rates, $default_unit );
+			$line = $this->line( $item, count( $lines ) + 1, $rates, $default_unit, $exempt );
 			if ( null !== $line ) {
 				$lines[] = $line;
 			}
@@ -130,17 +132,17 @@ final class DraftPayloadBuilder {
 	 * @param int                $index        `STT`.
 	 * @param array<int, string> $rates        Stored rate percent by tax rate ID.
 	 * @param string             $default_unit Store default `DVTinh`.
+	 * @param array<int, int>    $exempt       `TSuat` (-1 or -2) of the rates assigned KCT/KKKNT, by tax rate ID.
 	 * @return array<string, int|float|string>|null Null for a fee or shipping line of 0 đồng, which is left off.
 	 * @throws InvoiceDataError When the line has an unusable tax rate, a negative or fractional amount.
 	 */
-	private function line( WC_Order_Item $item, int $index, array $rates, string $default_unit ): ?array {
+	private function line( WC_Order_Item $item, int $index, array $rates, string $default_unit, array $exempt ): ?array {
 		$failure = LineFailure::from_item( $item );
 		$name    = $failure->name;
 		if ( $item instanceof WC_Order_Item_Product ) {
 			$quantity = (float) $item->get_quantity();
 			$net      = $item->get_total();
 			$taxes    = $item->get_taxes();
-			$taxable  = 'none' !== $item->get_tax_status();
 			$product  = $item->get_product();
 			$code     = $product instanceof \WC_Product ? (string) $product->get_sku() : '';
 			$unit     = $product instanceof \WC_Product ? ProductUnitField::unit_for( $product, $default_unit ) : $default_unit;
@@ -148,7 +150,6 @@ final class DraftPayloadBuilder {
 			$quantity = 1.0;
 			$net      = $item->get_total();
 			$taxes    = $item->get_taxes();
-			$taxable  = 'none' !== $item->get_tax_status();
 			$code     = '';
 			$unit     = $default_unit;
 		} else {
@@ -164,23 +165,11 @@ final class DraftPayloadBuilder {
 		$line_taxes = is_array( $taxes['total'] ?? null ) ? array_filter( $taxes['total'], static fn( $amount ): bool => '' !== $amount && null !== $amount ) : array();
 		$tax        = self::whole_vnd( array_sum( array_map( 'floatval', $line_taxes ) ), $failure );
 
-		if ( 0 === $net && 0 === $tax ) {
-			if ( ! $item instanceof WC_Order_Item_Product ) {
-				return null;
-			}
-			// A free product line has no tax amount, so WooCommerce may store no rate for it.
-			$rate = $taxable ? 0 : self::TAX_RATE_NOT_TAXABLE;
-			if ( $taxable && 1 === count( $line_taxes ) ) {
-				$rate = $this->rate( $failure, $line_taxes, $rates );
-			}
-		} else {
-			$rate = $taxable ? $this->rate( $failure, $line_taxes, $rates ) : self::TAX_RATE_NOT_TAXABLE;
+		if ( 0 === $net && 0 === $tax && ! $item instanceof WC_Order_Item_Product ) {
+			return null;
 		}
 
-		if ( ! $taxable && 0 !== $tax ) {
-			/* translators: %s: order line name. */
-			self::fail( InvoiceErrorCode::UNTAXED_LINE_WITH_TAX, sprintf( __( 'Dòng "%s" không chịu thuế nhưng có tiền thuế.', 'einvoice-matbao' ), $name ), $failure );
-		}
+		$rate = $this->tax_rate( $failure, $line_taxes, $tax, $rates, $exempt );
 
 		$line = array(
 			'TChat'  => self::LINE_KIND_GOODS,
@@ -207,21 +196,37 @@ final class DraftPayloadBuilder {
 	}
 
 	/**
-	 * `TSuat` of a taxable line from the single WooCommerce rate stored on it.
+	 * `TSuat` of a line from the rate stored on it, checked in the order the spec fixes.
 	 *
 	 * @param LineFailure               $line       Offending line; its name goes in the error message.
 	 * @param array<int|string, string> $line_taxes Tax amounts by rate ID.
+	 * @param int                       $tax        Whole-VND tax amount of the line.
 	 * @param array<int, string>        $rates      Stored rate percent by tax rate ID.
-	 * @throws InvoiceDataError When there is not exactly one rate or it is not 0, 5, 8 or 10.
+	 * @param array<int, int>           $exempt     `TSuat` of the rates assigned KCT/KKKNT, by tax rate ID.
+	 * @throws InvoiceDataError When the line has no rate, several rates, an exempt rate with tax, or an unusable percent.
 	 */
-	private function rate( LineFailure $line, array $line_taxes, array $rates ): int {
+	private function tax_rate( LineFailure $line, array $line_taxes, int $tax, array $rates, array $exempt ): int {
 		$name = $line->name;
+		if ( array() === $line_taxes ) {
+			/* translators: %s: order line name. */
+			self::fail( InvoiceErrorCode::LINE_TAX_NOT_CONFIGURED, sprintf( __( 'Dòng "%s" chưa có thuế GTGT.', 'einvoice-matbao' ), $name ), $line );
+		}
+
 		if ( 1 !== count( $line_taxes ) ) {
 			/* translators: %s: order line name. */
 			self::fail( InvoiceErrorCode::LINE_TAX_RATE_COUNT, sprintf( __( 'Dòng "%s" cần đúng một thuế suất GTGT.', 'einvoice-matbao' ), $name ), $line );
 		}
 
 		$rate_id = (int) array_key_first( $line_taxes );
+		if ( isset( $exempt[ $rate_id ] ) ) {
+			if ( 0 !== $tax ) {
+				/* translators: %s: order line name. */
+				self::fail( InvoiceErrorCode::UNTAXED_LINE_WITH_TAX, sprintf( __( 'Dòng "%s" dùng thuế KCT/KKKNT nhưng có tiền thuế.', 'einvoice-matbao' ), $name ), $line );
+			}
+
+			return $exempt[ $rate_id ];
+		}
+
 		$percent = $rates[ $rate_id ] ?? '';
 		if ( '' === $percent ) {
 			/* translators: %s: order line name. */

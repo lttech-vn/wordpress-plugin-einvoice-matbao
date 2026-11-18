@@ -34,6 +34,8 @@ abstract class InvoiceWorkflowTestCase extends SettingsRestTestCase {
 	protected const CLASS_EIGHT = 'einv-eight';
 	protected const CLASS_ZERO  = 'einv-zero';
 	protected const CLASS_SEVEN = 'einv-seven';
+	protected const CLASS_KCT   = 'einv-kct';
+	protected const CLASS_KKKNT = 'einv-kkknt';
 
 	public function set_up(): void {
 		parent::set_up();
@@ -49,6 +51,8 @@ abstract class InvoiceWorkflowTestCase extends SettingsRestTestCase {
 		$this->create_tax_rate( self::CLASS_EIGHT, 8 );
 		$this->create_tax_rate( self::CLASS_ZERO, 0 );
 		$this->create_tax_rate( self::CLASS_SEVEN, 7 );
+		$this->create_tax_rate( self::CLASS_KCT, 0 );
+		$this->create_tax_rate( self::CLASS_KKKNT, 0 );
 	}
 
 	/**
@@ -247,6 +251,18 @@ abstract class InvoiceWorkflowTestCase extends SettingsRestTestCase {
 				'tax_rate_class'    => $class_slug,
 			)
 		);
+	}
+
+	/**
+	 * The first tax rate ID of a tax class.
+	 *
+	 * @param string $class_slug Tax class slug, '' for standard.
+	 */
+	protected function rate_id_of( string $class_slug ): int {
+		$rates = WC_Tax::get_rates_for_tax_class( $class_slug );
+		$this->assertNotEmpty( $rates );
+
+		return (int) reset( $rates )->tax_rate_id;
 	}
 
 	/**

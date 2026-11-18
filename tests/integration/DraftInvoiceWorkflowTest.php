@@ -15,6 +15,7 @@ use LTTech\EinvoiceMatbao\Tests\Integration\Support\InvoiceWorkflowTestCase;
 use WC_Coupon;
 use WC_Order_Item_Fee;
 use WC_Order_Item_Shipping;
+use WC_Tax;
 
 /**
  * The workflow seam: real WooCommerce orders and Action Scheduler, Mat Bao faked over HTTP.
@@ -191,7 +192,8 @@ final class DraftInvoiceWorkflowTest extends InvoiceWorkflowTestCase {
 		$this->assertSame( (float) $order->get_total(), (float) $invoice['TgTTTBSo'] );
 	}
 
-	public function test_rates_map_to_tsuat_and_untaxed_products_are_kct(): void {
+	public function test_rates_map_to_tsuat_including_assigned_kct_and_kkknt(): void {
+		( new Settings() )->save_exempt_tax_rates( array( $this->rate_id_of( self::CLASS_KCT ) ), array( $this->rate_id_of( self::CLASS_KKKNT ) ) );
 		$this->configure_matbao();
 		$this->fake_create_invoice_ok();
 		$order = $this->create_order(
@@ -200,18 +202,60 @@ final class DraftInvoiceWorkflowTest extends InvoiceWorkflowTestCase {
 				array( $this->create_product( 'Năm', '100000', self::CLASS_FIVE ), 1 ),
 				array( $this->create_product( 'Tám', '100000', self::CLASS_EIGHT ), 1 ),
 				array( $this->create_product( 'Không', '100000', self::CLASS_ZERO ), 1 ),
-				array( $this->create_product( 'KCT', '100000', '', 'none' ), 1 ),
+				array( $this->create_product( 'KCT', '100000', self::CLASS_KCT ), 1 ),
+				array( $this->create_product( 'KKKNT', '100000', self::CLASS_KKKNT ), 1 ),
 			)
 		);
 
 		$this->complete_and_run( $order );
 
 		$lines = $this->sent_invoices()[0]['DSHHDVu'];
-		$this->assertSame( array( 10, 5, 8, 0, -1 ), array_column( $lines, 'TSuat' ) );
-		$this->assertSame( array( 10000, 5000, 8000, 0, 0 ), array_column( $lines, 'TThue' ) );
-		$this->assertSame( array( 1, 2, 3, 4, 5 ), array_column( $lines, 'STT' ) );
+		$this->assertSame( array( 10, 5, 8, 0, -1, -2 ), array_column( $lines, 'TSuat' ) );
+		$this->assertSame( array( 10000, 5000, 8000, 0, 0, 0 ), array_column( $lines, 'TThue' ) );
+		$this->assertSame( array( 1, 2, 3, 4, 5, 6 ), array_column( $lines, 'STT' ) );
 		$this->assertSame( 23000, $this->sent_invoices()[0]['TgTThue'] );
-		$this->assertSame( 523000, $this->sent_invoices()[0]['TgTTTBSo'] );
+		$this->assertSame( 623000, $this->sent_invoices()[0]['TgTTTBSo'] );
+	}
+
+	public function test_standard_and_additional_zero_rates_assigned_kct_both_map(): void {
+		WC_Tax::_delete_tax_rate( $this->rate_id_of( '' ) );
+		$this->create_tax_rate( '', 0 );
+		$rate_ids = array( $this->rate_id_of( '' ), $this->rate_id_of( self::CLASS_KCT ) );
+		( new Settings() )->save_exempt_tax_rates( $rate_ids, array() );
+		$this->configure_matbao();
+		$this->fake_create_invoice_ok();
+		$order = $this->create_order(
+			array(
+				array( $this->create_product( 'Chuẩn', '100000' ), 1 ),
+				array( $this->create_product( 'Lớp KCT', '100000', self::CLASS_KCT ), 1 ),
+			)
+		);
+
+		$this->complete_and_run( $order );
+
+		$this->assertSame( array( -1, -1 ), array_column( $this->sent_invoices()[0]['DSHHDVu'], 'TSuat' ) );
+	}
+
+	public function test_zero_rate_not_assigned_stays_zero(): void {
+		$this->configure_matbao();
+		$this->fake_create_invoice_ok();
+		$order = $this->create_order( array( array( $this->create_product( 'Không', '100000', self::CLASS_ZERO ), 1 ) ) );
+
+		$this->complete_and_run( $order );
+
+		$this->assertSame( array( 0 ), array_column( $this->sent_invoices()[0]['DSHHDVu'], 'TSuat' ) );
+	}
+
+	public function test_assignment_is_read_when_sending(): void {
+		$this->configure_matbao();
+		$this->fake_create_invoice_ok();
+		$order = $this->create_order( array( array( $this->create_product( 'Không', '100000', self::CLASS_ZERO ), 1 ) ) );
+		$order->update_status( 'completed' );
+
+		( new Settings() )->save_exempt_tax_rates( array( $this->rate_id_of( self::CLASS_ZERO ) ), array() );
+		$this->run_queued_draft_actions();
+
+		$this->assertSame( array( -1 ), array_column( $this->sent_invoices()[0]['DSHHDVu'], 'TSuat' ) );
 	}
 
 	public function test_fees_and_shipping_are_separate_lines_and_totals_match_the_order_total(): void {
@@ -450,34 +494,32 @@ final class DraftInvoiceWorkflowTest extends InvoiceWorkflowTestCase {
 		$this->assertSame( array( 'A' ), array_column( $this->sent_invoices()[0]['DSHHDVu'], 'THHDVu' ) );
 	}
 
-	public function test_free_product_in_a_paid_order_is_sent_with_rate_by_tax_status(): void {
+	public function test_free_product_is_sent_with_its_stored_rate(): void {
 		$this->configure_matbao();
 		$this->fake_create_invoice_ok();
 		$order = $this->create_order(
 			array(
 				array( $this->create_product( 'A', '100000' ), 1 ),
 				array( $this->create_product( 'Tặng kèm', '0' ), 1 ),
-				array( $this->create_product( 'Tặng kèm KCT', '0', '', 'none' ), 1 ),
 			)
 		);
 
 		$this->complete_and_run( $order );
 
 		$lines = $this->sent_invoices()[0]['DSHHDVu'];
-		$this->assertSame( array( 'A', 'Tặng kèm', 'Tặng kèm KCT' ), array_column( $lines, 'THHDVu' ) );
-		$this->assertSame( array( 10, 10, -1 ), array_column( $lines, 'TSuat' ) );
-		$this->assertSame( array( 100000, 0, 0 ), array_column( $lines, 'ThTien' ) );
+		$this->assertSame( array( 'A', 'Tặng kèm' ), array_column( $lines, 'THHDVu' ) );
+		$this->assertSame( array( 10, 10 ), array_column( $lines, 'TSuat' ) );
+		$this->assertSame( array( 10000, 0 ), array_column( $lines, 'TThue' ) );
 		$this->assertSame( 110000, $this->sent_invoices()[0]['TgTTTBSo'] );
 	}
 
-	public function test_free_product_without_a_stored_rate_uses_the_rate_for_its_tax_status(): void {
+	public function test_free_product_without_a_stored_rate_is_blocked(): void {
 		$this->configure_matbao();
 		$this->fake_create_invoice_ok();
 		$order = $this->create_order(
 			array(
 				array( $this->create_product( 'A', '100000' ), 1 ),
 				array( $this->create_product( 'Tặng kèm', '0' ), 1 ),
-				array( $this->create_product( 'Tặng kèm KCT', '0', '', 'none' ), 1 ),
 			)
 		);
 		foreach ( $order->get_items() as $item ) {
@@ -494,8 +536,10 @@ final class DraftInvoiceWorkflowTest extends InvoiceWorkflowTestCase {
 
 		$this->complete_and_run( $order );
 
-		$lines = $this->sent_invoices()[0]['DSHHDVu'];
-		$this->assertSame( array( 10, 0, -1 ), array_column( $lines, 'TSuat' ) );
+		$this->assertCount( 0, $this->http->requests_to( self::CREATE_ROUTE ) );
+		$record = $this->invoice_of( $order );
+		$this->assertSame( InvoiceStatus::FAILED, $record?->status );
+		$this->assertSame( 'line_tax_not_configured', $record?->error_code );
 	}
 
 	public function test_shop_without_tax_calculation_is_failed_instead_of_guessing_a_rate(): void {
@@ -509,7 +553,37 @@ final class DraftInvoiceWorkflowTest extends InvoiceWorkflowTestCase {
 		$this->assertCount( 0, $this->http->requests_to( self::CREATE_ROUTE ) );
 		$record = $this->invoice_of( $order );
 		$this->assertSame( InvoiceStatus::FAILED, $record?->status );
-		$this->assertStringContainsString( 'thuế suất', (string) $record?->status_reason );
+		$this->assertSame( 'line_tax_not_configured', $record?->error_code );
+		$this->assertStringContainsString( 'chưa có thuế GTGT', (string) $record?->status_reason );
+	}
+
+	public function test_stored_taxes_are_kept_after_tax_calculation_is_turned_off(): void {
+		$this->configure_matbao();
+		$this->fake_create_invoice_ok();
+		$order = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
+		update_option( 'woocommerce_calc_taxes', 'no' );
+
+		$this->complete_and_run( $order );
+
+		$line = $this->sent_invoices()[0]['DSHHDVu'][0];
+		$this->assertSame( 10, $line['TSuat'] );
+		$this->assertSame( 10000, $line['TThue'] );
+	}
+
+	public function test_vat_exempt_order_is_blocked(): void {
+		$this->configure_matbao();
+		$this->fake_create_invoice_ok();
+		$order = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
+		$order->update_meta_data( 'is_vat_exempt', 'yes' );
+		$order->calculate_totals();
+		$order->save();
+
+		$this->complete_and_run( $order );
+
+		$this->assertCount( 0, $this->http->requests_to( self::CREATE_ROUTE ) );
+		$record = $this->invoice_of( $order );
+		$this->assertSame( InvoiceStatus::FAILED, $record?->status );
+		$this->assertSame( 'line_tax_not_configured', $record?->error_code );
 	}
 
 	public function test_fractional_money_is_refused_whatever_the_price_decimals_setting(): void {
