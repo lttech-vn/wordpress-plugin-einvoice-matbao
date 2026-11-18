@@ -9,9 +9,9 @@ Blocked by: none
 
 Blocked by: 1
 
-- [ ] 2.1 `InvoiceErrorCode`: thêm `LINE_TAX_NOT_CONFIGURED` (kind `data`), label và hint; đổi label/hint `UNTAXED_LINE_WITH_TAX`, hint `LINE_TAX_RATE_COUNT` và `TAX_RATE_UNSUPPORTED` theo design D4
-- [ ] 2.2 `DraftPayloadBuilder::line()`/`rate()`: bỏ đọc `tax_status`, kiểm tra theo thứ tự design D3, ánh xạ KCT/KKKNT từ gán trong `Settings`
-- [ ] 2.3 Cập nhật test integration hiện có dựa vào `tax_status = none` → KCT (`DraftInvoiceWorkflowTest`, `BlockedDraftInvoiceTest`, `Monitoring/WorkflowFailureDetailTest`, `InvoiceErrorCodeTest`) và thêm test cho mọi scenario của `specs/draft-invoice-creation` cùng các scenario hint mới của `specs/failure-alerts`
+- [x] 2.1 `InvoiceErrorCode`: thêm `LINE_TAX_NOT_CONFIGURED` (kind `data`), label và hint; đổi label/hint `UNTAXED_LINE_WITH_TAX`, hint `LINE_TAX_RATE_COUNT` và `TAX_RATE_UNSUPPORTED` theo design D4
+- [x] 2.2 `DraftPayloadBuilder::line()`/`rate()`: bỏ đọc `tax_status`, kiểm tra theo thứ tự design D3, ánh xạ KCT/KKKNT từ gán trong `Settings`
+- [x] 2.3 Cập nhật test integration hiện có dựa vào `tax_status = none` → KCT (`DraftInvoiceWorkflowTest`, `BlockedDraftInvoiceTest`, `Monitoring/WorkflowFailureDetailTest`, `InvoiceErrorCodeTest`) và thêm test cho mọi scenario của `specs/draft-invoice-creation` cùng các scenario hint mới của `specs/failure-alerts`
 
 ## 3. Form gán KCT/KKKNT trong tab Xuất hóa đơn
 
