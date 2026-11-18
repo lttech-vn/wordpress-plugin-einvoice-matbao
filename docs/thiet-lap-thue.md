@@ -146,7 +146,7 @@ Khi hóa đơn báo *Sản phẩm chưa được cài đặt thuế*, *Sản ph�
 
 **Lỗi *Thuế không khớp*:** nếu chỉ thêm hoặc đổi thuế suất trong bảng Ánh xạ, bảng được đọc lúc gửi nên chỉ cần **Gửi lại**. Nếu bạn đã sửa thuế trong WooCommerce (phần trăm, lớp thuế) hoặc lỗi ghi *đơn không lưu phần trăm* của thuế suất, bấm **Tính lại** trước, kiểm tra dòng, rồi **Gửi lại**. **Tính lại** tính lại thuế của đơn theo cấu hình hiện tại, nên chỉ bấm khi kế toán xác nhận đơn đó phải theo cấu hình mới.
 
-**Hóa đơn lỗi từ trước khi có bảng ánh xạ:** có thể còn hiện mã cũ *Thiếu thuế suất đã lưu*, *Thuế suất không hỗ trợ* hoặc *Dòng KCT/KKKNT có tiền thuế*. Gợi ý của các mã này cũng trỏ tới card **Ánh xạ thuế Mắt Bão**; xử lý như mục trên.
+**Hóa đơn lỗi từ trước khi có bảng ánh xạ:** có thể còn hiện mã cũ *Thiếu thuế suất đã lưu*, *Thuế suất không hỗ trợ* hoặc *Dòng không chịu thuế có tiền thuế*. Gợi ý của các mã này cũng trỏ tới card **Ánh xạ thuế Mắt Bão**; xử lý như mục trên.
 
 **Mẹo đọc lỗi:** trong Sentry, `contexts.line.tax_rate_ids` là danh sách thuế suất lưu trên dòng. `[]` nghĩa là dòng **không có thuế suất nào**: sản phẩm chưa đúng lớp lúc tạo đơn, hoặc thuế suất không khớp địa chỉ. Hai ID trở lên nghĩa là lớp thuế có nhiều dòng thuế suất.
 

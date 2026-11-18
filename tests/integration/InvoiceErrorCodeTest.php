@@ -159,7 +159,7 @@ final class InvoiceErrorCodeTest extends WP_UnitTestCase {
 		$this->assertSame( 'Thuế không khớp với thông tin thuế gửi tới Mắt Bão', InvoiceErrorCode::TAX_RATE_MISMATCH->label() );
 		$this->assertSame( 'Thiếu thuế suất đã lưu', InvoiceErrorCode::TAX_RATE_NOT_STORED->label() );
 		$this->assertSame( 'Thuế suất không hỗ trợ', InvoiceErrorCode::TAX_RATE_UNSUPPORTED->label() );
-		$this->assertSame( 'Dòng KCT/KKKNT có tiền thuế', InvoiceErrorCode::UNTAXED_LINE_WITH_TAX->label() );
+		$this->assertSame( 'Dòng không chịu thuế có tiền thuế', InvoiceErrorCode::UNTAXED_LINE_WITH_TAX->label() );
 	}
 
 	public function test_legacy_tax_codes_point_to_the_mapping_table(): void {

@@ -228,7 +228,7 @@ enum InvoiceErrorCode: string {
 			self::TAX_RATE_MISMATCH     => __( 'Thuế không khớp với thông tin thuế gửi tới Mắt Bão', 'einvoice-matbao' ),
 			self::TAX_RATE_NOT_STORED   => __( 'Thiếu thuế suất đã lưu', 'einvoice-matbao' ),
 			self::TAX_RATE_UNSUPPORTED  => __( 'Thuế suất không hỗ trợ', 'einvoice-matbao' ),
-			self::UNTAXED_LINE_WITH_TAX => __( 'Dòng KCT/KKKNT có tiền thuế', 'einvoice-matbao' ),
+			self::UNTAXED_LINE_WITH_TAX => __( 'Dòng không chịu thuế có tiền thuế', 'einvoice-matbao' ),
 			self::TOTALS_MISMATCH       => __( 'Tổng tiền lệch tổng đơn hàng', 'einvoice-matbao' ),
 			self::REFERENCE_TOO_LONG    => __( 'Mã tham chiếu quá dài', 'einvoice-matbao' ),
 			self::BUYER_INVALID         => __( 'Thông tin người mua không hợp lệ', 'einvoice-matbao' ),
