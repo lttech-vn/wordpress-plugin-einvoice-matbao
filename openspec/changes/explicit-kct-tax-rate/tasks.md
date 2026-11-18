@@ -40,6 +40,6 @@ Blocked by: 2, 3
 
 Blocked by: 3
 
-- [ ] 6.1 `ExemptTaxRateOptions` liệt kê rate đã gán, còn tồn tại, khác 0%; route `POST /settings/tax-rates/unassign` xóa đúng phép gán đó (design D2)
-- [ ] 6.2 Card "Thuế KCT/KKKNT" hiện danh sách "đã gán nhưng không còn 0%" kèm cảnh báo và nút bỏ gán; test integration cho mọi scenario của requirement "Stale exempt assignment removal" và "Rate changed away from zero keeps its assignment"
-- [ ] 6.3 Tài liệu `docs/thiet-lap-thue.md` mục đổi thuế suất: cách bỏ gán thuế suất KCT/KKKNT đã đổi khỏi 0%
+- [x] 6.1 `ExemptTaxRateOptions` liệt kê rate đã gán, còn tồn tại, khác 0%; route `POST /settings/tax-rates/unassign` xóa đúng phép gán đó (design D2)
+- [x] 6.2 Card "Thuế KCT/KKKNT" hiện danh sách "đã gán nhưng không còn 0%" kèm cảnh báo và nút bỏ gán; test integration cho mọi scenario của requirement "Stale exempt assignment removal" và "Rate changed away from zero keeps its assignment"
+- [x] 6.3 Tài liệu `docs/thiet-lap-thue.md` mục đổi thuế suất: cách bỏ gán thuế suất KCT/KKKNT đã đổi khỏi 0%
