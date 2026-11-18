@@ -280,6 +280,98 @@ final class SettingsTaxRatesRestTest extends SettingsRestTestCase {
 		$this->assertStringNotContainsString( '<b>x</b>', $html );
 	}
 
+	public function test_stale_assignment_is_listed_with_warning_and_unassign_button(): void {
+		( new Settings() )->save_exempt_tax_rates( array( $this->kct_id ), array() );
+		WC_Tax::_update_tax_rate( $this->kct_id, array( 'tax_rate' => '10' ) );
+
+		$html  = SettingsPage::render_tabs( 'invoicing' );
+		$block = $this->stale_block( $html );
+
+		$this->assertStringContainsString( 'Miễn thuế A', $block );
+		$this->assertStringContainsString( 'kct', $block );
+		$this->assertStringContainsString( '10%', $block );
+		$this->assertStringContainsString( 'KCT', $block );
+		$this->assertStringContainsString( 'Đơn mới dùng thuế suất này sẽ bị chặn', $block );
+		$this->assertMatchesRegularExpression( '#<form hx-post="[^"]*settings/tax-rates/unassign"#', $block );
+		$this->assertStringContainsString( sprintf( '<input type="hidden" name="rate_id" value="%d"', $this->kct_id ), $block );
+		$this->assertStringNotContainsString( sprintf( 'tax_rate_kind[%d]', $this->kct_id ), $html );
+	}
+
+	public function test_unassign_removes_only_that_assignment(): void {
+		$orphan = $this->insert_rate( 'kct', '0', 'Đã xóa' );
+		( new Settings() )->save_exempt_tax_rates( array( $this->kct_id, $orphan ), array( $this->kkknt_id ) );
+		WC_Tax::_update_tax_rate( $this->kct_id, array( 'tax_rate' => '10' ) );
+		WC_Tax::_delete_tax_rate( $orphan );
+
+		$response = $this->htmx( 'POST', '/settings/tax-rates/unassign', array( 'rate_id' => (string) $this->kct_id ) );
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertStringContainsString( 'data-einv-status="success"', $this->html( $response ) );
+		$this->assertEqualsCanonicalizing(
+			array(
+				$this->kkknt_id => -2,
+				$orphan         => -1,
+			),
+			( new Settings() )->exempt_tax_rates()
+		);
+	}
+
+	public function test_unassign_rejects_invalid_targets(): void {
+		( new Settings() )->save_exempt_tax_rates( array( $this->kct_id ), array( $this->kkknt_id ) );
+		WC_Tax::_update_tax_rate( $this->kct_id, array( 'tax_rate' => '10' ) );
+		$expected = array(
+			$this->kct_id   => -1,
+			$this->kkknt_id => -2,
+		);
+
+		foreach (
+			array(
+				array( 'rate_id' => (string) $this->kkknt_id ),
+				array( 'rate_id' => (string) $this->ten_id ),
+				array( 'rate_id' => '999999' ),
+				array( 'rate_id' => 'abc' ),
+				array( 'rate_id' => '0' ),
+				array(),
+			) as $params
+		) {
+			$this->assertSame( 422, $this->htmx( 'POST', '/settings/tax-rates/unassign', $params )->get_status(), (string) wp_json_encode( $params ) );
+			$this->assertSame( $expected, ( new Settings() )->exempt_tax_rates(), (string) wp_json_encode( $params ) );
+		}
+	}
+
+	public function test_unassign_requires_permission_and_nonce(): void {
+		( new Settings() )->save_exempt_tax_rates( array( $this->kct_id ), array() );
+		WC_Tax::_update_tax_rate( $this->kct_id, array( 'tax_rate' => '10' ) );
+
+		$this->login_as( 'shop_manager' );
+		$this->assertSame( 403, $this->htmx( 'POST', '/settings/tax-rates/unassign', array( 'rate_id' => (string) $this->kct_id ) )->get_status() );
+		$this->assertSame( array( $this->kct_id => -1 ), ( new Settings() )->exempt_tax_rates() );
+
+		$this->login_as( 'administrator' );
+		$this->assertSame( 403, $this->htmx( 'POST', '/settings/tax-rates/unassign', array( 'rate_id' => (string) $this->kct_id ), 'bad-nonce' )->get_status() );
+		$this->assertSame( array( $this->kct_id => -1 ), ( new Settings() )->exempt_tax_rates() );
+	}
+
+	public function test_no_stale_block_when_nothing_is_stale(): void {
+		$orphan = $this->insert_rate( 'kct', '0', 'Đã xóa' );
+		( new Settings() )->save_exempt_tax_rates( array( $orphan ), array( $this->kkknt_id ) );
+		WC_Tax::_delete_tax_rate( $orphan );
+
+		$this->assertStringNotContainsString( 'data-einv-stale-rates', SettingsPage::render_tabs( 'invoicing' ) );
+	}
+
+	/**
+	 * The stale-assignment block of the invoicing tab, from its marker to the end of its card.
+	 *
+	 * @param string $html Invoicing tab HTML.
+	 */
+	private function stale_block( string $html ): string {
+		$start = strpos( $html, 'data-einv-stale-rates' );
+		$this->assertNotFalse( $start, 'Stale block missing' );
+
+		return substr( $html, $start, strpos( $html, '</section>', $start ) - $start );
+	}
+
 	/**
 	 * Posts `tax_rate_kind` as the form would.
 	 *

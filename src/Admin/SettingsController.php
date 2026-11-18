@@ -43,18 +43,19 @@ final class SettingsController {
 	 */
 	public static function register_routes(): void {
 		$routes = array(
-			'/settings/templates'       => array( WP_REST_Server::READABLE, 'list_templates' ),
-			'/settings/matbao'          => array( WP_REST_Server::CREATABLE, 'save_matbao' ),
-			'/settings/matbao/test'     => array( WP_REST_Server::CREATABLE, 'test_matbao' ),
-			'/settings/lark'            => array( WP_REST_Server::CREATABLE, 'save_lark' ),
-			'/settings/lark/test'       => array( WP_REST_Server::CREATABLE, 'test_lark' ),
-			'/settings/monitoring'      => array( WP_REST_Server::CREATABLE, 'save_monitoring' ),
-			'/settings/monitoring/test' => array( WP_REST_Server::CREATABLE, 'test_monitoring' ),
-			'/settings/template'        => array( WP_REST_Server::CREATABLE, 'save_template' ),
-			'/settings/invoicing'       => array( WP_REST_Server::CREATABLE, 'save_invoicing' ),
-			'/settings/unit'            => array( WP_REST_Server::CREATABLE, 'save_unit' ),
-			'/settings/tax-rates'       => array( WP_REST_Server::CREATABLE, 'save_tax_rates' ),
-			'/tabs/(?P<tab>[^/]+)'      => array( WP_REST_Server::READABLE, 'show_tab' ),
+			'/settings/templates'          => array( WP_REST_Server::READABLE, 'list_templates' ),
+			'/settings/matbao'             => array( WP_REST_Server::CREATABLE, 'save_matbao' ),
+			'/settings/matbao/test'        => array( WP_REST_Server::CREATABLE, 'test_matbao' ),
+			'/settings/lark'               => array( WP_REST_Server::CREATABLE, 'save_lark' ),
+			'/settings/lark/test'          => array( WP_REST_Server::CREATABLE, 'test_lark' ),
+			'/settings/monitoring'         => array( WP_REST_Server::CREATABLE, 'save_monitoring' ),
+			'/settings/monitoring/test'    => array( WP_REST_Server::CREATABLE, 'test_monitoring' ),
+			'/settings/template'           => array( WP_REST_Server::CREATABLE, 'save_template' ),
+			'/settings/invoicing'          => array( WP_REST_Server::CREATABLE, 'save_invoicing' ),
+			'/settings/unit'               => array( WP_REST_Server::CREATABLE, 'save_unit' ),
+			'/settings/tax-rates'          => array( WP_REST_Server::CREATABLE, 'save_tax_rates' ),
+			'/settings/tax-rates/unassign' => array( WP_REST_Server::CREATABLE, 'unassign_tax_rate' ),
+			'/tabs/(?P<tab>[^/]+)'         => array( WP_REST_Server::READABLE, 'show_tab' ),
 		);
 
 		foreach ( $routes as $route => list( $methods, $handler ) ) {
@@ -374,6 +375,36 @@ final class SettingsController {
 				$saved_kkknt
 			)
 		);
+	}
+
+	/**
+	 * Removes the KCT/KKKNT assignment of one stale rate (assigned, still existing, no longer 0%).
+	 * Other assignments, including orphans of deleted rates, are kept.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 */
+	public function unassign_tax_rate( WP_REST_Request $request ): WP_REST_Response {
+		$settings = new Settings();
+		$assigned = $settings->exempt_tax_rates();
+		$id       = Settings::parse_rate_id( self::raw_param( $request, 'rate_id' ) );
+
+		$target = null;
+		foreach ( ExemptTaxRateOptions::stale_assignments( $assigned ) as $stale ) {
+			if ( $stale['id'] === $id ) {
+				$target = $stale;
+			}
+		}
+		if ( null === $target ) {
+			return Fragment::error( __( 'Thuế suất này không cần bỏ gán. Tải lại trang rồi thử lại.', 'einvoice-matbao' ) );
+		}
+
+		unset( $assigned[ $target['id'] ] );
+		$settings->save_exempt_tax_rates(
+			array_keys( array_filter( $assigned, static fn( int $code ): bool => Settings::TAX_RATE_KCT === $code ) ),
+			array_keys( array_filter( $assigned, static fn( int $code ): bool => Settings::TAX_RATE_KKKNT === $code ) )
+		);
+
+		return Fragment::success( sprintf( /* translators: %s: tax rate name. */ __( 'Đã bỏ gán thuế suất "%s".', 'einvoice-matbao' ), $target['name'] ) );
 	}
 
 	/**

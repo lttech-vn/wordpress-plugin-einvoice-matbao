@@ -241,6 +241,7 @@ final class SettingsPage {
 		$settings   = new Settings();
 		$zero_rates = ExemptTaxRateOptions::zero_rates();
 		$assigned   = $settings->exempt_tax_rates();
+		$stale      = ExemptTaxRateOptions::stale_assignments( $assigned );
 
 		ob_start();
 		?>
@@ -312,6 +313,22 @@ final class SettingsPage {
 							<button type="submit" class="<?php echo esc_attr( self::BUTTON ); ?>"><?php esc_html_e( 'Lưu', 'einvoice-matbao' ); ?></button>
 						</form>
 						<div class="einv-result" aria-live="polite"></div>
+					<?php endif; ?>
+					<?php if ( array() !== $stale ) : ?>
+						<div data-einv-stale-rates class="mt-6 border-t border-einv-hairline pt-4">
+							<h3 class="<?php echo esc_attr( self::LABEL ); ?>"><?php esc_html_e( 'Đã gán nhưng không còn 0%', 'einvoice-matbao' ); ?></h3>
+							<p class="<?php echo esc_attr( self::HELP ); ?> mb-4"><?php esc_html_e( 'Đơn mới dùng thuế suất này sẽ bị chặn. Bỏ gán nếu thuế suất đã đổi hẳn; đơn cũ đã lưu thuế 0% sẽ xuất theo phần trăm đã lưu sau khi bỏ gán.', 'einvoice-matbao' ); ?></p>
+							<?php foreach ( $stale as $rate ) : ?>
+								<div class="flex flex-wrap items-center gap-3 py-2">
+									<span class="text-[14px] text-einv-ink"><?php echo esc_html( $rate['name'] . ' · ' . $rate['class'] . ' · ' . $rate['percent'] . '% · ' . ( Settings::TAX_RATE_KCT === $rate['code'] ? 'KCT' : 'KKKNT' ) ); ?></span>
+									<form hx-post="<?php echo esc_url( rest_url( SettingsController::NAMESPACE . '/settings/tax-rates/unassign' ) ); ?>" hx-target="#einv-stale-result" hx-swap="innerHTML">
+										<input type="hidden" name="rate_id" value="<?php echo esc_attr( (string) $rate['id'] ); ?>" />
+										<button type="submit" class="<?php echo esc_attr( self::SECONDARY ); ?>" aria-label="<?php echo esc_attr( sprintf( /* translators: %s: tax rate name. */ __( 'Bỏ gán thuế suất %s', 'einvoice-matbao' ), $rate['name'] ) ); ?>"><?php esc_html_e( 'Bỏ gán', 'einvoice-matbao' ); ?></button>
+									</form>
+								</div>
+							<?php endforeach; ?>
+							<div id="einv-stale-result" class="einv-result" aria-live="polite"></div>
+						</div>
 					<?php endif; ?>
 				</section>
 

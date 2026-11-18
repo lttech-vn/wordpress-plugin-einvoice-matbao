@@ -249,6 +249,22 @@ final class DraftInvoiceWorkflowTest extends InvoiceWorkflowTestCase {
 		$this->assertSame( array( -1 ), array_column( $this->sent_invoices()[0]['DSHHDVu'], 'TSuat' ) );
 	}
 
+	public function test_unassigned_stale_rate_maps_by_its_stored_percent(): void {
+		$rate_id = $this->rate_id_of( self::CLASS_KCT );
+		( new Settings() )->save_exempt_tax_rates( array( $rate_id ), array() );
+		WC_Tax::_update_tax_rate( $rate_id, array( 'tax_rate' => '10' ) );
+		( new Settings() )->save_exempt_tax_rates( array(), array() );
+		$this->configure_matbao();
+		$this->fake_create_invoice_ok();
+		$order = $this->create_order( array( array( $this->create_product( 'KCT', '100000', self::CLASS_KCT ), 1 ) ) );
+
+		$this->complete_and_run( $order );
+
+		$lines = $this->sent_invoices()[0]['DSHHDVu'];
+		$this->assertSame( array( 10 ), array_column( $lines, 'TSuat' ) );
+		$this->assertSame( array( 10000 ), array_column( $lines, 'TThue' ) );
+	}
+
 	public function test_zero_rate_not_assigned_stays_zero(): void {
 		$this->configure_matbao();
 		$this->fake_create_invoice_ok();

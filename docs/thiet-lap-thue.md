@@ -119,6 +119,7 @@ Mở sản phẩm → **Dữ liệu sản phẩm → Chung** (*Product data → 
 
 1. Đổi lớp thuế của sản phẩm (và biến thể) sang lớp mới, hoặc sửa tỷ lệ của dòng thuế suất trong lớp `Giam 8`. Không thêm dòng thứ hai vào lớp này.
 2. Đơn **mới** dùng thuế suất mới. Đơn **cũ** giữ thuế đã lưu. Chỉ bấm **Tính lại** ở đơn cũ khi kế toán xác nhận đơn đó phải theo thuế suất mới.
+3. Thuế suất đã gán KCT/KKKNT mà đổi khỏi 0% sẽ hiện ở mục **Đã gán nhưng không còn 0%** trong card **Thuế KCT/KKKNT** (tab Xuất hóa đơn). Đơn mới dùng thuế suất này bị chặn cho tới khi bấm **Bỏ gán**.
 
 ## Sửa đơn bị chặn vì thuế
 
