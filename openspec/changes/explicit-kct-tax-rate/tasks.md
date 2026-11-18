@@ -25,9 +25,9 @@ Blocked by: 1
 
 Blocked by: 2, 3
 
-- [ ] 4.1 `tests/e2e/setup-site.sh`: thêm lớp/rate 0% cho KCT và KKKNT, sản phẩm KCT/KKKNT; gán qua settings; giữ một sản phẩm trạng thái *Không* để kiểm lỗi
-- [ ] 4.2 `tests/e2e/army/failures.army.ts`: `TSuat` -1/-2 cho sản phẩm KCT/KKKNT, sản phẩm *Không* dừng với `line_tax_not_configured`; cập nhật fee fixture không chịu thuế nếu có
-- [ ] 4.3 `tests/e2e/army/settings.army.ts`: gán KCT trong tab Xuất hóa đơn qua UI; ghi lại cache replay
+- [x] 4.1 `tests/e2e/setup-site.sh`: thêm lớp/rate 0% cho KCT và KKKNT, sản phẩm KCT/KKKNT; gán qua settings; giữ một sản phẩm trạng thái *Không* để kiểm lỗi
+- [x] 4.2 `tests/e2e/army/failures.army.ts`: `TSuat` -1/-2 cho sản phẩm KCT/KKKNT, sản phẩm *Không* dừng với `line_tax_not_configured`; cập nhật fee fixture không chịu thuế nếu có
+- [x] 4.3 `tests/e2e/army/settings.army.ts`: gán KCT trong tab Xuất hóa đơn qua UI; ghi lại cache replay
 
 ## 5. Tài liệu
 
