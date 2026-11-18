@@ -27,7 +27,7 @@ describe("blocked drafts", { serial: false, agent: "admin" }, () => {
 		await expect(screen.getByText("Thuế suất không hỗ trợ", { exact: false }).first()).toBeVisible();
 	});
 
-	test("supported rates 0/5/8/10, KCT and KKKNT are sent with the right TSuat", async ({ app }) => {
+	test("supported rates 5/8/10, KCT and KKKNT are sent with the right TSuat", async ({ app }) => {
 		await seam({ app }, "/settings", { exempt: { kct: ["KCT"], kkknt: ["KKKNT"] } });
 		const ids: Record<string, number> = {};
 		for (const sku of ["E2E-SVC", "E2E-VAT5", "E2E-VAT8", "E2E-KCT", "E2E-KKKNT"]) ids[sku] = await completedOrder({ app }, lines(sku));

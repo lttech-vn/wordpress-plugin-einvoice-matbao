@@ -1,6 +1,6 @@
 {
   "schemaVersion": "trace-1",
-  "createdAt": "2026-11-18T08:30:21.694Z",
+  "createdAt": "2026-11-18T08:40:41.608Z",
   "payload": {
     "actions": [
       {
@@ -11,18 +11,6 @@
           "name": "KCT · KCT · *"
         },
         "value": "KCT"
-      },
-      {
-        "name": "tap",
-        "summary": "tap button \"Lưu\" (3 of 3)",
-        "target": {
-          "role": "button",
-          "name": "Lưu",
-          "position": {
-            "index": 2,
-            "of": 3
-          }
-        }
       }
     ],
     "executor": {
@@ -32,7 +20,7 @@
     "recordedFor": {
       "testId": "army/settings.army.ts::settings%20page::admin%20assigns%20KCT%20from%20the%20tax%20rate%20list",
       "targetId": "chromium",
-      "instructionDigest": "4d7b6608775eaf0b9984200c9ec62014a1de4c22d8d3a4fe2681f8d18471c2af",
+      "instructionDigest": "d638b192af2be5b870042ce785e1008e1215cf9f6db750f7d852a37cd581cea6",
       "paramsDigest": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
       "callIndex": 0,
       "agent": "admin"
@@ -41,14 +29,10 @@
       "provider": "e2e-text-agent.chat",
       "model": "gpt-6-luna"
     },
-    "summary": "Chọn KCT cho mức thuế KCT và bấm Lưu. Notice xuất hiện: “Thành công: Đã lưu. 1 thuế suất KCT, 0 thuế suất KKKNT.”.",
+    "summary": "Selected KCT in the dropdown for the KCT tax-rate row; the dropdown now shows KCT. No button was clicked.",
     "startPath": "/wp-admin/admin.php?page=einvoice-matbao-settings&tab=invoicing",
     "endPath": "/wp-admin/admin.php?page=einvoice-matbao-settings&tab=invoicing",
     "endAnchors": [
-      {
-        "role": "status",
-        "name": "Thành công: Đã lưu. 1 thuế suất KCT, 0 thuế suất KKKNT."
-      },
       {
         "role": "option",
         "name": "0%"
@@ -73,7 +57,7 @@
         "value": "vat0"
       }
     ],
-    "endWaitMs": 13951,
+    "endWaitMs": 12882,
     "keyedBy": {
       "cacheSchema": "trace-1",
       "policyVersion": "conservative/6",
