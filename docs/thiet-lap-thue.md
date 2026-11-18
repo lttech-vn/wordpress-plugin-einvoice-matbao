@@ -131,4 +131,4 @@ Khi hóa đơn báo *Dòng chưa cài thuế* (`line_tax_not_configured`), *Dòn
 
 **Mẹo đọc lỗi:** trong Sentry, `contexts.line.tax_rate_ids` là danh sách thuế suất lưu trên dòng. `[]` nghĩa là dòng **không có thuế suất nào**: sản phẩm chưa đúng lớp lúc tạo đơn, hoặc thuế suất không khớp địa chỉ. Hai ID trở lên nghĩa là lớp thuế có nhiều dòng thuế suất.
 
-**Bấm Tính lại mà dòng vẫn không có thuế:** nguyên nhân gần như luôn là thuế suất không khớp địa chỉ của đơn (Bước 2), hoặc biến thể vẫn dùng lớp cũ (Bước 3).
+**Bấm Tính lại mà dòng vẫn không có thuế:** nguyên nhân gần như luôn là thuế suất không khớp địa chỉ của đơn (Bước 2), hoặc biến thể vẫn dùng lớp cũ (Bước 4).
