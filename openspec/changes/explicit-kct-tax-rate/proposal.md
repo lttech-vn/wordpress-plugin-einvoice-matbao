@@ -1,27 +1,29 @@
 ## Why
 
-Plugin đang coi mọi dòng có trạng thái thuế *Không* là KCT, nên sản phẩm chưa cài thuế vẫn xuất hóa đơn KCT mà không ai biết. Ngược lại, thuế KCT staff đã cài trong WooCommerce (một thuế suất 0%) lại ra `TSuat = 0`, vì plugin không phân biệt được KCT với 0%. Smoke test cần sửa trước khi dùng thật, để hóa đơn luôn mang đúng thuế đã cài cho từng sản phẩm.
+Plugin đang đoán thuế: coi mọi dòng có trạng thái thuế *Không* là KCT, và suy `TSuat` từ phần trăm thuế. Hệ quả: sản phẩm chưa cài thuế vẫn ra hóa đơn KCT, còn thuế KCT staff đã cài (thuế suất 0%) lại ra `TSuat = 0`. Smoke test cần sửa trước khi dùng thật, để mọi dòng hóa đơn mang đúng thuế đã khai báo, không đoán.
 
 ## What Changes
 
-**Nhận diện KCT/KKKNT**
-- From: KCT = dòng có `tax_status = none`; không hỗ trợ KKKNT.
-- To: admin gán thuế suất 0% của WooCommerce là KCT (`TSuat = -1`) hoặc KKKNT (`TSuat = -2`) trong tab **Xuất hóa đơn**, chọn từ danh sách thuế suất có sẵn. Dòng mang thuế suất đó xuất mã tương ứng.
-- Reason: KCT/KKKNT là thuế của sản phẩm; plugin không được đoán.
-- Impact: breaking với site đang dùng trạng thái *Không* cho hàng KCT. Phải cài thuế KCT rồi tính lại đơn. Plugin đang smoke test nên không migrate.
+**Bảng ánh xạ thuế**
+- From: KCT = dòng `tax_status = none`; 10/8/5/0 suy từ phần trăm đã lưu; không hỗ trợ KKKNT và "Khác".
+- To: tab **Xuất hóa đơn** có bảng ánh xạ bảy giá trị Mắt Bão (10%, 8%, 5%, 0%, KCT, KKKNT, Khác).
+  - Mỗi giá trị chứa nhiều thuế suất WooCommerce dạng badge có dấu ×.
+  - Thêm/xóa lưu ngay.
+  - Mỗi thuế suất chỉ thuộc một giá trị.
+  - Hàng Khác gửi `TSuat` bằng phần trăm đã lưu của thuế suất.
+- Reason: khai báo tường minh, không đoán.
+- Impact: breaking. Sau khi nâng cấp, bảng trống nên mọi dòng có thuế bị chặn cho tới khi admin điền bảng. Plugin đang smoke test nên không migrate.
 
-**Dòng chưa cài thuế**
-- From: dòng `tax_status = none` → KCT; dòng chịu thuế không có thuế suất → `line_tax_rate_count`; sản phẩm 0 đồng không có thuế suất → 0% hoặc KCT theo trạng thái thuế.
-- To: mọi dòng (sản phẩm kể cả 0 đồng, phí và vận chuyển có tiền) phải có đúng một thuế suất đã lưu; phí/vận chuyển 0 đồng vẫn bị bỏ khỏi hóa đơn. Không có thuế suất nào → lỗi dữ liệu mới `line_tax_not_configured`. `line_tax_rate_count` chỉ còn cho dòng có từ hai thuế suất.
-- Reason: mỗi sản phẩm có thuế của chính nó; thiếu thuế là lỗi cài đặt cần báo.
-- Impact: breaking với đơn có dòng *Không* hoặc dòng không lưu thuế.
+**Kiểm tra dòng**
+- From: dòng *Không* → KCT; sản phẩm 0 đồng không có thuế suất → 0% hoặc KCT; thuế suất lạ → `tax_rate_unsupported`.
+- To: mọi dòng (sản phẩm kể cả 0 đồng, phí, vận chuyển có tiền) phải có đúng một thuế suất đã lưu, nằm trong bảng và khớp yêu cầu Mắt Bão.
+  - Không có thuế suất → "Sản phẩm chưa được cài đặt thuế" (mã mới `line_tax_not_configured`).
+  - Nhiều thuế suất → "Sản phẩm có quá nhiều dòng thuế" (mã `line_tax_rate_count`, đổi nhãn).
+  - Không thuộc bảng hoặc không khớp → "Thuế không khớp với thông tin thuế gửi tới Mắt Bão" (mã mới `tax_rate_mismatch`).
+- Reason: thiếu thuế hay khai báo sai là lỗi cài đặt cần báo, không tự sửa.
+- Impact: các mã `tax_rate_not_stored`, `tax_rate_unsupported`, `untaxed_line_with_tax` không còn được phát nhưng vẫn giữ trong danh mục, vì hóa đơn đã lỗi trước đó còn hiển thị chúng.
 
-**Dòng KCT/KKKNT có tiền thuế**
-- From: `untaxed_line_with_tax` cho dòng *Không* có tiền thuế.
-- To: `untaxed_line_with_tax` cho dòng mang thuế suất KCT/KKKNT mà có tiền thuế khác 0.
-- Impact: mã lỗi giữ nguyên, hint đổi theo.
-
-**Tài liệu:** `docs/thiet-lap-thue.md`, `docs/huong-dan-su-dung.md` và README hướng dẫn cài KCT/KKKNT, cài thuế cho phí/vận chuyển.
+**Tài liệu:** `docs/thiet-lap-thue.md`, `docs/huong-dan-su-dung.md`, README, `docs/discovery.md` hướng dẫn điền bảng ánh xạ.
 
 ## Capabilities
 
@@ -29,17 +31,20 @@ Plugin đang coi mọi dòng có trạng thái thuế *Không* là KCT, nên s�
 - (không có)
 
 ### Modified Capabilities
-- `draft-invoice-creation`: *VAT rate mapping* nhận diện KCT/KKKNT theo thuế suất được gán và chặn dòng chưa cài thuế; *Zero-value lines* bỏ ngoại lệ thuế của sản phẩm 0 đồng.
-- `admin-settings`: thêm requirement gán và lưu thuế suất KCT/KKKNT; *Settings grouped by tab* thêm form này vào tab `invoicing`.
-- `failure-alerts`: *Resolution hint per error code* thêm hint cho `line_tax_not_configured` và đổi hint `untaxed_line_with_tax`, `line_tax_rate_count`.
+- `draft-invoice-creation`: *VAT rate mapping* tra `TSuat` theo bảng ánh xạ và kiểm tra khớp; *Zero-value lines* bỏ ngoại lệ thuế của sản phẩm 0 đồng.
+- `admin-settings`: thêm requirement bảng ánh xạ thuế và thao tác thêm/xóa; *Settings grouped by tab* thêm bảng vào tab `invoicing`.
+- `failure-alerts`: *Resolution hint per error code* thêm hint cho hai mã mới, đổi hint `line_tax_rate_count`.
+- `error-monitoring`: scenario *Readable title* theo nhãn mới của `line_tax_rate_count`.
 
 ## Impact
 
 - Code:
-  - `src/Invoice/DraftPayloadBuilder.php`: ánh xạ thuế suất, kiểm tra dòng.
-  - `src/Invoice/InvoiceErrorCode.php`: mã mới, label/hint.
-  - `src/Settings.php`: lưu ID thuế suất KCT/KKKNT.
-  - `src/Admin/SettingsController.php`, `src/Admin/SettingsPage.php`: route và form mới.
-- API Mắt Bão: bắt đầu gửi `TSuat = -2` (KKKNT); `-1` chỉ còn từ thuế suất được gán.
-- Test: integration (`DraftInvoiceWorkflowTest`, `BlockedDraftInvoiceTest`, settings REST test, `InvoiceErrorCodeTest`), e2e (`tests/e2e/setup-site.sh`, `tests/e2e/army/failures.army.ts`).
+  - `src/Invoice/DraftPayloadBuilder.php`: tra bảng, kiểm tra khớp.
+  - `src/Invoice/InvoiceErrorCode.php`: hai mã mới, nhãn/hint.
+  - `src/Settings.php`: lưu bảng ánh xạ.
+  - `src/Admin/TaxRateMapping*.php` (mới): đọc thuế suất WooCommerce, dựng bảng.
+  - `src/Admin/SettingsController.php`, `src/Admin/SettingsPage.php`: hai route thêm/xóa, bảng htmx.
+  - Thay phần KCT/KKKNT đã code trên nhánh (card, route lưu/bỏ gán, `ExemptTaxRateOptions`, `exempt_tax_rates()`).
+- API Mắt Bão: bắt đầu gửi `TSuat = -2` (KKKNT) và phần trăm "Khác" (ví dụ `3.5`).
+- Test: integration (workflow, blocked draft, settings REST, error code), e2e (`setup-site.sh`, `failures.army.ts`, `settings.army.ts`).
 - Không thêm dependency, không đổi DB schema.
