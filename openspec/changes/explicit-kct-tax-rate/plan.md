@@ -64,7 +64,7 @@
 | `SettingsRestTestCase::htmx()` param `$params` | modified (test support) | phpdoc `array<string, mixed>` để gửi mảng lồng | no |
 | `InvoiceWorkflowTestCase`: `CLASS_KCT = 'einv-kct'`, `CLASS_KKKNT = 'einv-kkknt'`, `rate_id_of( string $class_slug ): int` | new (test support) | mỗi lớp có một rate 0% tạo trong `set_up()`; `rate_id_of` trả `tax_rate_id` đầu tiên của lớp | no |
 | `ExemptTaxRateOptions::stale_assignments( array $assigned ): list<array{id: int, name: string, class: string, percent: string, code: int}>` | new | từ map `exempt_tax_rates()`, trả các rate còn tồn tại (`WC_Tax::_get_tax_rate`) có tỷ lệ khác 0; `percent` là tỷ lệ đã định dạng, `code` là -1/-2 | no |
-| REST `POST einvoice-matbao/v1/settings/tax-rates/unassign` | new | body `rate_id` (số nguyên dương theo `Settings::parse_rate_id()`); chỉ nhận rate còn tồn tại, đã gán, khác 0%; xóa đúng phép gán đó qua `save_exempt_tax_rates()`; 200 fragment success kèm card đã cập nhật, 422 fragment error không ghi gì, 403 như route khác | yes (route admin) |
+| REST `POST einvoice-matbao/v1/settings/tax-rates/unassign` | new | body `rate_id` (số nguyên dương theo `Settings::parse_rate_id()`); chỉ nhận rate còn tồn tại, đã gán, khác 0%; xóa đúng phép gán đó qua `save_exempt_tax_rates()`; 200 fragment success chỉ gồm thông báo (yêu cầu tải lại trang để cập nhật danh sách; deviation: bản đầu ghi "kèm card đã cập nhật", đổi vì không cần OOB swap — ruling Task 6), 422 fragment error không ghi gì, 403 như route khác | yes (route admin) |
 | e2e seam `POST einv-e2e/v1/settings` | modified (test only) | nhận `exempt: { kct: string[], kkknt: string[] }` (tên rate) | no |
 
 ---
