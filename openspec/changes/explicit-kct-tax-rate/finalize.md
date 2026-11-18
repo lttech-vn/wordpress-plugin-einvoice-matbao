@@ -7,7 +7,7 @@
 
 **Change**: `explicit-kct-tax-rate`
 **Finalized at**: `2026-11-18 21:18`
-**Outcome**: `pr-updated` (pending push, see below)
+**Outcome**: `pr-created`
 
 ---
 
@@ -15,8 +15,8 @@
 
 - **Branch**: `feat/explicit-kct-tax-rate`
 - **Base branch**: `main`
-- **Final state**: `pr-updated`. The worktree branch was merged fast-forward into the feature branch (`514f186..275e793`). The push and PR wait for explicit user approval: project `AGENTS.md` says "không push, merge hay mở PR nếu chưa được user cho phép rõ trong chat". This overrides finalize steps 10–11.
-- **PR URL**: `N/A` (no remote branch or PR yet)
+- **Final state**: `pr-open`. The worktree branch was merged fast-forward into the feature branch (`514f186..275e793`). Per project `AGENTS.md` ("không push, merge hay mở PR nếu chưa được user cho phép rõ trong chat"), the push and PR waited for the user's explicit approval in chat, which was given before steps 10–11. No PR existed, so step 11 created one.
+- **PR URL**: `https://github.com/lttech-vn/wordpress-plugin-einvoice-matbao/pull/52`
 
 Deviations from the canonical steps, under project `AGENTS.md`:
 - **Step 3:** the feature branch is checked out in its own Worktrunk worktree (`../wordpress-plugin-einvoice-matbao.feat-explicit-kct-tax-rate`), not in the main checkout.
@@ -39,7 +39,7 @@ Deviations from the canonical steps, under project `AGENTS.md`:
 
 ## PR comment
 
-- **PR comment status**: `skipped (no PR)`. The branch is not pushed; this will be filled in when the PR is opened.
+- **PR comment status**: `posted` (https://github.com/lttech-vn/wordpress-plugin-einvoice-matbao/pull/52#issuecomment-6981263424)
 
 ---
 
@@ -62,9 +62,7 @@ Deviations from the canonical steps, under project `AGENTS.md`:
 
 ## Next step
 
-1. With the user's explicit approval, push `feat/explicit-kct-tax-rate`.
-2. Open the PR (suggested title `feat(draft-invoice-creation): explicit-kct-tax-rate`), and post the code-reviewer orientation comment.
-3. Wait for PR code review.
-4. After approval, run `/opsx-archive` on this feature branch and push the archive commits.
-5. Merge the PR (`gh pr merge --squash --delete-branch`), so a single merge lands implementation and archive in `main`.
-6. Before release, create a test draft on Mắt Bão Demo with a KKKNT line and a "Khác" line (see verify.md S1).
+1. Wait for PR review.
+2. After approval, run `/opsx-archive` on this feature branch (the commits land here), then push the archive commits to update the PR.
+3. Merge the PR (`gh pr merge --squash --delete-branch` or the GitHub UI). That single merge lands both the implementation and the archive into `main`.
+4. Before release, create a test draft on Mắt Bão Demo with a KKKNT line and a "Khác" line (see verify.md S1).
