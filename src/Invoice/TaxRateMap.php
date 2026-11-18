@@ -138,11 +138,17 @@ final class TaxRateMap {
 	}
 
 	/**
-	 * Numeric value of a stored percent, or null when absent or not numeric.
+	 * Numeric value of a stored percent, or null when absent, not numeric or not finite.
 	 *
 	 * @param string|null $stored Stored percent.
 	 */
 	private static function parse_percent( ?string $stored ): ?float {
-		return is_string( $stored ) && is_numeric( $stored ) ? (float) $stored : null;
+		if ( ! is_string( $stored ) || ! is_numeric( $stored ) ) {
+			return null;
+		}
+
+		$percent = (float) $stored;
+
+		return is_finite( $percent ) ? $percent : null;
 	}
 }

@@ -61,6 +61,19 @@ final class TaxRateMapTest extends WP_UnitTestCase {
 		}
 	}
 
+	public function test_non_finite_percents_are_rejected(): void {
+		$this->assertNull( TaxRateMap::tsuat_for( 'other', '1e309', 0 ) );
+		$this->assertNull( TaxRateMap::tsuat_for( 'vat10', '1e309', 1000 ) );
+		$this->assertNull( TaxRateMap::tsuat_for( 'other', 'NAN', 0 ) );
+	}
+
+	public function test_percent_tolerance_boundaries(): void {
+		$this->assertSame( 10, TaxRateMap::tsuat_for( 'vat10', '10.0000005', 1000 ) );
+		$this->assertNull( TaxRateMap::tsuat_for( 'vat10', '10.00001', 1000 ) );
+		$this->assertNull( TaxRateMap::tsuat_for( 'other', '8.0000005', 800 ) );
+		$this->assertSame( 8.00001, TaxRateMap::tsuat_for( 'other', '8.00001', 800 ) );
+	}
+
 	public function test_unknown_group(): void {
 		$this->assertNull( TaxRateMap::tsuat_for( 'vat7', '7', 700 ) );
 	}

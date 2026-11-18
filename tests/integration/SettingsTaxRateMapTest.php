@@ -34,10 +34,10 @@ final class SettingsTaxRateMapTest extends WP_UnitTestCase {
 			Settings::OPTION,
 			array(
 				'tax_rate_map' => array(
+					'vat8'  => array( 3, 6 ),
 					'vat10' => array( '3', 3, 'x', 0, -1, '0009' ),
 					'bogus' => array( 5 ),
 					'kct'   => 'oops',
-					'vat8'  => array( 3, 6 ),
 				),
 			)
 		);
