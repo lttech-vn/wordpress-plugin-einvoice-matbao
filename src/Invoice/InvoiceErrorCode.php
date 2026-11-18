@@ -23,6 +23,7 @@ enum InvoiceErrorCode: string {
 	case AMOUNT_NOT_WHOLE_VND    = 'amount_not_whole_vnd';
 	case LINE_TAX_NOT_CONFIGURED = 'line_tax_not_configured';
 	case LINE_TAX_RATE_COUNT     = 'line_tax_rate_count';
+	case TAX_RATE_MISMATCH       = 'tax_rate_mismatch';
 	case TAX_RATE_NOT_STORED     = 'tax_rate_not_stored';
 	case TAX_RATE_UNSUPPORTED    = 'tax_rate_unsupported';
 	case UNTAXED_LINE_WITH_TAX   = 'untaxed_line_with_tax';
@@ -162,6 +163,7 @@ enum InvoiceErrorCode: string {
 			self::AMOUNT_NOT_WHOLE_VND,
 			self::LINE_TAX_NOT_CONFIGURED,
 			self::LINE_TAX_RATE_COUNT,
+			self::TAX_RATE_MISMATCH,
 			self::TAX_RATE_NOT_STORED,
 			self::TAX_RATE_UNSUPPORTED,
 			self::UNTAXED_LINE_WITH_TAX,
@@ -221,8 +223,9 @@ enum InvoiceErrorCode: string {
 			self::LINE_TYPE_UNSUPPORTED => __( 'Loại dòng không hỗ trợ', 'einvoice-matbao' ),
 			self::LINE_AMOUNT_INVALID   => __( 'Số tiền hoặc số lượng không hợp lệ', 'einvoice-matbao' ),
 			self::AMOUNT_NOT_WHOLE_VND  => __( 'Số tiền không nguyên đồng', 'einvoice-matbao' ),
-			self::LINE_TAX_NOT_CONFIGURED => __( 'Dòng chưa cài thuế', 'einvoice-matbao' ),
-			self::LINE_TAX_RATE_COUNT   => __( 'Dòng không có đúng một thuế suất', 'einvoice-matbao' ),
+			self::LINE_TAX_NOT_CONFIGURED => __( 'Sản phẩm chưa được cài đặt thuế', 'einvoice-matbao' ),
+			self::LINE_TAX_RATE_COUNT   => __( 'Sản phẩm có quá nhiều dòng thuế', 'einvoice-matbao' ),
+			self::TAX_RATE_MISMATCH     => __( 'Thuế không khớp với thông tin thuế gửi tới Mắt Bão', 'einvoice-matbao' ),
 			self::TAX_RATE_NOT_STORED   => __( 'Thiếu thuế suất đã lưu', 'einvoice-matbao' ),
 			self::TAX_RATE_UNSUPPORTED  => __( 'Thuế suất không hỗ trợ', 'einvoice-matbao' ),
 			self::UNTAXED_LINE_WITH_TAX => __( 'Dòng KCT/KKKNT có tiền thuế', 'einvoice-matbao' ),
@@ -264,11 +267,12 @@ enum InvoiceErrorCode: string {
 			self::LINE_TYPE_UNSUPPORTED => __( 'Đơn có loại dòng plugin không hỗ trợ. Xóa hoặc đổi dòng đó trong đơn rồi bấm "Gửi lại", hoặc xuất tay trên Mắt Bão.', 'einvoice-matbao' ),
 			self::LINE_AMOUNT_INVALID => __( 'Sửa số tiền âm hoặc số lượng của dòng bị nêu trong đơn rồi bấm "Gửi lại".', 'einvoice-matbao' ),
 			self::AMOUNT_NOT_WHOLE_VND => __( 'Sửa giá hoặc thuế của dòng bị nêu thành số nguyên đồng rồi bấm "Gửi lại".', 'einvoice-matbao' ),
-			self::LINE_TAX_NOT_CONFIGURED => __( 'Cài thuế cho sản phẩm (cả biến thể), phí hoặc phương thức vận chuyển của dòng bị nêu: trạng thái thuế "Chịu thuế" và lớp thuế có thuế suất. Hàng KCT/KKKNT dùng thuế suất 0% đã gán ở tab "Xuất hóa đơn". Sau đó bấm "Tính lại" trong đơn rồi bấm "Gửi lại".', 'einvoice-matbao' ),
-			self::LINE_TAX_RATE_COUNT => __( 'Kiểm tra lớp thuế của sản phẩm và thuế trên dòng trong đơn: lớp thuế chỉ được có một thuế suất áp dụng. Sửa rồi bấm "Tính lại" trong đơn và bấm "Gửi lại".', 'einvoice-matbao' ),
-			self::TAX_RATE_NOT_STORED => __( 'Tính lại thuế của đơn (nút "Tính lại" trong WooCommerce) rồi bấm "Gửi lại".', 'einvoice-matbao' ),
-			self::TAX_RATE_UNSUPPORTED => __( 'Đổi thuế suất của dòng sang 0%, 5%, 8%, 10%, hoặc gán thuế suất 0% là KCT/KKKNT ở tab "Xuất hóa đơn", rồi bấm "Gửi lại".', 'einvoice-matbao' ),
-			self::UNTAXED_LINE_WITH_TAX => __( 'Thuế suất gán KCT/KKKNT phải là 0%. Sửa thuế suất trong WooCommerce hoặc gán lại ở tab "Xuất hóa đơn", bấm "Tính lại" trong đơn rồi bấm "Gửi lại".', 'einvoice-matbao' ),
+			self::LINE_TAX_NOT_CONFIGURED => __( 'Cài thuế cho sản phẩm (cả biến thể), phí hoặc phương thức vận chuyển của dòng bị nêu: trạng thái thuế "Chịu thuế" và lớp thuế có thuế suất. Sau đó bấm "Tính lại" trong đơn rồi bấm "Gửi lại".', 'einvoice-matbao' ),
+			self::LINE_TAX_RATE_COUNT => __( 'Lớp thuế của sản phẩm chỉ được có một thuế suất áp dụng cho đơn. Sửa lớp thuế, bấm "Tính lại" trong đơn rồi bấm "Gửi lại".', 'einvoice-matbao' ),
+			self::TAX_RATE_MISMATCH => __( 'Mở tab "Xuất hóa đơn", bảng "Ánh xạ thuế Mắt Bão": thêm thuế suất của dòng vào đúng nhóm, hoặc sửa thuế suất trong WooCommerce cho khớp nhóm. Bấm "Tính lại" trong đơn nếu đã sửa thuế, rồi bấm "Gửi lại".', 'einvoice-matbao' ),
+			self::TAX_RATE_NOT_STORED => __( 'Mở tab "Xuất hóa đơn", bảng "Ánh xạ thuế Mắt Bão": kiểm tra thuế suất của dòng nằm đúng nhóm, bấm "Tính lại" trong đơn rồi bấm "Gửi lại".', 'einvoice-matbao' ),
+			self::TAX_RATE_UNSUPPORTED => __( 'Mở tab "Xuất hóa đơn", bảng "Ánh xạ thuế Mắt Bão": kiểm tra thuế suất của dòng nằm đúng nhóm, bấm "Tính lại" trong đơn rồi bấm "Gửi lại".', 'einvoice-matbao' ),
+			self::UNTAXED_LINE_WITH_TAX => __( 'Mở tab "Xuất hóa đơn", bảng "Ánh xạ thuế Mắt Bão": kiểm tra thuế suất của dòng nằm đúng nhóm, bấm "Tính lại" trong đơn rồi bấm "Gửi lại".', 'einvoice-matbao' ),
 			self::TOTALS_MISMATCH => __( 'Tính lại tổng đơn (nút "Tính lại") để tổng các dòng khớp tổng đơn rồi bấm "Gửi lại".', 'einvoice-matbao' ),
 			self::REFERENCE_TOO_LONG => __( 'Mã tham chiếu của đơn này đã cố định nên không thể gửi lại. Xuất tay trên Mắt Bão. Rút ngắn tiền tố ở tab "Xuất hóa đơn" để các đơn sau không bị lỗi này.', 'einvoice-matbao' ),
 			self::BUYER_INVALID => __( 'Sửa thông tin thanh toán của đơn theo các trường bị nêu rồi bấm "Gửi lại".', 'einvoice-matbao' ),

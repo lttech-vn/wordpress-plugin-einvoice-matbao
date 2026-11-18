@@ -62,7 +62,7 @@ final class NeedsAttentionEventTest extends InvoiceWorkflowTestCase {
 		$event = $this->only_warning();
 
 		$this->assertSame(
-			'Hóa đơn cần xử lý: Dòng không có đúng một thuế suất – Đơn #' . $order->get_id(),
+			'Hóa đơn cần xử lý: Sản phẩm có quá nhiều dòng thuế – Đơn #' . $order->get_id(),
 			$event['message'] ?? $event['logentry']['formatted'] ?? null
 		);
 	}

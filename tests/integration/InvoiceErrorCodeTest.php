@@ -31,6 +31,7 @@ final class InvoiceErrorCodeTest extends WP_UnitTestCase {
 			'amount_not_whole_vnd'       => array( 'amount_not_whole_vnd', 'data', 'failed', false ),
 			'line_tax_not_configured'    => array( 'line_tax_not_configured', 'data', 'failed', false ),
 			'line_tax_rate_count'        => array( 'line_tax_rate_count', 'data', 'failed', false ),
+			'tax_rate_mismatch'          => array( 'tax_rate_mismatch', 'data', 'failed', false ),
 			'tax_rate_not_stored'        => array( 'tax_rate_not_stored', 'data', 'failed', false ),
 			'tax_rate_unsupported'       => array( 'tax_rate_unsupported', 'data', 'failed', false ),
 			'untaxed_line_with_tax'      => array( 'untaxed_line_with_tax', 'data', 'failed', false ),
@@ -96,7 +97,7 @@ final class InvoiceErrorCodeTest extends WP_UnitTestCase {
 		sort( $listed );
 		sort( $cases );
 		$this->assertSame( $listed, $cases );
-		$this->assertCount( 35, $cases );
+		$this->assertCount( 36, $cases );
 	}
 
 	/**
@@ -150,12 +151,23 @@ final class InvoiceErrorCodeTest extends WP_UnitTestCase {
 	}
 
 	public function test_tax_hints_match_the_design(): void {
-		$this->assertSame( 'Cài thuế cho sản phẩm (cả biến thể), phí hoặc phương thức vận chuyển của dòng bị nêu: trạng thái thuế "Chịu thuế" và lớp thuế có thuế suất. Hàng KCT/KKKNT dùng thuế suất 0% đã gán ở tab "Xuất hóa đơn". Sau đó bấm "Tính lại" trong đơn rồi bấm "Gửi lại".', InvoiceErrorCode::LINE_TAX_NOT_CONFIGURED->hint() );
-		$this->assertSame( 'Kiểm tra lớp thuế của sản phẩm và thuế trên dòng trong đơn: lớp thuế chỉ được có một thuế suất áp dụng. Sửa rồi bấm "Tính lại" trong đơn và bấm "Gửi lại".', InvoiceErrorCode::LINE_TAX_RATE_COUNT->hint() );
-		$this->assertSame( 'Thuế suất gán KCT/KKKNT phải là 0%. Sửa thuế suất trong WooCommerce hoặc gán lại ở tab "Xuất hóa đơn", bấm "Tính lại" trong đơn rồi bấm "Gửi lại".', InvoiceErrorCode::UNTAXED_LINE_WITH_TAX->hint() );
-		$this->assertSame( 'Đổi thuế suất của dòng sang 0%, 5%, 8%, 10%, hoặc gán thuế suất 0% là KCT/KKKNT ở tab "Xuất hóa đơn", rồi bấm "Gửi lại".', InvoiceErrorCode::TAX_RATE_UNSUPPORTED->hint() );
-		$this->assertSame( 'Dòng chưa cài thuế', InvoiceErrorCode::LINE_TAX_NOT_CONFIGURED->label() );
+		$this->assertSame( 'Cài thuế cho sản phẩm (cả biến thể), phí hoặc phương thức vận chuyển của dòng bị nêu: trạng thái thuế "Chịu thuế" và lớp thuế có thuế suất. Sau đó bấm "Tính lại" trong đơn rồi bấm "Gửi lại".', InvoiceErrorCode::LINE_TAX_NOT_CONFIGURED->hint() );
+		$this->assertSame( 'Lớp thuế của sản phẩm chỉ được có một thuế suất áp dụng cho đơn. Sửa lớp thuế, bấm "Tính lại" trong đơn rồi bấm "Gửi lại".', InvoiceErrorCode::LINE_TAX_RATE_COUNT->hint() );
+		$this->assertSame( 'Mở tab "Xuất hóa đơn", bảng "Ánh xạ thuế Mắt Bão": thêm thuế suất của dòng vào đúng nhóm, hoặc sửa thuế suất trong WooCommerce cho khớp nhóm. Bấm "Tính lại" trong đơn nếu đã sửa thuế, rồi bấm "Gửi lại".', InvoiceErrorCode::TAX_RATE_MISMATCH->hint() );
+		$this->assertSame( 'Sản phẩm chưa được cài đặt thuế', InvoiceErrorCode::LINE_TAX_NOT_CONFIGURED->label() );
+		$this->assertSame( 'Sản phẩm có quá nhiều dòng thuế', InvoiceErrorCode::LINE_TAX_RATE_COUNT->label() );
+		$this->assertSame( 'Thuế không khớp với thông tin thuế gửi tới Mắt Bão', InvoiceErrorCode::TAX_RATE_MISMATCH->label() );
+		$this->assertSame( 'Thiếu thuế suất đã lưu', InvoiceErrorCode::TAX_RATE_NOT_STORED->label() );
+		$this->assertSame( 'Thuế suất không hỗ trợ', InvoiceErrorCode::TAX_RATE_UNSUPPORTED->label() );
 		$this->assertSame( 'Dòng KCT/KKKNT có tiền thuế', InvoiceErrorCode::UNTAXED_LINE_WITH_TAX->label() );
+	}
+
+	public function test_legacy_tax_codes_point_to_the_mapping_table(): void {
+		$expected = 'Mở tab "Xuất hóa đơn", bảng "Ánh xạ thuế Mắt Bão": kiểm tra thuế suất của dòng nằm đúng nhóm, bấm "Tính lại" trong đơn rồi bấm "Gửi lại".';
+
+		$this->assertSame( $expected, InvoiceErrorCode::TAX_RATE_NOT_STORED->hint() );
+		$this->assertSame( $expected, InvoiceErrorCode::TAX_RATE_UNSUPPORTED->hint() );
+		$this->assertSame( $expected, InvoiceErrorCode::UNTAXED_LINE_WITH_TAX->hint() );
 	}
 
 	public function test_config_error_hint(): void {
