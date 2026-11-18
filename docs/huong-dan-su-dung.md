@@ -122,6 +122,10 @@ Tạo **custom bot** trong group Lark nhận cảnh báo, dán **Webhook URL** v
 
 Tin Lark chỉ gồm mã đơn, loại lỗi, **Cách xử lý** (hướng dẫn cụ thể cho loại lỗi đó) và đường dẫn tới đơn trong wp-admin, không có thông tin cá nhân người mua.
 
+### Thuế GTGT của sản phẩm (WooCommerce)
+
+Plugin chỉ đọc thuế WooCommerce đã lưu trên đơn. Mỗi dòng chịu thuế phải có **đúng một** thuế suất 0, 5, 8 hoặc 10%. Cấu hình lớp thuế và gán cho từng loại sản phẩm theo **[Thiết lập thuế GTGT](thiet-lap-thue.md)** trước khi chạy thử.
+
 ### Chạy thử trước khi dùng thật
 
 1. Chọn môi trường **Demo**, nhập thông tin đăng nhập demo của Mắt Bão, chọn mẫu demo.
@@ -238,7 +242,7 @@ Cách xử lý đầy đủ của mỗi lỗi giống nhau ở mọi nơi: hộp
 | Tiền tệ không phải VND | Cửa hàng hoặc đơn dùng tiền tệ khác | Plugin chỉ hỗ trợ VND |
 | Số tiền không nguyên đồng | Có dòng tiền/thuế lẻ đồng | Sửa giá hoặc cấu hình thuế để ra số nguyên |
 | Thuế suất không hỗ trợ / Thiếu thuế suất đã lưu | Thuế khác 0/5/8/10%, hoặc dòng không lưu thuế | Đổi thuế suất của dòng sang 0%, 5%, 8% hoặc 10%, rồi gửi lại. Nếu dòng chưa lưu thuế, bấm **Tính lại** trong đơn trước |
-| Dòng không có đúng một thuế suất | Một dòng hàng không có đúng một thuế suất GTGT: thiếu thuế hoặc có hai thuế suất trở lên (thường do lớp thuế của sản phẩm) | Kiểm tra lớp thuế của sản phẩm và thuế trên dòng trong đơn, sửa cho còn đúng một thuế suất, rồi gửi lại |
+| Dòng không có đúng một thuế suất | Một dòng hàng không có đúng một thuế suất GTGT: thiếu thuế hoặc có hai thuế suất trở lên (thường do lớp thuế của sản phẩm) | Kiểm tra lớp thuế của sản phẩm (cả biến thể) và thuế trên dòng trong đơn. Dòng chưa có thuế thì bấm **Tính lại** trong đơn, rồi gửi lại. Xem [Thiết lập thuế GTGT](thiet-lap-thue.md#sửa-đơn-bị-chặn-vì-thuế) |
 | Tổng tiền lệch tổng đơn hàng | Tổng các dòng không khớp tổng đơn | Kiểm tra phí, giảm giá, làm tròn của đơn |
 | Mã tham chiếu quá dài | Prefix + `WC` + mã đơn vượt 20 ký tự. Mã của đơn này đã cố định nên không gửi lại được | Xuất hóa đơn tay trên Mắt Bão. Rút ngắn prefix ở tab **Xuất hóa đơn** để các đơn sau không bị lỗi này |
 | Thông tin người mua không hợp lệ | Thông tin trên đơn sai định dạng khi hoàn thành | Sửa trên đơn, rồi gửi lại |

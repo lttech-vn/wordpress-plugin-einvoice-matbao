@@ -32,7 +32,8 @@ PHP 8.2+, WordPress 6.6+, WooCommerce 9.8+, tiền tệ cửa hàng là VND, WP-
    ```
 
 4. Mở menu **Hóa đơn Mắt Bão** (mục chính của wp-admin): nhập kết nối Mắt Bão, kiểm tra kết nối, chọn mẫu hóa đơn mặc định.
-5. Chạy thử với môi trường **Demo**, rồi chuyển sang **Production**.
+5. Cấu hình thuế WooCommerce để mỗi dòng đơn có đúng một thuế suất 0/5/8/10% hoặc KCT: **[Thiết lập thuế GTGT](docs/thiet-lap-thue.md)**.
+6. Chạy thử với môi trường **Demo**, rồi chuyển sang **Production**.
 
 Chi tiết từng bước, quy trình hằng ngày và xử lý lỗi: **[Hướng dẫn sử dụng](docs/huong-dan-su-dung.md)**.
 
@@ -41,6 +42,7 @@ Chi tiết từng bước, quy trình hằng ngày và xử lý lỗi: **[Hướ
 | Tài liệu | Dành cho |
 |---|---|
 | [Hướng dẫn sử dụng](docs/huong-dan-su-dung.md) | Chủ cửa hàng, quản trị viên, kế toán |
+| [Thiết lập thuế GTGT](docs/thiet-lap-thue.md) | Quản trị viên, kế toán: lớp thuế, thuế suất cho từng loại sản phẩm |
 | [Tài liệu phát triển](docs/phat-trien.md) | Developer: môi trường dev, kiến trúc, kiểm thử, CI, phát hành |
 | [Browser E2E](tests/e2e/README.md) | Developer: bộ test trình duyệt và kiểm tra API demo |
 | [Thuật ngữ](GLOSSARY.md), [Khảo sát](docs/discovery.md), [ADR](docs/adr/) | Bối cảnh nghiệp vụ và quyết định thiết kế |
