@@ -19,8 +19,8 @@ Blocked by: none
 
 Blocked by: 1
 
-- [ ] 3.1 Enum `src/Customer/CustomerInvoiceStatus.php` với `from_record( InvoiceRecord )`, `label()`, `allows_pdf()` theo design D2
-- [ ] 3.2 Test `tests/integration/CustomerInvoiceStatusTest.php` dạng data provider phủ toàn bộ plugin statuses, Mắt Bão 0–9, null, 12, loại 3/5/chưa biết, thiếu mã hóa đơn
+- [x] 3.1 Enum `src/Customer/CustomerInvoiceStatus.php` với `from_record( InvoiceRecord )`, `label()`, `allows_pdf()` theo design D2
+- [x] 3.2 Test `tests/integration/CustomerInvoiceStatusTest.php` dạng data provider phủ toàn bộ plugin statuses, Mắt Bão 0–9, null, 12, loại 3/5/chưa biết, thiếu mã hóa đơn
 
 ## 4. Customer invoice section on view-order
 
