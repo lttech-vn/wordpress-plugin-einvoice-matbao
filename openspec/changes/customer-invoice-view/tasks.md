@@ -11,9 +11,9 @@ Blocked by: none
 
 Blocked by: none
 
-- [ ] 2.1 `MatbaoClient::download_invoice_pdf( $invoice_id, $lookup_code )`: POST `/api/invoice/download-invoice`, đọc `data.data_PDF_Base64` không phân biệt hoa thường, `base64_decode` strict, kiểm `%PDF-`, ném `MatbaoError` `api` khi sai
-- [ ] 2.2 Test integration mới `tests/integration/MatbaoDownloadInvoiceTest.php` dùng `FakeHttp` cho mọi scenario của requirement *Invoice PDF download*
-- [ ] 2.3 Fake Mắt Bão e2e (`tests/e2e/fake-matbao/router.php`) hỗ trợ `download-invoice` (trả PDF tối thiểu khi khớp `maSoHDon` + `maTraCuu`, hỗ trợ step script) và action `issue` nhận thêm `maLoaiHDon`, `shDon`
+- [x] 2.1 `MatbaoClient::download_invoice_pdf( $invoice_id, $lookup_code )`: POST `/api/invoice/download-invoice`, đọc `data.data_PDF_Base64` không phân biệt hoa thường, `base64_decode` strict, kiểm `%PDF-`, ném `MatbaoError` `api` khi sai
+- [x] 2.2 Test integration mới `tests/integration/MatbaoDownloadInvoiceTest.php` dùng `FakeHttp` cho mọi scenario của requirement *Invoice PDF download*
+- [x] 2.3 Fake Mắt Bão e2e (`tests/e2e/fake-matbao/router.php`) hỗ trợ `download-invoice` (trả PDF tối thiểu khi khớp `maSoHDon` + `maTraCuu`, hỗ trợ step script) và action `issue` nhận thêm `maLoaiHDon`, `shDon`
 
 ## 3. Customer status mapping
 
