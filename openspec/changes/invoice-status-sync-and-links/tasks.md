@@ -48,5 +48,5 @@ Blocked by: 3, 4
 
 Blocked by: 3, 4
 
-- [ ] 6.1 `docs/huong-dan-su-dung.md` và `README.md`: trạng thái Mắt Bão, đồng bộ mỗi giờ trong 30 ngày, ý nghĩa ba cảnh báo mới, liên kết đơn ↔ hóa đơn
-- [ ] 6.2 `docs/phat-trien.md`: lớp trạng thái Mắt Bão, `MatbaoStatusSync`, action `einvoice_matbao_status_sync`, quy tắc "Đã xóa" chỉ khi 301/`notFound`, giới hạn lô
+- [x] 6.1 `docs/huong-dan-su-dung.md` và `README.md`: trạng thái Mắt Bão, đồng bộ mỗi giờ trong 30 ngày, ý nghĩa ba cảnh báo mới, liên kết đơn ↔ hóa đơn
+- [x] 6.2 `docs/phat-trien.md`: lớp trạng thái Mắt Bão, `MatbaoStatusSync`, action `einvoice_matbao_status_sync`, quy tắc "Đã xóa" chỉ khi 301/`notFound`, giới hạn lô
