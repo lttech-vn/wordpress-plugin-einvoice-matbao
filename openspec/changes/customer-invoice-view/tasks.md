@@ -43,7 +43,7 @@ Blocked by: 2, 3
 
 Blocked by: 4, 5
 
-- [ ] 6.1 Seam e2e (`tests/e2e/wordpress/einv-e2e-http.php`): tạo user `customer`, gán `customer_id` cho đơn qua `/order`, và seam `/status-sync` chạy đồng bộ trạng thái
-- [ ] 6.2 E2E Army `tests/e2e/army/customer-invoice.army.ts`: khách thấy "Đang xuất hóa đơn" khi nháp; sau `issue` và đồng bộ thấy "Đã xuất hóa đơn" và tải được PDF (fetch có cookie/nonce, kiểm `application/pdf` và `%PDF-`); khách khác không xem được đơn
-- [ ] 6.3 Cập nhật `docs/discovery.md` (bỏ "bản đầu không hiển thị cho khách", ghi phạm vi mới) và `docs/huong-dan-su-dung.md` (mục khách xem hóa đơn trong My Account)
-- [ ] 6.4 Xác minh `download-invoice` trên demo Mắt Bão với một hóa đơn đã phát hành (script read-only theo mẫu `docs/research/demo-probe.py`, redact base64); ghi kết quả vào `docs/research/`
+- [x] 6.1 Seam e2e (`tests/e2e/wordpress/einv-e2e-http.php`): tạo user `customer`, gán `customer_id` cho đơn qua `/order`, và seam `/status-sync` chạy đồng bộ trạng thái
+- [x] 6.2 E2E Army `tests/e2e/army/customer-invoice.army.ts`: khách thấy "Đang xuất hóa đơn" khi nháp; sau `issue` và đồng bộ thấy "Đã xuất hóa đơn" và tải được PDF (fetch có cookie/nonce, kiểm `application/pdf` và `%PDF-`); khách khác không xem được đơn
+- [x] 6.3 Cập nhật `docs/discovery.md` (bỏ "bản đầu không hiển thị cho khách", ghi phạm vi mới) và `docs/huong-dan-su-dung.md` (mục khách xem hóa đơn trong My Account)
+- [x] 6.4 Xác minh `download-invoice` trên demo Mắt Bão với một hóa đơn đã phát hành (script read-only theo mẫu `docs/research/demo-probe.py`, redact base64); ghi kết quả vào `docs/research/`
