@@ -167,8 +167,10 @@ Code nằm trong `src/Invoice/MatbaoStatusSync.php`; enum `MatbaoStatus` (`src/I
 - Action `einvoice_matbao_status_sync`, recurring mỗi giờ (`HOUR_IN_SECONDS`), group `einvoice-matbao`, đăng ký `as_schedule_recurring_action` khi `action_scheduler_init`. Deactivate và uninstall hủy group nên không cần code vòng đời riêng.
 - Hằng số: `SYNC_LIMIT = 200` hóa đơn mỗi lượt, `LOOKUP_CHUNK = 20` tham chiếu mỗi lần gọi `invoice-detail-batch`, `SYNC_WINDOW_DAYS = 30`. Cửa sổ tính theo `COALESCE(issued_on, DATE(created_at))` so với ngày Asia/Ho_Chi_Minh.
 - Chọn: `status = draft_created`, có `matbao_invoice_id` và mẫu, `matbao_status` NULL hoặc không thuộc `FINAL_VALUES` (0, 4). Thứ tự `matbao_checked_at IS NOT NULL, matbao_checked_at, id`. Hóa đơn `draft_created` có từ trước nâng cấp được chọn luôn.
-- Gom theo `template_form|template_series`, chia lô 20. Không có credential thì bỏ cả lượt. Lỗi tra cứu chỉ `touch_matbao_checked` lô đó, log `warn` qua `Monitor::log` (không event), các lô khác vẫn chạy.
-- `sync_one()` (nút *Kiểm tra trạng thái*) và `sync_batch()` cùng đường `apply()`.
+- Gom theo `template_form|template_series`, chia lô 20. Không có credential thì bỏ cả lượt. Lỗi tạm thời (`MatbaoError::is_retryable()`: transport, HTTP 5xx/408/429, 2xx không đọc được, kể cả lỗi đăng nhập) dừng cả lượt ngay, `touch_matbao_checked` lô đó, log `warn` qua `Monitor::log` (không event) và gọi `StatusSyncBackoff::record_failure()`. Lỗi không tạm thời chỉ bỏ lô đó, các lô sau vẫn chạy.
+- Tạm nghỉ (`StatusSyncBackoff`, option `einvoice_matbao_status_sync_backoff` = `{failures, until}`, autoload false): thang 900, 1800, 3600, 7200, 14400, 21600 giây theo số lần lỗi liên tiếp (`PAUSE_SECONDS`, bậc cuối lặp). Khi đang nghỉ, `sync_batch()` return sớm, không gửi request. Mỗi lỗi xếp lại một action một lần `einvoice_matbao_status_sync_retry` tại `until` (không unique, để không giữ thời điểm cũ); recurring hourly không bị đụng.
+- Tra cứu thành công (client trả `MatbaoLookup`, kể cả 301/`notFound`) gọi `clear()`: xóa option, hủy action retry, bất kể `apply()` trả gì. Không có state thì không ghi option.
+- `sync_one()` (nút *Kiểm tra trạng thái*) không bị chặn khi đang nghỉ; thành công thì `clear()`, lỗi không ghi `record_failure()`. `sync_batch()` và `sync_one()` cùng đường `apply()`.
 - Ghép kết quả theo `maSoHDon` = `matbao_invoice_id`. Không khớp dòng nào nhưng có trong `notFound` hoặc errorCode 301 thì ghi `matbao_status = 0`; dòng không parse được hoặc vắng ở cả hai danh sách thì giữ nguyên và log `warn`. Client: `find_invoices_by_references()` trả `MatbaoLookup { invoices, not_found }`.
 - "Đã xóa" (0) chỉ được ghi khi có 301 hoặc `notFound`. Không bao giờ suy từ việc thiếu dòng hay lỗi transport/HTTP.
 - Ghi bằng `InvoiceRepository::record_matbao_status()` với `WHERE id = %d AND status = 'draft_created' AND matbao_invoice_id = %s AND matbao_status IS NULL` khi trạng thái đã đọc là NULL, hoặc `matbao_status = %d` khi có giá trị (giá trị đã đọc). Kết quả `STALE` không cảnh báo. Cron và nút thủ công chạy đồng thời chỉ một bên thắng nên cảnh báo một lần.
@@ -228,7 +230,7 @@ Giới hạn: đơn vị theo sản phẩm chỉ sửa được ở màn hình s
 
 ### Deactivate và uninstall
 
-Deactivate hủy mọi action đang xếp của plugin (group `einvoice-matbao`: nháp, sweep phục hồi, gửi cảnh báo `einvoice_matbao_send_alert` và đồng bộ `einvoice_matbao_status_sync`); dữ liệu giữ nguyên và sweep được xếp lại sau khi kích hoạt lại.
+Deactivate hủy mọi action đang xếp của plugin (group `einvoice-matbao`: nháp, sweep phục hồi, gửi cảnh báo `einvoice_matbao_send_alert`, đồng bộ `einvoice_matbao_status_sync` và retry sau tạm nghỉ `einvoice_matbao_status_sync_retry`); dữ liệu giữ nguyên và sweep được xếp lại sau khi kích hoạt lại.
 
 `uninstall.php` chỉ chạy khi WordPress xóa plugin. File nạp `Uninstall\Uninstaller` theo đường dẫn, nên chạy được khi không có `vendor/` và khi WooCommerce đã gỡ (khi đó action được hủy trực tiếp trong bảng Action Scheduler). Trên multisite, chạy trên mọi site.
 

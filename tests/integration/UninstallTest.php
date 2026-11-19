@@ -16,6 +16,7 @@ use LTTech\EinvoiceMatbao\CredentialStore;
 use LTTech\EinvoiceMatbao\Invoice\DraftInvoiceWorkflow;
 use LTTech\EinvoiceMatbao\Invoice\InvoiceRepository;
 use LTTech\EinvoiceMatbao\Invoice\InvoiceStatus;
+use LTTech\EinvoiceMatbao\Invoice\StatusSyncBackoff;
 use LTTech\EinvoiceMatbao\Invoice\Schema;
 use LTTech\EinvoiceMatbao\Lark\LarkWebhook;
 use LTTech\EinvoiceMatbao\Matbao\MatbaoClient;
@@ -71,6 +72,7 @@ final class UninstallTest extends WP_UnitTestCase {
 		$this->assertSame( DraftInvoiceWorkflow::GROUP, Uninstaller::ACTION_GROUP );
 		$this->assertSame( ( new \ReflectionClassConstant( TemplateCache::class, 'TRANSIENT' ) )->getValue(), Uninstaller::TEMPLATES_TRANSIENT );
 		$this->assertSame( MatbaoClient::TOKEN_KEYS_OPTION, Uninstaller::TOKEN_KEYS_OPTION );
+		$this->assertSame( StatusSyncBackoff::OPTION, Uninstaller::STATUS_SYNC_BACKOFF_OPTION );
 		$this->assertStringStartsWith( Uninstaller::ALERT_PREFIX, AlertStore::key( 1, 'x', 0 ) );
 		$this->assertSame( array( 'einvoice_matbao_invoice', 'einvoice_matbao_attempt' ), Uninstaller::TABLES );
 	}
@@ -112,6 +114,23 @@ final class UninstallTest extends WP_UnitTestCase {
 		$this->assertFalse( ( new CredentialStore() )->has_sentry_dsn() );
 		$this->assertNull( ( new CredentialStore() )->sentry_dsn() );
 		$this->assertFalse( get_option( 'einvoice_matbao_sentry_backoff_until' ) );
+		$this->assertTrue( ( new Settings() )->monitoring_enabled() );
+	}
+
+	public function test_default_uninstall_removes_status_sync_backoff(): void {
+		update_option(
+			StatusSyncBackoff::OPTION,
+			array(
+				'failures' => 2,
+				'until'    => time() + 600,
+			),
+			false
+		);
+		( new Settings() )->save_monitoring( true, 0.5 );
+
+		Uninstaller::run();
+
+		$this->assertFalse( get_option( StatusSyncBackoff::OPTION ) );
 		$this->assertTrue( ( new Settings() )->monitoring_enabled() );
 	}
 
