@@ -40,9 +40,9 @@ Blocked by: 1
 
 Blocked by: 3, 4
 
-- [ ] 5.1 `tests/e2e/fake-matbao/router.php`: cho phép seed trạng thái, `shDon`, `mccqt`, `maLoaiHDon`, `ghiChuCQT`, `notFound` theo `MTChieu`; nhận `danhSach` nhiều phần tử
-- [ ] 5.2 `tests/e2e/army/invoices.army.ts`: kiểm tra trạng thái của hóa đơn đã cấp mã hiện thành công với số HĐ/MCCQT (thay assertion "không còn ở trạng thái Nháp"); Lỗi ký hiện hint; mở chi tiết bằng URL `invoice=<id>`; Back quay về danh sách; link từ danh sách tới đơn
-- [ ] 5.3 `tests/e2e/army/checkout-invoice.army.ts` (hoặc file meta box phù hợp): link "Xem chi tiết hóa đơn" từ đơn mở đúng chi tiết; ghi lại cache replay
+- [x] 5.1 `tests/e2e/fake-matbao/router.php`: cho phép seed trạng thái, `shDon`, `mccqt`, `maLoaiHDon`, `ghiChuCQT`, `notFound` theo `MTChieu`; nhận `danhSach` nhiều phần tử
+- [x] 5.2 `tests/e2e/army/invoices.army.ts`: kiểm tra trạng thái của hóa đơn đã cấp mã hiện thành công với số HĐ/MCCQT (thay assertion "không còn ở trạng thái Nháp"); Lỗi ký hiện hint; mở chi tiết bằng URL `invoice=<id>`; Back quay về danh sách; link từ danh sách tới đơn
+- [x] 5.3 `tests/e2e/army/checkout-invoice.army.ts` (hoặc file meta box phù hợp): link "Xem chi tiết hóa đơn" từ đơn mở đúng chi tiết; ghi lại cache replay
 
 ## 6. Tài liệu
 
