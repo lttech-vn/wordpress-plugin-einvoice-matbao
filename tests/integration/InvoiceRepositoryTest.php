@@ -260,32 +260,55 @@ final class InvoiceRepositoryTest extends WP_UnitTestCase {
 		$this->assertSame( 'matbao_sign_failed', $this->record( $read->id )->error_code );
 	}
 
+	/**
+	 * Every Mat Bao column with a non-empty value.
+	 *
+	 * @return array<string, mixed>
+	 */
+	private static function filled_matbao_columns(): array {
+		return array(
+			'matbao_status'       => 4,
+			'matbao_status_name'  => 'Đã cấp mã',
+			'invoice_number'      => 125,
+			'tax_authority_code'  => '00ABC',
+			'matbao_invoice_type' => 2,
+			'tax_note'            => 'Ghi chú',
+			'matbao_synced_at'    => '2026-10-14 01:02:03',
+			'matbao_checked_at'   => '2026-10-14 01:02:03',
+		);
+	}
+
 	public function test_new_invoice_id_resets_matbao_fields(): void {
+		global $wpdb;
 		$repository = new InvoiceRepository();
-		$read       = $this->record( $this->draft( 9181, array( 'matbao_status' => 1 ) ) );
-		$repository->record_matbao_status( $read, MatbaoSnapshot::deleted() );
-		$this->assertSame( 0, $this->record( $read->id )->matbao_status );
+		$id         = $this->draft( 9181, self::filled_matbao_columns() );
 
-		$repository->update_status( $read->id, InvoiceStatus::DRAFT_CREATED, '', array( 'matbao_invoice_id' => 'NEW' ) );
+		$repository->update_status( $id, InvoiceStatus::DRAFT_CREATED, '', array( 'matbao_invoice_id' => 'NEW' ) );
 
-		$after = $this->record( $read->id );
-		$this->assertNull( $after->matbao_status );
-		$this->assertSame( '', $after->matbao_status_name );
-		$this->assertNull( $after->invoice_number );
-		$this->assertNull( $after->tax_authority_code );
-		$this->assertNull( $after->matbao_invoice_type );
-		$this->assertSame( '', $after->tax_note );
-		$this->assertNull( $after->matbao_synced_at );
-		$this->assertNull( $after->matbao_checked_at );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery -- test reads the raw row.
+		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id = %d', Schema::invoice_table(), $id ), ARRAY_A );
+		$this->assertIsArray( $row );
+		$this->assertSame( 'NEW', $row['matbao_invoice_id'] );
+		foreach ( array_keys( self::filled_matbao_columns() ) as $column ) {
+			$this->assertNull( $row[ $column ], $column );
+		}
 	}
 
 	public function test_update_status_without_new_invoice_id_keeps_matbao_fields(): void {
 		$repository = new InvoiceRepository();
-		$read       = $this->record( $this->draft( 9182, array( 'matbao_status' => 3 ) ) );
+		$id         = $this->draft( 9182, self::filled_matbao_columns() );
 
-		$repository->update_status( $read->id, InvoiceStatus::DRAFT_CREATED, 'x' );
+		$repository->update_status( $id, InvoiceStatus::DRAFT_CREATED, 'x' );
 
-		$this->assertSame( 3, $this->record( $read->id )->matbao_status );
+		$after = $this->record( $id );
+		$this->assertSame( 4, $after->matbao_status );
+		$this->assertSame( 'Đã cấp mã', $after->matbao_status_name );
+		$this->assertSame( 125, $after->invoice_number );
+		$this->assertSame( '00ABC', $after->tax_authority_code );
+		$this->assertSame( 2, $after->matbao_invoice_type );
+		$this->assertSame( 'Ghi chú', $after->tax_note );
+		$this->assertSame( '2026-10-14 01:02:03', $after->matbao_synced_at );
+		$this->assertSame( '2026-10-14 01:02:03', $after->matbao_checked_at );
 	}
 
 	public function test_same_abnormal_status_keeps_warning(): void {
