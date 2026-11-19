@@ -34,10 +34,10 @@ Blocked by: 3
 
 Blocked by: 2, 3
 
-- [ ] 5.1 `src/Customer/PdfResponder.php`: seam gửi header + body + exit; bản test thu lại header/body
-- [ ] 5.2 `src/Customer/InvoicePdfDownload.php`: `template_redirect` trên `view-order` có query arg; kiểm đăng nhập → nonce → chủ đơn → `ISSUED` → `MatbaoStatusSync::sync_one` (chỉ `UPDATED`/`UNCHANGED`) → đọc lại (cùng mã hóa đơn, vẫn `ISSUED`, có mã tra cứu) → `download_invoice_pdf` → `PdfResponder`; mọi lỗi → `wc_add_notice` chung + redirect về URL `view-order` sạch; lỗi Mắt Bão → `Monitor::log` không body
-- [ ] 5.3 Đăng ký trong `src/Plugin.php::boot()`
-- [ ] 5.4 Test `tests/integration/CustomerInvoicePdfDownloadTest.php`: các scenario của *PDF download only by the order owner*, *PDF only for a still-valid issued invoice*, *PDF served without storing it*, và *Customer download check* (backoff, alert)
+- [x] 5.1 `src/Customer/PdfResponder.php`: seam gửi header + body + exit; bản test thu lại header/body
+- [x] 5.2 `src/Customer/InvoicePdfDownload.php`: `template_redirect` trên `view-order` có query arg; kiểm đăng nhập → nonce → chủ đơn → `ISSUED` → `MatbaoStatusSync::sync_one` (chỉ `UPDATED`/`UNCHANGED`) → đọc lại (cùng mã hóa đơn, vẫn `ISSUED`, có mã tra cứu) → `download_invoice_pdf` → `PdfResponder`; mọi lỗi → `wc_add_notice` chung + redirect về URL `view-order` sạch; lỗi Mắt Bão → `Monitor::log` không body
+- [x] 5.3 Đăng ký trong `src/Plugin.php::boot()`
+- [x] 5.4 Test `tests/integration/CustomerInvoicePdfDownloadTest.php`: các scenario của *PDF download only by the order owner*, *PDF only for a still-valid issued invoice*, *PDF served without storing it*, và *Customer download check* (backoff, alert)
 
 ## 6. E2E, docs and demo verification
 
