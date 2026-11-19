@@ -6,8 +6,8 @@
 > Failed checks must be fixed in the corresponding artifact, then re-run verify.
 
 **Change**: `status-sync-backoff`
-**Verified at**: `2026-11-19 19:00`
-**Iteration**: `1`
+**Verified at**: `2026-11-19 19:11`
+**Iteration**: `2`
 **Verifier**: parent session, chạy inline (không delegate cho verifier agent); cwd là worktree `/Users/naicoi/Projects/wordpress/wordpress-plugin-einvoice-matbao.status-sync-backoff`
 
 ---
@@ -47,7 +47,7 @@ exit=0
 | Requirement | Operation | Status | Evidence (file:line) or reason |
 |---|---|---|---|
 | Status sync backs off while Mat Bao fails | ADDED | Pass | `src/Invoice/StatusSyncBackoff.php:27` (thang `900…21600`), `:41-57` (`record_failure` ghi option với autoload false, xếp retry), `:92` (`state()` đọc trạng thái hỏng thành `{0,0}`); `src/Invoice/MatbaoStatusSync.php:98-100` (không làm gì khi đang tạm dừng); `src/Uninstall/Uninstaller.php:53,130` |
-| Successful lookup resets the backoff | ADDED | Pass | `src/Invoice/MatbaoStatusSync.php:147-152` (`clear()` trước khi `apply`, chỉ khi lookup không phải `MatbaoError`); `src/Invoice/StatusSyncBackoff.php:78-84` |
+| Successful lookup resets the backoff | ADDED | Pass | `src/Invoice/MatbaoStatusSync.php:147-152` (`clear()` trước khi `apply`, chỉ khi lookup không phải `MatbaoError`); `src/Invoice/StatusSyncBackoff.php:80-87` (gỡ retry trước; nếu đã gỡ retry thì `delete_option` vô điều kiện) |
 | Retry run when the pause ends | ADDED | Pass | `src/Invoice/MatbaoStatusSync.php:54` (hook retry gọi `run()`), `src/Invoice/StatusSyncBackoff.php:56-58` (gỡ retry cũ rồi xếp retry mới, không truyền `$unique`) |
 | Manual check bypasses the backoff | ADDED | Pass | `src/Invoice/MatbaoStatusSync.php:124-137` (`sync_one` không kiểm tra `is_paused`, gọi `clear()` khi thành công, không gọi `record_failure`) |
 | Lookup failures leave the status unchanged | MODIFIED | Pass | `src/Invoice/MatbaoStatusSync.php:108-114` (dừng ở lỗi tạm thời đầu tiên), `:150` (`! is_retryable()` thì đi tiếp), `:168` (`lookup()` touch nhóm lỗi và ghi log) |
@@ -61,7 +61,7 @@ exit=0
 - [x] The project test command was run fresh in this step
 
 **Test command**: `docker compose exec -T -w /var/www/html/wp-content/plugins/einvoice-matbao wordpress composer check` (lint, phpstan, floor guard, integration, without-woocommerce)
-**Result**: exit 0. PHPStan `[OK] No errors`; `Floor guard OK`; integration `OK (1127 tests, 10096 assertions)`; without-woocommerce `OK (8 tests, 21 assertions)`.
+**Result**: exit 0 (chạy mới ở iteration 2, HEAD `bd082ed`). PHPStan `[OK] No errors`; `Floor guard OK`; integration `OK (1128 tests, 10109 assertions)`; without-woocommerce `OK (8 tests, 21 assertions)`.
 
 Đường dẫn test bên dưới viết tắt: `MSS` là `tests/integration/MatbaoStatusSyncTest.php`, `UT` là `tests/integration/UninstallTest.php`.
 
@@ -91,6 +91,8 @@ exit=0
 | Deactivation | `MSS:531 test_deactivation_unschedules_status_sync` |
 | Deactivation during the pause | `MSS:1205 test_deactivation_cancels_pending_retry` |
 
+Test bổ sung cho bảo đảm của `clear()` khi hai request chạy chồng (Successful lookup resets the backoff, Retry run when the pause ends): `MSS:1221 test_clear_keeps_retry_for_pause_recorded_meanwhile`, `MSS:1244 test_clear_deletes_pause_written_by_another_request`, `MSS:1046 test_success_without_backoff_writes_no_option`.
+
 ---
 
 ## 5. Design and Contract Coherence (warning only)
@@ -102,15 +104,15 @@ Contracts (apply.md ghi "Contract deviations: none"):
 
 | Contract | Kết quả | So với |
 |---|---|---|
-| `StatusSyncBackoff` (các hằng, `is_paused`, `record_failure(): int`, `clear()`, `state()` private) | Khớp | `src/Invoice/StatusSyncBackoff.php:21,24,27,32,41,78,92` |
-| Option `einvoice_matbao_status_sync_backoff` `array{failures,until}`, autoload false | Khớp | `StatusSyncBackoff.php:46-53`, kiểm tra `is_int` và `>= 0` tại `:92-` |
+| `StatusSyncBackoff` (các hằng, `is_paused`, `record_failure(): int`, `clear()`, `state()` private) | Khớp | `src/Invoice/StatusSyncBackoff.php:21,24,27,32,41,80,95` |
+| Option `einvoice_matbao_status_sync_backoff` `array{failures,until}`, autoload false | Khớp | `StatusSyncBackoff.php:46-53`, kiểm tra `is_int` và `>= 0` tại `:95-` |
 | Action `einvoice_matbao_status_sync_retry` (single, group plugin, handler `run`) | Khớp | `StatusSyncBackoff.php:57`, `MatbaoStatusSync.php:54` |
 | `Uninstaller::STATUS_SYNC_BACKOFF_OPTION` | Khớp | `src/Uninstall/Uninstaller.php:53,130` |
 | `MatbaoStatusSync::__construct` thêm `StatusSyncBackoff $backoff` ở cuối, có default | Khớp | `MatbaoStatusSync.php:84` |
 
 **Drift warnings** (non-blocking):
 
-- `design.md` quyết định 3, Risks dòng 30, và docblock `src/Invoice/StatusSyncBackoff.php:74-76` khẳng định thứ tự trong `clear()` bảo đảm "mọi pause còn sống luôn có retry". Re-review sau whole-branch review (ghi trong `apply.md`) đã tái hiện một ngoại lệ do negative cache `notoptions` của từng request. Các câu này đang khẳng định quá mức so với hành vi thật.
+- None. Ở iteration 1 có cảnh báo design/docblock khẳng định quá mức. Iteration 2 đã sửa: docblock `src/Invoice/StatusSyncBackoff.php:73-79` và `design.md` (quyết định 3, Risks dòng 30) giờ mô tả đúng hành vi của `clear()` tại `:80-87`.
 
 ---
 
@@ -118,7 +120,7 @@ Contracts (apply.md ghi "Contract deviations: none"):
 
 - [x] Working tree is clean (`git status --porcelain` không có dòng nào)
 
-**Commit range**: `b66d70d..eb5f71e` (9 commit, gồm receipt `apply.md`)
+**Commit range**: `b66d70d..bd082ed` (11 commit; iteration 2 là `cd4a427..bd082ed`)
 
 ---
 
@@ -130,24 +132,26 @@ Không có.
 
 ### WARNING
 
-- **W1: residual race ở `StatusSyncBackoff::clear()` (`src/Invoice/StatusSyncBackoff.php:78-84`).** Lượt A đã cache "không có option", lượt B ghi pause rồi xếp retry. Khi đó `clear()` của A hủy retry nhưng bỏ qua `delete_option` vì đọc cache cũ, để lại pause mà không có retry. Phục hồi trễ tối đa một giờ vì lượt hằng giờ vẫn chạy. **Khuyến nghị:** khi `clear()` đã hủy retry thì gọi `delete_option( self::OPTION )` vô điều kiện (hoặc `wp_cache_delete( 'notoptions', 'options' )` trước khi đọc lại), và thêm một regression test tách cache giữa hai lượt.
-- **W2: design và docblock khẳng định quá mức** (`design.md` quyết định 3 và dòng 30, `StatusSyncBackoff.php:74-76`). **Khuyến nghị:** sửa câu chữ cho đúng bảo đảm thực tế, hoặc sửa W1 rồi giữ nguyên câu.
+Không có. Cả hai cảnh báo của iteration 1 đã đóng:
+- W1 (race của `clear()` qua cache `notoptions` của từng request) đã sửa ở `d69bf77`. Code tại `src/Invoice/StatusSyncBackoff.php:80-87` khi đã gỡ retry thì xóa option vô điều kiện. Test `MSS:1244` tái hiện đúng chuỗi xen kẽ và pass trong lần chạy mới này.
+- W2 (khẳng định quá mức) đã sửa trong docblock và `design.md`.
 
 ### SUGGESTION
 
-- Chưa verify E2E với Mắt Bão thật hay WP-Cron thật. Nên thử một lần trên staging: chặn host Mắt Bão, xác nhận lượt chạy dừng sau khoảng 30 s và log `Mat Bao status sync paused`.
+- Chưa verify E2E với Mắt Bão thật hay WP-Cron thật; mọi hành vi chỉ được kiểm qua integration test với Mắt Bão fake ở HTTP boundary. Nên thử một lần trên staging: chặn host Mắt Bão rồi xác nhận lượt chạy dừng sau khoảng 30 s, có log `Mat Bao status sync paused`, và khoảng 15 phút sau có lượt thử lại.
+- Khi thao tác ghi DB hoặc xếp lịch thất bại (`as_schedule_single_action` trả 0) thì vẫn có thể còn pause mà không có retry. Trường hợp này đã có log `Mat Bao status sync retry not queued` và lượt hằng giờ vẫn chạy làm dự phòng. Chỉ cần theo dõi log, không phải sửa.
 
 ---
 
 ## Overall Decision
 
 - [ ] PASS: proceed with `/opsx-continue` to finalize
-- [x] PASS_WITH_WARNINGS: proceed, noting: không có lỗi CRITICAL và test mới chạy đều xanh. Còn W1 (race hiếm, đã park ở apply) và W2 (design/docblock khẳng định quá mức).
+- [x] PASS_WITH_WARNINGS: proceed, noting: cả sáu check đều pass và test chạy mới xanh, không còn CRITICAL hay WARNING. Chỉ còn suggestion: chưa kiểm chứng E2E với Mắt Bão thật và WP-Cron thật, nên chưa xếp PASS.
 - [ ] FAIL: fix the cause, then re-apply (iteration N+1)
 
 **Next step**:
 
-Chạy `/opsx-continue` với worktree làm working directory để tạo finalize, rồi chạy `/opsx-archive`. Nếu muốn sửa W1/W2 trước thì chạy `/opsx-apply` cho iteration 2, sau đó verify lại.
+Chạy `/opsx-continue` với worktree làm working directory để tạo finalize, rồi chạy `/opsx-archive`.
 
 > **Convergence loop reminder**:
 > - PASS / PASS_WITH_WARNINGS: `/opsx-continue` advances to the finalize artifact.
