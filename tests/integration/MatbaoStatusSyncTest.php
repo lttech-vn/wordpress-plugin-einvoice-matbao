@@ -1239,6 +1239,43 @@ final class MatbaoStatusSyncTest extends InvoiceWorkflowTestCase {
 	}
 
 	/**
+	 * A pause written by another request is deleted even when this request cached the option as missing.
+	 */
+	public function test_clear_deletes_pause_written_by_another_request(): void {
+		global $wpdb;
+		delete_option( StatusSyncBackoff::OPTION );
+		// This request now caches the option as missing.
+		$this->assertFalse( get_option( StatusSyncBackoff::OPTION ) );
+
+		// Another request records a failure: its write bypasses this request's cache.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- simulates another request writing the row.
+		$wpdb->insert(
+			$wpdb->options,
+			array(
+				'option_name'  => StatusSyncBackoff::OPTION,
+				'option_value' => maybe_serialize(
+					array(
+						'failures' => 1,
+						'until'    => time() + 900,
+					)
+				),
+				'autoload'     => 'off',
+			)
+		);
+		$this->queue_retry_at( time() + 900 );
+
+		( new StatusSyncBackoff() )->clear();
+
+		// A fresh request reads from the database.
+		wp_cache_delete( 'notoptions', 'options' );
+		wp_cache_delete( StatusSyncBackoff::OPTION, 'options' );
+		wp_cache_delete( 'alloptions', 'options' );
+		$this->assertFalse( get_option( StatusSyncBackoff::OPTION ) );
+		$this->assertFalse( ( new StatusSyncBackoff() )->is_paused() );
+		$this->assertSame( array(), $this->pending_retries() );
+	}
+
+	/**
 	 * Makes every lookup answer with the given status and raw body.
 	 *
 	 * @param int    $status HTTP status.

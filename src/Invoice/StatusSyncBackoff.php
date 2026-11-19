@@ -72,14 +72,17 @@ final class StatusSyncBackoff {
 	/**
 	 * Ends the backoff after a successful lookup; writes nothing when there is nothing to end.
 	 *
-	 * The retry is cancelled before the option is deleted. A failure recorded in between writes a
-	 * new pause and queues its own retry, which this call cannot cancel, so no pause is left without one.
+	 * The retry is cancelled before the option is deleted. When a retry was cancelled, the option is
+	 * deleted from the database regardless of this request's option cache, which may hold a stale
+	 * "missing" entry. A pause recorded by another request in between keeps its own retry; the worst
+	 * case left is one extra retry run.
 	 */
 	public function clear(): void {
-		if ( as_has_scheduled_action( self::RETRY_ACTION, array(), DraftInvoiceWorkflow::GROUP ) ) {
+		$had_retry = as_has_scheduled_action( self::RETRY_ACTION, array(), DraftInvoiceWorkflow::GROUP );
+		if ( $had_retry ) {
 			as_unschedule_all_actions( self::RETRY_ACTION, array(), DraftInvoiceWorkflow::GROUP );
 		}
-		if ( false !== get_option( self::OPTION ) ) {
+		if ( $had_retry || false !== get_option( self::OPTION ) ) {
 			delete_option( self::OPTION );
 		}
 	}
