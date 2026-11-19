@@ -6,4 +6,4 @@
  */
 
 define( 'EINVOICE_MATBAO_FILE', dirname( __DIR__ ) . '/einvoice-matbao.php' );
-define( 'EINVOICE_MATBAO_VERSION', '0.6.0' );
+define( 'EINVOICE_MATBAO_VERSION', '0.7.0' );
