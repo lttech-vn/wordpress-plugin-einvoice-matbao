@@ -39,6 +39,8 @@
 - `E2E seam /invoice/<id> response`: trả thêm `matbao_status`, để poll e2e của Task 6 chờ được hóa đơn đã cấp mã. Seam chỉ dùng cho test, nội bộ, chỉ cộng thêm trường. Đã ghi vào plan.md Contracts.
 - `PdfResponder::clean_buffers( int $keep = 0 )`: method protected mới, `send()` gọi trước `emit()` để output buffer bị bỏ sót không làm hỏng PDF (Minor 1 của review cuối). Nội bộ. Đã ghi vào plan.md Contracts.
 - `BuyerPersonalData::retained_message`: chuỗi admin liệt kê thêm "mã tra cứu" trong các trường kế toán được giữ lại khi xóa dữ liệu (Minor 4 của review cuối). Nội bộ, chỉ đổi câu chữ.
+- `PdfResponder::compression_is_on( string|false ): bool` (public static) và `disable_compression()` (protected): sau verify, `send()` tắt `zlib.output_compression` khi đang bật (verify W2). Nội bộ. Đã ghi vào plan.md Contracts và design D7.
+- Tên file khi chưa có số hóa đơn là `hoa-don-<form><series>.pdf` (fix của review cuối; verify W3). Đã ghi vào design D7.
 
 ---
 
@@ -64,7 +66,7 @@
 
 ## Known follow-ups (parked)
 
-- Chưa tắt `zlib.output_compression` trước khi gửi PDF. Trên server bật tính năng này, `Content-Length` có thể lệch kích thước thật.
+- ~~Chưa tắt `zlib.output_compression` trước khi gửi PDF.~~ Đã xử lý sau verify (W2), cùng test render HTML cho mọi trạng thái (W1).
 - Chưa giới hạn số lần tải theo đơn. Đây là rủi ro design đã chấp nhận và đã ghi trong docs.
 
 ---
