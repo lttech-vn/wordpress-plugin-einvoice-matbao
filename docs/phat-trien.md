@@ -142,7 +142,7 @@ Mọi lý do không tạo được nháp được lưu trên dòng invoice dư�
 | `matbao` | `pending` → `needs_attention` | request không hoàn tất, HTTP 5xx/408/429, body 2xx không đọc được (create-invoice hoặc templates), trùng `MTChieu` 305 | có; retry create-invoice tra cứu `MTChieu` trước |
 | `matbao` | `failed` | HTTP khác (4xx), Mắt Bão `success` false với `errorCode` khác hoặc không có (hóa đơn bị từ chối, login) | không |
 | `matbao` | `needs_attention` | tra cứu theo `MTChieu` tìm thấy thứ có thể không phải nháp của đơn này (`matbao_lookup_mismatch`) | không |
-| `matbao` | `draft_created` (giữ nguyên) | `matbao_sign_failed`, `matbao_not_eligible`, `matbao_draft_deleted` (chỉ do đồng bộ đặt/xóa, cảnh báo một lần) | không |
+| `matbao` | `draft_created` (giữ nguyên) | `matbao_sign_failed`, `matbao_not_eligible`, `matbao_draft_deleted` (chỉ do đồng bộ đặt/xóa; cảnh báo khi chuyển sang trạng thái bất thường, không lặp khi trạng thái giữ nguyên) | không |
 | `system` | `pending` → `failed` | xếp hàng đợi lỗi (sweep thử thêm một lần, sau đó là lỗi cuối) | chỉ sweep |
 | `system` | `failed` | exception không lường trước | không |
 

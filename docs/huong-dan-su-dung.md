@@ -264,7 +264,7 @@ Khi một hóa đơn cần người xử lý, plugin:
 - Hiện **thông báo trong wp-admin** cho Administrator (tối đa 10 cảnh báo, có đường dẫn tới đơn, bấm **Ẩn** để tắt).
 - Gửi **tin Lark** nếu đã cấu hình. Lark lỗi mạng thì gửi lại tối đa 3 lần; lỗi Lark không ảnh hưởng việc tạo hóa đơn.
 
-Mỗi lỗi chỉ cảnh báo **một lần** cho mỗi đơn. Sau mỗi lần bạn bấm *Gửi lại*, lỗi đó có thể cảnh báo lại.
+Mỗi lỗi chỉ cảnh báo **một lần** cho mỗi đơn. Sau mỗi lần bạn bấm *Gửi lại*, lỗi đó có thể cảnh báo lại. Cảnh báo *Mắt Bão* (lỗi ký, không đủ điều kiện, nháp bị xóa) theo quy tắc riêng ở mục *Cảnh báo từ trạng thái Mắt Bão*.
 
 Thông báo trong wp-admin cũng hiện dòng **Cách xử lý** cho từng đơn. Hướng dẫn này trùng với hướng dẫn trong hộp **Hóa đơn Mắt Bão** trên đơn và trang chi tiết hóa đơn, nên bạn có thể làm theo cùng một cách ở mọi nơi.
 
