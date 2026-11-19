@@ -391,10 +391,11 @@ switch ( $endpoint ) {
 		if ( array() === $found ) {
 			einv_fake_json( 200, einv_fake_envelope( false, 301, 'Không tìm thấy hóa đơn', array( 'invoices' => array(), 'notFound' => $references ) ) );
 		}
+		$returned = array_map( static fn( array $row ): string => (string) $row['mtChieu'], $found );
 		einv_fake_ok(
 			array(
 				'invoices' => $found,
-				'notFound' => array(),
+				'notFound' => array_values( array_diff( $references, $returned ) ),
 			)
 		);
 }

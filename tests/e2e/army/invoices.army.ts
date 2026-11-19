@@ -188,7 +188,28 @@ describe("invoice admin", { serial: false, agent: "admin" }, () => {
 
 		await screen.getByRole("link", `#${orderId}`).tap();
 		await expect(browser).toHaveURL(/post\.php|wc-orders/);
+		const opened = new URL(await browser.url());
+		expect(["/wp-admin/post.php", "/wp-admin/admin.php"]).toContain(opened.pathname);
+		expect(opened.searchParams.get(opened.pathname.endsWith("post.php") ? "post" : "id")).toBe(String(orderId)); // exactly this order
 		await expect(screen.getByText("Đã tạo nháp", { exact: false }).first()).toBeVisible();
+	});
+
+	test("a mixed batch reports the seeded missing reference in notFound", async ({ app }) => {
+		const first = await completedOrder({ app });
+		const second = await completedOrder({ app });
+		const a = await waitForStatus({ app }, first, "draft_created");
+		const b = await waitForStatus({ app }, second, "draft_created");
+		await fake("seed", { mtChieu: b.invoice.reference, notFound: true });
+		const response = await fetch("http://127.0.0.1:8099/api/invoice/invoice-detail-batch", {
+			method: "POST",
+			headers: { "content-type": "application/json", authorization: "Bearer e2e-fake-token" },
+			body: JSON.stringify({ danhSach: [a.invoice.reference, b.invoice.reference], mauSo: "1", kiHieu: `C${String(new Date().getUTCFullYear()).slice(2)}TAT` }),
+		});
+		const data = (await response.json()).data;
+		expect(data.invoices.map((row: any) => row.mtChieu)).toEqual([a.invoice.reference]);
+		expect(data.notFound).toEqual([b.invoice.reference]);
+		await fake("reset", {}); // clears the seed with the rest of the fake state
+		expect(await fake("invoices")).toEqual([]);
 	});
 
 	test("a deleted draft is never recreated without an explicit confirmation", async ({ app, screen, browser }) => {
