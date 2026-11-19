@@ -59,16 +59,48 @@ final class MatbaoStatusView {
 	 */
 	public static function rows( InvoiceRecord $invoice ): array {
 		$rows = array(
-			__( 'Trạng thái Mắt Bão', 'einvoice-matbao' ) => self::label( $invoice ),
-			__( 'Số hóa đơn', 'einvoice-matbao' )         => null === $invoice->invoice_number ? '' : (string) $invoice->invoice_number,
-			'MCCQT'                                       => $invoice->tax_authority_code ?? '',
-			__( 'Loại hóa đơn', 'einvoice-matbao' )       => MatbaoStatus::invoice_type_label( $invoice->matbao_invoice_type ),
-			__( 'Ghi chú CQT', 'einvoice-matbao' )        => Redactor::redact( $invoice->tax_note ),
+			self::row_labels()['status']                 => self::label( $invoice ),
+			self::row_labels()['number']                 => null === $invoice->invoice_number ? '' : (string) $invoice->invoice_number,
+			self::row_labels()['authority']              => $invoice->tax_authority_code ?? '',
+			__( 'Loại hóa đơn', 'einvoice-matbao' )      => MatbaoStatus::invoice_type_label( $invoice->matbao_invoice_type ),
+			__( 'Ghi chú CQT', 'einvoice-matbao' )       => Redactor::redact( $invoice->tax_note ),
 			/* translators: UTC time of the last Mat Bao lookup. */
-			__( 'Đồng bộ lúc (UTC)', 'einvoice-matbao' )  => $invoice->matbao_synced_at ?? '',
+			__( 'Đồng bộ lúc (UTC)', 'einvoice-matbao' ) => $invoice->matbao_synced_at ?? '',
 		);
 
 		return array_filter( $rows, static fn( string $value ): bool => '' !== $value );
+	}
+
+	/**
+	 * The Mat Bao lines of the order meta box: status, invoice number and MCCQT.
+	 *
+	 * @param InvoiceRecord $invoice Invoice.
+	 * @return string Escaped HTML.
+	 */
+	public static function meta_box_rows( InvoiceRecord $invoice ): string {
+		$rows = self::rows( $invoice );
+		$html = '';
+		foreach ( array( 'status', 'number', 'authority' ) as $key ) {
+			$label = self::row_labels()[ $key ];
+			if ( isset( $rows[ $label ] ) ) {
+				$html .= sprintf( '<p data-einv-matbao-row>%1$s: <strong>%2$s</strong></p>', esc_html( $label ), esc_html( $rows[ $label ] ) );
+			}
+		}
+
+		return $html;
+	}
+
+	/**
+	 * Row labels by key, shared by rows() and meta_box_rows().
+	 *
+	 * @return array<string, string>
+	 */
+	private static function row_labels(): array {
+		return array(
+			'status'    => __( 'Trạng thái Mắt Bão', 'einvoice-matbao' ),
+			'number'    => __( 'Số hóa đơn', 'einvoice-matbao' ),
+			'authority' => 'MCCQT',
+		);
 	}
 
 	/**

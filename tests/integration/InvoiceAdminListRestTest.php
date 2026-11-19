@@ -330,7 +330,21 @@ final class InvoiceAdminListRestTest extends SettingsRestTestCase {
 		$html = $this->html( $this->htmx( 'GET', '/invoices' ) );
 
 		$this->assertStringNotContainsString( 'data-einv-matbao-badge', $html );
-		$this->assertStringContainsString( '<td>—</td>', $html );
+		// Cells: order, number, MTChieu, status, Mat Bao, error, synced at, detail.
+		$this->assertMatchesRegularExpression( '#<tr data-einv-invoice-row="9404">(?:<td>.*?</td>){4}<td>—</td><td>[^<]*</td><td>—</td>#us', $html );
+	}
+
+	public function test_matbao_text_is_escaped_in_list_and_detail(): void {
+		$this->login_as( 'administrator' );
+		$id = $this->synced( 9408, 12, '<img src=x onerror=alert(1)>', 5, null, null, '<script>alert(2)</script>' );
+
+		foreach ( array( '/invoices', '/invoices/' . $id ) as $route ) {
+			$html = $this->html( $this->htmx( 'GET', $route ) );
+			$this->assertStringNotContainsString( '<img src=x', $html );
+			$this->assertStringNotContainsString( '<script>alert(2)', $html );
+			$this->assertStringContainsString( '&lt;img src=x onerror=alert(1)&gt;', $html );
+		}
+		$this->assertStringContainsString( '&lt;script&gt;alert(2)&lt;/script&gt;', $html );
 	}
 
 	public function test_order_id_links_to_edit_order(): void {

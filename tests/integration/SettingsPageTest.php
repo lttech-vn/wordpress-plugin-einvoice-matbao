@@ -123,6 +123,16 @@ final class SettingsPageTest extends WP_UnitTestCase {
 		$this->assertMatchesRegularExpression( '#id="einv-invoices" hx-get="[^"]*/invoices/12"#', $panel );
 	}
 
+	public function test_php_int_max_loads_detail(): void {
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+		$_GET['invoice'] = (string) PHP_INT_MAX;
+
+		$panel = InvoicePage::render_panel();
+		unset( $_GET['invoice'] );
+
+		$this->assertMatchesRegularExpression( '#id="einv-invoices" hx-get="[^"]*/invoices/' . PHP_INT_MAX . '"#', $panel );
+	}
+
 	/**
 	 * Values of `invoice` that must fall back to the list.
 	 *
@@ -130,13 +140,18 @@ final class SettingsPageTest extends WP_UnitTestCase {
 	 */
 	public static function invalid_invoice_args(): array {
 		return array(
-			'text'     => array( 'abc' ),
-			'negative' => array( '-3' ),
-			'zero'     => array( '0' ),
-			'decimal'  => array( '1.5' ),
-			'suffix'   => array( '12abc' ),
-			'overflow' => array( '9999999999999999999' ),
-			'array'    => array( array( '12' ) ),
+			'text'             => array( 'abc' ),
+			'negative'         => array( '-3' ),
+			'zero'             => array( '0' ),
+			'decimal'          => array( '1.5' ),
+			'suffix'           => array( '12abc' ),
+			'overflow'         => array( '9999999999999999999' ),
+			'array'            => array( array( '12' ) ),
+			'max_plus_one'     => array( '9223372036854775808' ),
+			'overflow_newline' => array( "9223372036854775808\n" ),
+			'trailing_newline' => array( "12\n" ),
+			'leading_zero'     => array( '012' ),
+			'twenty_digits'    => array( '10000000000000000000' ),
 		);
 	}
 

@@ -117,7 +117,7 @@ final class InvoicePage {
 	 */
 	private static function requested_invoice(): ?int {
 		$raw = isset( $_GET['invoice'] ) ? wp_unslash( $_GET['invoice'] ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- display only, validated by regex below.
-		if ( ! is_string( $raw ) || 1 !== preg_match( '/^[1-9][0-9]{0,18}$/', $raw ) ) {
+		if ( ! is_string( $raw ) || 1 !== preg_match( '/\A[1-9][0-9]{0,18}\z/', $raw ) ) {
 			return null;
 		}
 		$max = (string) PHP_INT_MAX;

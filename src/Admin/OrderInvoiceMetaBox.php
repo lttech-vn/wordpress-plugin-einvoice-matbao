@@ -72,11 +72,7 @@ final class OrderInvoiceMetaBox {
 			esc_html__( 'Mã tham chiếu (MTChieu):', 'einvoice-matbao' ),
 			esc_html( $invoice->reference )
 		);
-		foreach ( MatbaoStatusView::rows( $invoice ) as $label => $value ) {
-			if ( in_array( $label, self::matbao_row_labels(), true ) ) {
-				printf( '<p data-einv-matbao-row>%1$s: <strong>%2$s</strong></p>', esc_html( $label ), esc_html( $value ) );
-			}
-		}
+		echo MatbaoStatusView::meta_box_rows( $invoice ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in the view.
 		if ( current_user_can( 'manage_options' ) ) {
 			printf( '<p><a href="%1$s">%2$s</a></p>', esc_url( InvoicePage::detail_url( $invoice->id ) ), esc_html__( 'Xem chi tiết hóa đơn', 'einvoice-matbao' ) );
 		}
@@ -118,14 +114,5 @@ final class OrderInvoiceMetaBox {
 		if ( '' !== $invoice->status_reason ) {
 			printf( '<p class="einv-invoice-reason">%s</p>', esc_html( $invoice->status_reason ) );
 		}
-	}
-
-	/**
-	 * Labels of the Mat Bao rows the box shows: status, invoice number and MCCQT only.
-	 *
-	 * @return list<string>
-	 */
-	private static function matbao_row_labels(): array {
-		return array( __( 'Trạng thái Mắt Bão', 'einvoice-matbao' ), __( 'Số hóa đơn', 'einvoice-matbao' ), 'MCCQT' );
 	}
 }

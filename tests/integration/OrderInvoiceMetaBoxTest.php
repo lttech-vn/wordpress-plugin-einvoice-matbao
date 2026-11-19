@@ -108,6 +108,29 @@ final class OrderInvoiceMetaBoxTest extends InvoiceWorkflowTestCase {
 		$this->assertGreaterThan( 0, $id );
 	}
 
+	public function test_matbao_text_is_escaped(): void {
+		global $wpdb;
+		$order = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
+		$id    = $this->synced_invoice( $order );
+		$wpdb->update( // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- test setup.
+			$wpdb->prefix . 'einvoice_matbao_invoice',
+			array(
+				'matbao_status'      => 12,
+				'matbao_status_name' => '<img src=x onerror=alert(1)>',
+				'tax_authority_code' => '<b>x</b>',
+				'tax_note'           => '<script>alert(2)</script>',
+			),
+			array( 'id' => $id )
+		);
+
+		$html = $this->render( $order );
+
+		$this->assertStringNotContainsString( '<img src=x', $html );
+		$this->assertStringNotContainsString( '<b>x', $html );
+		$this->assertStringNotContainsString( '<script>', $html );
+		$this->assertStringContainsString( '&lt;img src=x onerror=alert(1)&gt;', $html );
+	}
+
 	public function test_admin_sees_invoice_link(): void {
 		$order = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
 		$id    = $this->synced_invoice( $order );
