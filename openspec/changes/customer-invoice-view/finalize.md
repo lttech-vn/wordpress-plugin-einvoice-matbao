@@ -16,7 +16,7 @@
 - **Branch**: `feat/customer-invoice-view`
 - **Base branch**: `main`
 - **Final state**: `pr-updated` (`customer-invoice-view` đã fast-forward vào feature branch ở local, rồi push feature branch lên `origin`)
-- **PR URL**: `N/A` (chưa có PR khi ghi receipt; xem mục PR comment)
+- **PR URL**: `https://github.com/lttech-vn/wordpress-plugin-einvoice-matbao/pull/61` (mở ở bước 11 sau khi user đồng ý trong chat)
 
 Theo `AGENTS.md` (không push/merge/mở PR khi chưa được phép trong chat), mình đã hỏi trước và user đồng ý phương án "fast-forward + push feature branch" trong chat. Remote thuộc `lttech-vn`. Trước khi push đã chuyển `gh` sang tài khoản `naicoi92`, vì `ttdua` không có quyền push.
 
@@ -33,7 +33,7 @@ Khác với script finalize: worktree được tạo bằng Worktrunk (`wt`) the
 
 ## PR comment
 
-- **PR comment status**: `skipped (no PR)` (sẽ cập nhật nếu PR được mở ở bước 11)
+- **PR comment status**: `posted` (https://github.com/lttech-vn/wordpress-plugin-einvoice-matbao/pull/61#issuecomment-7014332230)
 
 ---
 
