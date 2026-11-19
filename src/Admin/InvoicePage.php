@@ -28,19 +28,28 @@ final class InvoicePage {
 	private const INPUT     = 'rounded-einv-sm border border-einv-hairline-input bg-white px-3 py-2 text-[14px] text-einv-ink';
 	private const CARD      = 'mb-6 rounded-einv-lg border border-einv-hairline bg-white p-6 shadow-einv-card';
 	private const MUTED     = 'text-[13px] text-einv-ink-mute';
-	private const BADGE     = 'inline-flex items-center rounded-full px-2 py-0.5 text-[12px] font-medium';
+	public const BADGE      = 'inline-flex items-center rounded-full px-2 py-0.5 text-[12px] font-medium';
 
 	/**
 	 * Badge colours per status group.
 	 *
 	 * @var array<string, string>
 	 */
-	private const BADGE_COLORS = array(
+	public const BADGE_COLORS = array(
 		InvoiceStatus::GROUP_ERROR   => 'bg-einv-error-bg text-einv-error',
 		InvoiceStatus::GROUP_CREATED => 'bg-einv-success-bg text-einv-success',
 		InvoiceStatus::GROUP_WAITING => 'bg-einv-primary/10 text-einv-primary',
 		InvoiceStatus::GROUP_OTHER   => 'bg-einv-canvas-soft text-einv-ink-mute',
 	);
+
+	/**
+	 * Admin URL of one invoice's detail.
+	 *
+	 * @param int $invoice_id Invoice ID.
+	 */
+	public static function detail_url( int $invoice_id ): string {
+		return admin_url( 'admin.php?page=' . SettingsPage::SLUG . '&tab=invoices&invoice=' . $invoice_id );
+	}
 
 	/**
 	 * Hooks the menu.
@@ -81,7 +90,9 @@ final class InvoicePage {
 	 * @return string Escaped HTML.
 	 */
 	public static function render_panel(): string {
-		$list = rest_url( SettingsController::NAMESPACE . '/invoices' );
+		$list    = rest_url( SettingsController::NAMESPACE . '/invoices' );
+		$initial = self::requested_invoice();
+		$initial = null === $initial ? $list : $list . '/' . $initial;
 		ob_start();
 		?>
 		<div id="einv-dashboard" hx-get="<?php echo esc_url( rest_url( SettingsController::NAMESPACE . '/dashboard' ) ); ?>" hx-trigger="load"></div>
@@ -95,9 +106,26 @@ final class InvoicePage {
 			<input type="search" name="q" maxlength="40" placeholder="<?php esc_attr_e( 'Mã đơn hoặc MTChieu', 'einvoice-matbao' ); ?>" aria-label="<?php esc_attr_e( 'Mã đơn hoặc MTChieu', 'einvoice-matbao' ); ?>" class="<?php echo esc_attr( self::INPUT ); ?>" />
 			<button type="submit" class="<?php echo esc_attr( self::BUTTON ); ?>"><?php esc_html_e( 'Lọc', 'einvoice-matbao' ); ?></button>
 		</form>
-		<div id="einv-invoices" hx-get="<?php echo esc_url( $list ); ?>" hx-trigger="load"><p class="<?php echo esc_attr( self::MUTED ); ?>"><?php esc_html_e( 'Đang tải…', 'einvoice-matbao' ); ?></p></div>
+		<div id="einv-invoices" hx-get="<?php echo esc_url( $initial ); ?>" hx-trigger="load"><p class="<?php echo esc_attr( self::MUTED ); ?>"><?php esc_html_e( 'Đang tải…', 'einvoice-matbao' ); ?></p></div>
 		<?php
 		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Invoice ID asked for by the `invoice` query arg, or null when absent or not a positive integer.
+	 * Read only to pick what to display; the REST route checks the capability.
+	 */
+	private static function requested_invoice(): ?int {
+		$raw = isset( $_GET['invoice'] ) ? wp_unslash( $_GET['invoice'] ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- display only, validated by regex below.
+		if ( ! is_string( $raw ) || 1 !== preg_match( '/^[1-9][0-9]{0,18}$/', $raw ) ) {
+			return null;
+		}
+		$max = (string) PHP_INT_MAX;
+		if ( strlen( $raw ) === strlen( $max ) && strcmp( $raw, $max ) > 0 ) {
+			return null;
+		}
+
+		return (int) $raw;
 	}
 
 	/**
@@ -152,21 +180,25 @@ final class InvoicePage {
 		}
 
 		$html .= '<table class="widefat striped"><thead><tr>';
-		foreach ( array( __( 'Đơn', 'einvoice-matbao' ), 'MTChieu', __( 'Trạng thái', 'einvoice-matbao' ), __( 'Lỗi', 'einvoice-matbao' ), __( 'Cập nhật (UTC)', 'einvoice-matbao' ), '' ) as $heading ) {
+		foreach ( array( __( 'Đơn', 'einvoice-matbao' ), __( 'Số HĐ', 'einvoice-matbao' ), 'MTChieu', __( 'Trạng thái', 'einvoice-matbao' ), __( 'Mắt Bão', 'einvoice-matbao' ), __( 'Lỗi', 'einvoice-matbao' ), __( 'Đồng bộ lúc (UTC)', 'einvoice-matbao' ), '' ) as $heading ) {
 			$html .= '<th>' . esc_html( $heading ) . '</th>';
 		}
 		$html .= '</tr></thead><tbody>';
 		foreach ( $items as $invoice ) {
 			$error = $invoice->error();
 			$html .= sprintf(
-				'<tr data-einv-invoice-row="%1$d"><td>#%1$d</td><td><code>%2$s</code></td><td>%3$s</td><td>%4$s</td><td>%5$s</td><td><button type="button" class="%6$s" hx-get="%7$s" hx-target="#einv-invoices">%8$s</button></td></tr>',
+				'<tr data-einv-invoice-row="%1$d"><td>%2$s</td><td>%3$s</td><td><code>%4$s</code></td><td>%5$s</td><td>%6$s</td><td>%7$s</td><td>%8$s</td><td><button type="button" class="%9$s" hx-get="%10$s" hx-target="#einv-invoices" hx-push-url="%11$s">%12$s</button></td></tr>',
 				$invoice->order_id,
+				MatbaoStatusView::order_link( $invoice->order_id ),
+				null === $invoice->invoice_number ? '—' : esc_html( (string) $invoice->invoice_number ),
 				esc_html( $invoice->reference ),
 				self::badge( $invoice->status ),
+				MatbaoStatusView::badge( $invoice ),
 				esc_html( null === $error ? '' : $error->label() ),
-				esc_html( $invoice->updated_at ),
+				esc_html( $invoice->matbao_synced_at ?? '—' ),
 				esc_attr( self::SECONDARY ),
 				esc_url( rest_url( SettingsController::NAMESPACE . '/invoices/' . $invoice->id ) ),
+				esc_url( self::detail_url( $invoice->id ) ),
 				esc_html__( 'Chi tiết', 'einvoice-matbao' )
 			);
 		}
@@ -232,6 +264,8 @@ final class InvoicePage {
 			__( 'Mẫu số / ký hiệu đã lưu', 'einvoice-matbao' ) => '' === $invoice->template_form ? '—' : $invoice->template_form . ' / ' . $invoice->template_series,
 			__( 'Người mua', 'einvoice-matbao' )          => Redactor::redact( $invoice->buyer_name ),
 		);
+		$matbao_rows  = MatbaoStatusView::rows( $invoice );
+		$rows         = array_merge( $rows, $matbao_rows );
 		if ( null !== $error ) {
 			$rows[ __( 'Mã lỗi', 'einvoice-matbao' ) ] = $error->value . ' – ' . $error->label();
 			$rows[ $hint_label ]                       = $error->hint();
@@ -242,13 +276,14 @@ final class InvoicePage {
 
 		$html  = sprintf( '<section class="%1$s" data-einv-invoice-detail="%2$d"', esc_attr( self::CARD ), $invoice->id );
 		$html .= null === $error ? '' : sprintf( ' data-einv-error-code="%s"', esc_attr( $error->value ) );
-		$html .= sprintf( '><button type="button" class="%1$s mb-3" hx-get="%2$s" hx-target="#einv-invoices">%3$s</button><dl class="m-0 grid grid-cols-[200px_1fr] gap-y-2 text-[14px]">', esc_attr( self::SECONDARY ), esc_url( rest_url( SettingsController::NAMESPACE . '/invoices' ) ), esc_html__( '‹ Danh sách', 'einvoice-matbao' ) );
+		$html .= sprintf( '><button type="button" class="%1$s mb-3" hx-get="%2$s" hx-target="#einv-invoices" hx-push-url="%4$s">%3$s</button><dl class="m-0 grid grid-cols-[200px_1fr] gap-y-2 text-[14px]">', esc_attr( self::SECONDARY ), esc_url( rest_url( SettingsController::NAMESPACE . '/invoices' ) ), esc_html__( '‹ Danh sách', 'einvoice-matbao' ), esc_url( AdminTabs::url( 'invoices' ) ) );
 		foreach ( $rows as $label => $value ) {
 			$cell  = $label === $status_label ? self::badge( $invoice->status ) : esc_html( $value );
 			$attr  = $label === $hint_label ? sprintf( ' data-einv-hint="%s"', esc_attr( $value ) ) : '';
 			$html .= sprintf( '<dt class="%1$s">%2$s</dt><dd class="m-0 break-all"%4$s>%3$s</dd>', esc_attr( self::MUTED ), esc_html( $label ), $cell, $attr );
 		}
 		$html .= '</dl>';
+		$html .= sprintf( '<p class="mt-3 text-[14px]">%s</p>', MatbaoStatusView::order_link( $invoice->order_id, __( 'Xem đơn', 'einvoice-matbao' ) . ' ' ) );
 
 		$html .= '<h3 class="mt-6 text-[16px] font-medium">' . esc_html__( 'Lịch sử gửi', 'einvoice-matbao' ) . '</h3>';
 		if ( array() === $attempts ) {

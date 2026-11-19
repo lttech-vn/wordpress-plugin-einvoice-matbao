@@ -8,6 +8,7 @@
 namespace LTTech\EinvoiceMatbao\Tests\Integration;
 
 use Automattic\WooCommerce\Utilities\OrderUtil;
+use LTTech\EinvoiceMatbao\Admin\InvoicePage;
 use LTTech\EinvoiceMatbao\Admin\OrderInvoiceMetaBox;
 use LTTech\EinvoiceMatbao\Invoice\InvoiceErrorCode;
 use LTTech\EinvoiceMatbao\Invoice\InvoiceRepository;
@@ -93,6 +94,66 @@ final class OrderInvoiceMetaBoxTest extends InvoiceWorkflowTestCase {
 		$html = $this->render( $order );
 
 		$this->assertStringContainsString( 'data-einv-invoice-status="none"', $html );
+	}
+
+	public function test_issued_invoice(): void {
+		$order = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
+		$id    = $this->synced_invoice( $order );
+
+		$html = $this->render( $order );
+
+		$this->assertStringContainsString( 'Đã cấp mã/tiếp nhận', $html );
+		$this->assertStringContainsString( '125', $html );
+		$this->assertStringContainsString( '00ABC', $html );
+		$this->assertGreaterThan( 0, $id );
+	}
+
+	public function test_admin_sees_invoice_link(): void {
+		$order = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
+		$id    = $this->synced_invoice( $order );
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+
+		$html = $this->render( $order );
+
+		$this->assertStringContainsString( 'href="' . esc_url( InvoicePage::detail_url( $id ) ) . '"', $html );
+	}
+
+	public function test_shop_manager_has_no_invoice_link(): void {
+		$order = $this->create_order( array( array( $this->create_product( 'A', '100000' ), 1 ) ) );
+		$this->synced_invoice( $order );
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'shop_manager' ) ) );
+
+		$html = $this->render( $order );
+
+		$this->assertStringNotContainsString( 'tab=invoices', $html );
+		$this->assertStringContainsString( 'Đã cấp mã/tiếp nhận', $html );
+	}
+
+	/**
+	 * Reserves a draft_created invoice already issued on Mat Bao.
+	 *
+	 * @param WC_Order $order Order.
+	 * @return int Invoice ID.
+	 */
+	private function synced_invoice( WC_Order $order ): int {
+		global $wpdb;
+
+		$repository = new InvoiceRepository();
+		$this->assertTrue( $repository->reserve( $order->get_id(), 'WC' . $order->get_id(), 'Khách lẻ', InvoiceStatus::DRAFT_CREATED, '' ) );
+		$invoice = $repository->find_by_order( $order->get_id() );
+		$this->assertNotNull( $invoice );
+		$wpdb->update( // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- test setup.
+			$wpdb->prefix . 'einvoice_matbao_invoice',
+			array(
+				'matbao_status'      => 4,
+				'invoice_number'     => 125,
+				'tax_authority_code' => '00ABC',
+				'matbao_synced_at'   => '2026-01-02 03:04:05',
+			),
+			array( 'id' => $invoice->id )
+		);
+
+		return $invoice->id;
 	}
 
 	/**
