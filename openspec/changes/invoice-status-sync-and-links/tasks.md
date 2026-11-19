@@ -2,12 +2,12 @@
 
 Blocked by: none
 
-- [ ] 1.1 `MatbaoInvoice::from_api()` đọc `shDon` (0 → null), `mccqt` (rỗng → null), `maLoaiHDon`, `ghiChuCQT`; test parse cho mọi scenario của `specs/matbao-api-client` (design D4)
-- [ ] 1.2 `MatbaoClient::find_invoices_by_references()` gửi nhiều `MTChieu` trong một request, trả `MatbaoLookup { invoices, not_found }`; `find_invoices_by_reference()` thành trường hợp một phần tử, caller hiện có giữ hành vi; test 301, 200 không đọc được, một phần `notFound` (design D4)
-- [ ] 1.3 Enum `Invoice\MatbaoStatus` (0 Đã xóa, 1–9) với `label()`, `is_final()`, `alert_code()`, `group()`, cùng map nhãn loại hóa đơn; test theo `Mat Bao status values` và `Final and abnormal Mat Bao statuses` (design D2)
-- [ ] 1.4 `InvoiceErrorCode`: thêm `matbao_sign_failed`, `matbao_not_eligible`, `matbao_draft_deleted` với nhãn, `kind`, hint đúng nguyên văn `specs/failure-alerts`; cập nhật `InvoiceErrorCodeTest` (design D5)
-- [ ] 1.5 `Schema` lên version 6 với các cột và index của design D1; `InvoiceRecord` đọc các trường mới; `SchemaUpgradeTest` cho nâng cấp từ 5 giữ dữ liệu
-- [ ] 1.6 `InvoiceRepository`: `due_for_status_sync(limit, since)`, `record_matbao_status()` có điều kiện theo status/mã hóa đơn/trạng thái đã đọc kèm cảnh báo và phép gán `CASE` xóa mã Mắt Bão, `touch_matbao_checked()`; `update_status()` reset cột Mắt Bão khi ghi `matbao_invoice_id` mới; test mọi scenario của `specs/invoice-storage-schema` (design D1, D5)
+- [x] 1.1 `MatbaoInvoice::from_api()` đọc `shDon` (0 → null), `mccqt` (rỗng → null), `maLoaiHDon`, `ghiChuCQT`; test parse cho mọi scenario của `specs/matbao-api-client` (design D4)
+- [x] 1.2 `MatbaoClient::find_invoices_by_references()` gửi nhiều `MTChieu` trong một request, trả `MatbaoLookup { invoices, not_found }`; `find_invoices_by_reference()` thành trường hợp một phần tử, caller hiện có giữ hành vi; test 301, 200 không đọc được, một phần `notFound` (design D4)
+- [x] 1.3 Enum `Invoice\MatbaoStatus` (0 Đã xóa, 1–9) với `label()`, `is_final()`, `alert_code()`, `group()`, cùng map nhãn loại hóa đơn; test theo `Mat Bao status values` và `Final and abnormal Mat Bao statuses` (design D2)
+- [x] 1.4 `InvoiceErrorCode`: thêm `matbao_sign_failed`, `matbao_not_eligible`, `matbao_draft_deleted` với nhãn, `kind`, hint đúng nguyên văn `specs/failure-alerts`; cập nhật `InvoiceErrorCodeTest` (design D5)
+- [x] 1.5 `Schema` lên version 6 với các cột và index của design D1; `InvoiceRecord` đọc các trường mới; `SchemaUpgradeTest` cho nâng cấp từ 5 giữ dữ liệu
+- [x] 1.6 `InvoiceRepository`: `due_for_status_sync(limit, since)`, `record_matbao_status()` có điều kiện theo status/mã hóa đơn/trạng thái đã đọc kèm cảnh báo và phép gán `CASE` xóa mã Mắt Bão, `touch_matbao_checked()`; `update_status()` reset cột Mắt Bão khi ghi `matbao_invoice_id` mới; test mọi scenario của `specs/invoice-storage-schema` (design D1, D5)
 
 ## 2. Dịch vụ đồng bộ và lịch chạy
 
