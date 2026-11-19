@@ -226,6 +226,23 @@ Mã ngoài bảng (ví dụ 12, nếu Mắt Bão bổ sung) hiện đúng tên M
 - Hộp **Hóa đơn Mắt Bão** trên đơn: link **Xem chi tiết hóa đơn** (chỉ người có quyền `manage_options`, vì trang hóa đơn cần quyền này).
 - Chi tiết hóa đơn có địa chỉ riêng (`…&tab=invoices&invoice=<ID>`). Địa chỉ này mở thẳng chi tiết; nút **Chi tiết** và **‹ Danh sách** cập nhật địa chỉ theo, nên nút Back của trình duyệt và bookmark hoạt động. Mã hóa đơn không hợp lệ thì mở danh sách.
 
+### Khách xem hóa đơn trong My Account
+
+Khách đã đăng nhập, là chủ đơn, thấy mục **Hóa đơn điện tử** ở trang xem đơn (My Account → Đơn hàng → Xem). Khách vãng lai (đơn không gắn tài khoản), trang cảm ơn và người khác không thấy mục này.
+
+| Hiển thị cho khách | Khi nào |
+|---|---|
+| Đang xuất hóa đơn | Nháp mới tạo, chờ cấp mã, hoặc hóa đơn đã cấp nhưng thiếu mã hóa đơn trên Mắt Bão |
+| Đang xử lý, cửa hàng sẽ liên hệ nếu cần | Hóa đơn lỗi hoặc cần cửa hàng xử lý; không hiện chi tiết lỗi |
+| Đơn hàng không cần xuất hóa đơn | Đơn bị bỏ qua (ví dụ đơn 0 đồng) |
+| Đã xuất hóa đơn | Hóa đơn đã cấp mã; hiện số hóa đơn, ký hiệu, ngày lập và nút **Tải hóa đơn (PDF)** |
+| Hóa đơn đã được điều chỉnh, vui lòng liên hệ cửa hàng | Hóa đơn đã cấp nhưng bị xóa bỏ hoặc thay thế; không có nút tải |
+
+- Nút tải chỉ có khi hóa đơn đã cấp mã, không bị xóa bỏ hay thay thế. Nháp không bao giờ có nút tải, kể cả khi ai đó tự dựng đường dẫn.
+- Mỗi lần khách bấm tải, plugin kiểm tra lại trạng thái trên Mắt Bão rồi mới lấy PDF; không lưu PDF trên site. Nếu Mắt Bão lỗi hoặc không xác nhận hóa đơn, khách quay lại trang đơn với thông báo lỗi.
+- Đường dẫn tải có nonce theo từng đơn, chỉ dùng được khi đang đăng nhập đúng tài khoản chủ đơn.
+- Lưu ý theme: mục này chèn qua hook `woocommerce_order_details_after_order_table`. Theme ghi đè template `order/order-details.php` mà không gọi hook này sẽ không hiện mục; thêm lại `do_action( 'woocommerce_order_details_after_order_table', $order )` vào template đó.
+
 ### Tự động thử lại
 
 Khi Mắt Bão không phản hồi, lỗi máy chủ hoặc báo trùng mã tham chiếu, plugin tự thử lại sau **1 phút, 5 phút, 15 phút, 1 giờ và 6 giờ**. Không có cảnh báo trong lúc chờ. Sau lần thứ năm vẫn lỗi, hóa đơn chuyển sang **Lỗi cần xử lý** và gửi cảnh báo.
