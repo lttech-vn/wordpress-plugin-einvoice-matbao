@@ -170,7 +170,7 @@ Nội dung hóa đơn:
 
 ### Xem trạng thái hóa đơn
 
-- **Trên trang đơn hàng:** hộp **Hóa đơn Mắt Bão** hiện trạng thái plugin, mã tham chiếu, mã hóa đơn Mắt Bão, mẫu/ký hiệu, loại lỗi và lý do. Khi đã có nháp, hộp hiện thêm trạng thái trên Mắt Bão, số hóa đơn, MCCQT và link **Xem chi tiết hóa đơn** (chỉ Administrator thấy link này).
+- **Trên trang đơn hàng:** hộp **Hóa đơn Mắt Bão** hiện trạng thái plugin, mã tham chiếu, mã hóa đơn Mắt Bão, mẫu/ký hiệu, loại lỗi và lý do. Khi đã có nháp, hộp hiện thêm trạng thái trên Mắt Bão, số hóa đơn, MCCQT và link **Xem chi tiết hóa đơn** (chỉ người có quyền `manage_options` thấy link này).
 - **Danh sách đơn hàng:** bộ lọc **Hóa đơn** để lọc đơn theo trạng thái hóa đơn.
 - **Hóa đơn Mắt Bão, tab Hóa đơn** (đường dẫn cũ *Danh sách hóa đơn* tự chuyển về đây):
   - Ô tổng quan: *Lỗi / cần xử lý*, *Đang chờ gửi*, *Đã tạo nháp* (tổng và hôm nay).
@@ -222,7 +222,7 @@ Mã ngoài bảng (ví dụ 12, nếu Mắt Bão bổ sung) hiện đúng tên M
 
 - Danh sách hóa đơn: cột **Đơn** mở trang sửa đơn hàng; đơn đã bị xóa hiện dạng chữ.
 - Chi tiết hóa đơn: link **Xem đơn #N**.
-- Hộp **Hóa đơn Mắt Bão** trên đơn: link **Xem chi tiết hóa đơn** (chỉ Administrator, vì trang hóa đơn cần quyền quản trị).
+- Hộp **Hóa đơn Mắt Bão** trên đơn: link **Xem chi tiết hóa đơn** (chỉ người có quyền `manage_options`, vì trang hóa đơn cần quyền này).
 - Chi tiết hóa đơn có địa chỉ riêng (`…&tab=invoices&invoice=<ID>`). Địa chỉ này mở thẳng chi tiết; nút **Chi tiết** và **‹ Danh sách** cập nhật địa chỉ theo, nên nút Back của trình duyệt và bookmark hoạt động. Mã hóa đơn không hợp lệ thì mở danh sách.
 
 ### Tự động thử lại
@@ -278,7 +278,7 @@ Khi đồng bộ hoặc *Kiểm tra trạng thái* thấy hóa đơn chuyển sa
 | Không đủ điều kiện (6) | Không đủ điều kiện cấp mã/tiếp nhận | Cơ quan thuế không cấp mã/tiếp nhận hóa đơn. Xem ghi chú CQT trong chi tiết hóa đơn và xử lý trên Mắt Bão (điều chỉnh hoặc thay thế). |
 | Đã xóa trên Mắt Bão (0) | Nháp đã bị xóa trên Mắt Bão | Hóa đơn nháp không còn trên Mắt Bão. Kiểm tra trên Mắt Bão; nếu nháp bị xóa nhầm, mở chi tiết hóa đơn, bấm **Kiểm tra trạng thái** rồi xác nhận tạo lại. |
 
-- Mỗi trạng thái chỉ cảnh báo **một lần**. Lần đồng bộ sau vẫn thấy cùng trạng thái thì không cảnh báo lại. Hóa đơn đã cấp mã không bao giờ bị cảnh báo.
+- Cảnh báo khi chuyển sang trạng thái bất thường; các lần kiểm tra liên tiếp giữ nguyên trạng thái không cảnh báo lại (chuyển 2 → 1 → 2 vẫn cảnh báo lại ở lần thứ hai). Hóa đơn đã cấp mã không bao giờ bị cảnh báo.
 - Khi Mắt Bão cập nhật lại (ví dụ đã ký lại), cảnh báo trạng thái tự biến mất.
 - Mỗi hóa đơn chỉ có một mã cảnh báo. Cảnh báo trạng thái Mắt Bão **thay** cảnh báo đơn hàng đang có (ví dụ *Số tiền đơn hàng đổi sau khi có nháp*). Khi Mắt Bão trở lại bình thường, cảnh báo đơn hàng đang có không bị xóa.
 

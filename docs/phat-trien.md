@@ -142,6 +142,7 @@ Mọi lý do không tạo được nháp được lưu trên dòng invoice dư�
 | `matbao` | `pending` → `needs_attention` | request không hoàn tất, HTTP 5xx/408/429, body 2xx không đọc được (create-invoice hoặc templates), trùng `MTChieu` 305 | có; retry create-invoice tra cứu `MTChieu` trước |
 | `matbao` | `failed` | HTTP khác (4xx), Mắt Bão `success` false với `errorCode` khác hoặc không có (hóa đơn bị từ chối, login) | không |
 | `matbao` | `needs_attention` | tra cứu theo `MTChieu` tìm thấy thứ có thể không phải nháp của đơn này (`matbao_lookup_mismatch`) | không |
+| `matbao` | `draft_created` (giữ nguyên) | `matbao_sign_failed`, `matbao_not_eligible`, `matbao_draft_deleted` (chỉ do đồng bộ đặt/xóa, cảnh báo một lần) | không |
 | `system` | `pending` → `failed` | xếp hàng đợi lỗi (sweep thử thêm một lần, sau đó là lỗi cuối) | chỉ sweep |
 | `system` | `failed` | exception không lường trước | không |
 
@@ -170,7 +171,7 @@ Code nằm trong `src/Invoice/MatbaoStatusSync.php`; enum `MatbaoStatus` (`src/I
 - `sync_one()` (nút *Kiểm tra trạng thái*) và `sync_batch()` cùng đường `apply()`.
 - Ghép kết quả theo `maSoHDon` = `matbao_invoice_id`. Không khớp dòng nào nhưng có trong `notFound` hoặc errorCode 301 thì ghi `matbao_status = 0`; dòng không parse được hoặc vắng ở cả hai danh sách thì giữ nguyên và log `warn`. Client: `find_invoices_by_references()` trả `MatbaoLookup { invoices, not_found }`.
 - "Đã xóa" (0) chỉ được ghi khi có 301 hoặc `notFound`. Không bao giờ suy từ việc thiếu dòng hay lỗi transport/HTTP.
-- Ghi bằng `InvoiceRepository::record_matbao_status()` với `WHERE id = ? AND status = 'draft_created' AND matbao_invoice_id = ? AND matbao_status <=> ?` (giá trị đã đọc). Kết quả `STALE` không cảnh báo. Cron và nút thủ công chạy đồng thời chỉ một bên thắng nên cảnh báo một lần.
+- Ghi bằng `InvoiceRepository::record_matbao_status()` với `WHERE id = %d AND status = 'draft_created' AND matbao_invoice_id = %s AND matbao_status IS NULL` khi trạng thái đã đọc là NULL, hoặc `matbao_status = %d` khi có giá trị (giá trị đã đọc). Kết quả `STALE` không cảnh báo. Cron và nút thủ công chạy đồng thời chỉ một bên thắng nên cảnh báo một lần.
 - Trạng thái có `alert_code()` (2, 6, 0) được ghi kèm `error_code`, `error_kind`, `status_reason`, `alert_cycle + 1`, rồi fire `DraftInvoiceWorkflow::NEEDS_ATTENTION_ACTION` khi trạng thái đổi. Trạng thái không cảnh báo xóa `error_code` nếu đang là một trong ba mã `matbao_*` (`is_matbao_status_warning()`), bằng `CASE WHEN` trong cùng câu UPDATE. Mã `order_*_changed` và các mã khác không bị đụng.
 - `update_status()` khi gán `matbao_invoice_id` mới (`mark_created`) đặt mọi cột `matbao_*` về NULL, nên nháp tạo lại được đồng bộ lại từ đầu.
 - Mã mới trong `InvoiceErrorCode`: `matbao_sign_failed`, `matbao_not_eligible`, `matbao_draft_deleted`. Đều `needs_attention() = true`, `kind() = matbao`, có `hint()`.
