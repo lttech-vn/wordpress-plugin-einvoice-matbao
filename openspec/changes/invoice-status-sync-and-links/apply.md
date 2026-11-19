@@ -23,13 +23,13 @@
 ## Commits
 
 - **Range**: `0eb4b9c..d95584a` (`0eb4b9c` = commit scaffold change trên feature branch; commit receipt này nằm ngay sau `d95584a`)
-- **Count**: `21`
+- **Count**: `21` (+ commit receipt)
 
 ---
 
 ## Tasks
 
-- **Completed**: `26 of 26` checkboxes trong tasks.md đã chuyển sang `- [x]`
+- **Completed**: `23 of 23` checkboxes trong tasks.md đã chuyển sang `- [x]`
 - **Remaining**: none
 
 ---
