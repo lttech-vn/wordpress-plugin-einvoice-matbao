@@ -404,7 +404,7 @@ final class InvoiceRepository {
 		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- the fragment only holds fixed text and one %d per final status.
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT * FROM %i WHERE status = %s AND matbao_invoice_id IS NOT NULL AND matbao_invoice_id <> '' AND template_form <> '' AND template_series <> '' AND (matbao_status IS NULL OR matbao_status NOT IN (" . implode( ',', array_fill( 0, count( $final ), '%d' ) ) . ')) AND COALESCE(issued_on, DATE(created_at)) >= %s ORDER BY matbao_checked_at IS NOT NULL, matbao_checked_at, id LIMIT %d',
+				"SELECT * FROM %i WHERE status = %s AND matbao_invoice_id IS NOT NULL AND matbao_invoice_id <> '' AND template_form <> '' AND template_series <> '' AND (matbao_status IS NULL OR matbao_status NOT IN (" . implode( ',', array_fill( 0, count( $final ), '%d' ) ) . ')) AND COALESCE(issued_on, DATE(created_at)) >= %s ORDER BY matbao_checked_at, id LIMIT %d',
 				$params
 			),
 			ARRAY_A

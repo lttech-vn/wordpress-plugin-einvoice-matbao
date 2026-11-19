@@ -180,14 +180,14 @@ final class InvoicePage {
 		}
 
 		$html .= '<table class="widefat striped"><thead><tr>';
-		foreach ( array( __( 'Đơn', 'einvoice-matbao' ), __( 'Số HĐ', 'einvoice-matbao' ), 'MTChieu', __( 'Trạng thái', 'einvoice-matbao' ), __( 'Mắt Bão', 'einvoice-matbao' ), __( 'Lỗi', 'einvoice-matbao' ), __( 'Đồng bộ lúc (UTC)', 'einvoice-matbao' ), '' ) as $heading ) {
+		foreach ( array( __( 'Đơn', 'einvoice-matbao' ), __( 'Số HĐ', 'einvoice-matbao' ), 'MTChieu', __( 'Trạng thái', 'einvoice-matbao' ), __( 'Mắt Bão', 'einvoice-matbao' ), __( 'Lỗi', 'einvoice-matbao' ), __( 'Cập nhật (UTC)', 'einvoice-matbao' ), __( 'Đồng bộ lúc (UTC)', 'einvoice-matbao' ), '' ) as $heading ) {
 			$html .= '<th>' . esc_html( $heading ) . '</th>';
 		}
 		$html .= '</tr></thead><tbody>';
 		foreach ( $items as $invoice ) {
 			$error = $invoice->error();
 			$html .= sprintf(
-				'<tr data-einv-invoice-row="%1$d"><td>%2$s</td><td>%3$s</td><td><code>%4$s</code></td><td>%5$s</td><td>%6$s</td><td>%7$s</td><td>%8$s</td><td><button type="button" class="%9$s" hx-get="%10$s" hx-target="#einv-invoices" hx-push-url="%11$s">%12$s</button></td></tr>',
+				'<tr data-einv-invoice-row="%1$d"><td>%2$s</td><td>%3$s</td><td><code>%4$s</code></td><td>%5$s</td><td>%6$s</td><td>%7$s</td><td>%8$s</td><td>%9$s</td><td><button type="button" class="%10$s" hx-get="%11$s" hx-target="#einv-invoices" hx-push-url="%12$s">%13$s</button></td></tr>',
 				$invoice->order_id,
 				MatbaoStatusView::order_link( $invoice->order_id ),
 				null === $invoice->invoice_number ? '—' : esc_html( (string) $invoice->invoice_number ),
@@ -195,6 +195,7 @@ final class InvoicePage {
 				self::badge( $invoice->status ),
 				MatbaoStatusView::badge( $invoice ),
 				esc_html( null === $error ? '' : $error->label() ),
+				esc_html( $invoice->updated_at ),
 				esc_html( $invoice->matbao_synced_at ?? '—' ),
 				esc_attr( self::SECONDARY ),
 				esc_url( rest_url( SettingsController::NAMESPACE . '/invoices/' . $invoice->id ) ),

@@ -330,8 +330,25 @@ final class InvoiceAdminListRestTest extends SettingsRestTestCase {
 		$html = $this->html( $this->htmx( 'GET', '/invoices' ) );
 
 		$this->assertStringNotContainsString( 'data-einv-matbao-badge', $html );
-		// Cells: order, number, MTChieu, status, Mat Bao, error, synced at, detail.
-		$this->assertMatchesRegularExpression( '#<tr data-einv-invoice-row="9404">(?:<td>.*?</td>){4}<td>—</td><td>[^<]*</td><td>—</td>#us', $html );
+		// Cells: order, number, MTChieu, status, Mat Bao, error, updated at, synced at, detail.
+		$this->assertMatchesRegularExpression( '#<tr data-einv-invoice-row="9404">(?:<td>.*?</td>){4}<td>—</td><td>[^<]*</td><td>[^<]*</td><td>—</td>#us', $html );
+	}
+
+	public function test_list_shows_updated_and_synced_columns_in_order(): void {
+		global $wpdb;
+		$this->login_as( 'administrator' );
+		$id = $this->synced( 9405, 4, 'Đã cấp mã', 126 );
+		$wpdb->update( // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- test setup.
+			$wpdb->prefix . 'einvoice_matbao_invoice',
+			array( 'updated_at' => '2026-03-04 05:06:07' ),
+			array( 'id' => $id )
+		);
+
+		$html = $this->html( $this->htmx( 'GET', '/invoices' ) );
+
+		$this->assertStringContainsString( '<th>' . esc_html( 'Cập nhật (UTC)' ) . '</th>', $html );
+		$this->assertStringContainsString( '<th>' . esc_html( 'Đồng bộ lúc (UTC)' ) . '</th>', $html );
+		$this->assertMatchesRegularExpression( '#<td>2026-03-04 05:06:07</td><td>2026-01-02 03:04:05</td><td><button#u', $html );
 	}
 
 	public function test_matbao_text_is_escaped_in_list_and_detail(): void {
