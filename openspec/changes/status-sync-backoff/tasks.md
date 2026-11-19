@@ -11,6 +11,6 @@ Blocked by: none
 
 Blocked by: 1
 
-- [ ] 2.1 `Uninstaller`: add `STATUS_SYNC_BACKOFF_OPTION`, delete it on default uninstall; name-match and removal tests in `tests/integration/UninstallTest.php`
-- [ ] 2.2 Update `docs/phat-trien.md` (MatbaoStatusSync section) and `docs/huong-dan-su-dung.md` (Đồng bộ trạng thái Mắt Bão) with the stop-early and backoff behaviour
-- [ ] 2.3 Run `composer check` (lint, phpstan, integration tests) green
+- [x] 2.1 `Uninstaller`: add `STATUS_SYNC_BACKOFF_OPTION`, delete it on default uninstall; name-match and removal tests in `tests/integration/UninstallTest.php`
+- [x] 2.2 Update `docs/phat-trien.md` (MatbaoStatusSync section) and `docs/huong-dan-su-dung.md` (Đồng bộ trạng thái Mắt Bão) with the stop-early and backoff behaviour
+- [x] 2.3 Run `composer check` (lint, phpstan, integration tests) green
