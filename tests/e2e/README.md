@@ -11,7 +11,7 @@ Agent (`agent.act`) thực hiện các luồng người dùng; mọi bước age
 | `checkout-invoice.army.ts` | 13-15, 17, 19: đặt đơn ở Classic và Blocks checkout, hoàn thành, thấy nháp | điền yêu cầu xuất hóa đơn |
 | `checkout-validation.army.ts` | 16, 18: quy tắc trình duyệt khớp quy tắc server; Store API từ chối dữ liệu sai; CCCD không bao giờ lưu dạng rõ | yêu cầu doanh nghiệp và cá nhân hợp lệ |
 | `settings.army.ts` | 28-31, 33: credential mã hóa, kiểm tra kết nối, chọn mẫu, prefix MTChieu, tên vãng lai, đơn vị tính | lưu và kiểm tra kết nối, chọn mẫu |
-| `invoices.army.ts` | 1, 3, 20-26: danh sách, bộ lọc, tìm kiếm, chi tiết, kiểm tra trạng thái, gửi lại, tổng quan | mở chi tiết hóa đơn |
+| `invoices.army.ts` | 1, 3, 20-26: danh sách, bộ lọc, tìm kiếm, chi tiết (có URL riêng, nút Back), kiểm tra trạng thái Mắt Bão (đã cấp mã, lỗi ký; fake `/__control/seed`), liên kết đơn ↔ hóa đơn, gửi lại, tổng quan | mở chi tiết hóa đơn |
 | `failures.army.ts` | 4-7, 8, 10, 12, 38-40: chặn nháp, dòng phí (7), 503/mất phản hồi/305/số lần retry và khoảng chờ/hết retry | mở chi tiết hóa đơn |
 | `order-changes.army.ts` | 11, 12, 27: cảnh báo sau khi có nháp, hành vi snapshot | không (chính xác; xem trên) |
 | `units-permissions.army.ts` | 32, 34: đơn vị tính (32), từ chối user không phải admin | sửa đơn vị tính sản phẩm |

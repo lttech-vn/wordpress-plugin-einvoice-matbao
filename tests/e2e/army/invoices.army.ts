@@ -134,18 +134,61 @@ describe("invoice admin", { serial: false, agent: "admin" }, () => {
 		await app.open(PAGES.invoices);
 		await openOnlyInvoice(screen);
 		await screen.getByRole("button", "Kiểm tra trạng thái").tap();
-		await expect(okNotice(screen)).toContainText("Hóa đơn nháp vẫn còn trên Mắt Bão.");
+		await expect(okNotice(screen)).toContainText("Trạng thái trên Mắt Bão: Nháp.");
 	});
 
-	test("check status warns when the draft was issued on Mat Bao and never changes the row", async ({ app, screen }) => {
+	test("check status records an issued invoice with its number and tax authority code", async ({ app, screen, browser }) => {
 		const orderId = await completedOrder({ app });
 		const done = await waitForStatus({ app }, orderId, "draft_created");
-		await fake("issue", { mtChieu: done.invoice.reference });
+		await fake("seed", { mtChieu: done.invoice.reference, maTThaiHDon: 4, tenTThaiHDon: "Đã cấp mã", shDon: 1234, mccqt: "E2EMCCQT0001", maLoaiHDon: 2 });
+		await app.open(PAGES.invoices);
+		await openOnlyInvoice(screen);
+		await screen.getByRole("button", "Kiểm tra trạng thái").tap();
+		await expect(browser.locator("[data-einv-check='synced']")).toContainText("Đã cấp mã/tiếp nhận");
+		await expect(okNotice(screen)).toContainText("Đã cấp mã/tiếp nhận");
+		const invoiceId = (await seam({ app }, `/invoice/${orderId}`)).invoice.id;
+		await app.open(`${PAGES.invoices}&invoice=${invoiceId}`); // the stored status shows on the detail after a reload
+		await expect(browser.locator("[data-einv-invoice-detail]")).toContainText("Đã cấp mã/tiếp nhận");
+		await expect(browser.locator("[data-einv-invoice-detail]")).toContainText("1234");
+		await expect(browser.locator("[data-einv-invoice-detail]")).toContainText("E2EMCCQT0001");
+		await app.open(PAGES.invoices);
+		await expect(browser.locator("[data-einv-matbao-badge='issued']")).toBeVisible();
+		expect((await seam({ app }, `/invoice/${orderId}`)).invoice.status).toBe("draft_created"); // the plugin status is untouched
+	});
+
+	test("check status shows the sign-failure hint when Mat Bao reports a signing error", async ({ app, screen, browser }) => {
+		const orderId = await completedOrder({ app });
+		const done = await waitForStatus({ app }, orderId, "draft_created");
+		await fake("seed", { mtChieu: done.invoice.reference, maTThaiHDon: 2, tenTThaiHDon: "Lỗi ký" });
 		await app.open(PAGES.invoices);
 		await openOnlyInvoice(screen);
 		await screen.getByRole("button", "Kiểm tra trạng thái").tap(); // exact: a red warning is the expected result
-		await expect(errorNotice(screen)).toContainText("không còn ở trạng thái Nháp");
-		expect((await seam({ app }, `/invoice/${orderId}`)).invoice.status).toBe("draft_created");
+		await expect(errorNotice(screen)).toContainText("Hóa đơn bị lỗi ký trên Mắt Bão");
+		await expect(browser.locator("[data-einv-check]")).toBeVisible();
+	});
+
+	test("the detail has its own address, the list opens it with history and links to the order", async ({ app, screen, browser }) => {
+		const orderId = await completedOrder({ app });
+		const done = await waitForStatus({ app }, orderId, "draft_created");
+		const invoiceId = (await seam({ app }, `/invoice/${orderId}`)).invoice.id;
+		expect(done.invoice.id).toBe(invoiceId);
+
+		await app.open(`${PAGES.invoices}&invoice=${invoiceId}`);
+		await expect(screen.getByText("Lịch sử gửi")).toBeVisible();
+		await expect(browser.locator(`[data-einv-invoice-detail='${invoiceId}']`)).toBeVisible();
+
+		await app.open(PAGES.invoices);
+		await openOnlyInvoice(screen);
+		await expect(browser).toHaveURL(new RegExp(`invoice=${invoiceId}`));
+		await expect(screen.getByText("Lịch sử gửi")).toBeVisible();
+		await browser.back();
+		await expect(screen.getByRole("row").filter({ hasText: `#${orderId}` })).toBeVisible();
+		await expect(browser.locator("[data-einv-invoice-detail]")).toHaveCount(0);
+		expect(await browser.url()).not.toContain("invoice=");
+
+		await screen.getByRole("link", `#${orderId}`).tap();
+		await expect(browser).toHaveURL(/post\.php|wc-orders/);
+		await expect(screen.getByText("Đã tạo nháp", { exact: false }).first()).toBeVisible();
 	});
 
 	test("a deleted draft is never recreated without an explicit confirmation", async ({ app, screen, browser }) => {
@@ -156,7 +199,7 @@ describe("invoice admin", { serial: false, agent: "admin" }, () => {
 		await app.open(PAGES.invoices);
 		await openOnlyInvoice(screen);
 		await screen.getByRole("button", "Kiểm tra trạng thái").tap(); // exact: a red warning is the expected result
-		await expect(screen.getByText("Cảnh báo: hóa đơn nháp không còn trên Mắt Bão", { exact: false })).toBeVisible();
+		await expect(screen.getByText("Hóa đơn nháp không còn trên Mắt Bão", { exact: false })).toBeVisible();
 		// The status check on its own made no create call.
 		expect((await fake("requests?endpoint=create-invoice")).length).toBe(1);
 

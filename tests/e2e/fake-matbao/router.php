@@ -17,6 +17,8 @@
  *        (the lost-response case). Without a step the call is answered normally.
  *   POST /__control/delete   {mtChieu}    removes the draft from Mat Bao
  *   POST /__control/issue    {mtChieu}    marks it issued (no longer a draft)
+ *   POST /__control/seed     {mtChieu, maTThaiHDon?, tenTThaiHDon?, shDon?, mccqt?, maLoaiHDon?, ghiChuCQT?, notFound?}
+ *        What invoice-detail-batch reports for the reference from now on (`notFound`: listed as not found).
  *   GET  /__control/requests[?endpoint=]  logged calls, passwords redacted (`sentry-envelope`: POST /api/<n>/envelope/)
  *   GET  /__control/invoices              stored invoices
  *
@@ -36,6 +38,7 @@ function einv_fake_default(): array {
 		'templates'    => null,
 		'lookup_total' => false,
 		'script'       => array(),
+		'seeds'        => array(),
 		'invoices'     => array(),
 		'requests'     => array(),
 		'seq'          => 0,
@@ -141,6 +144,15 @@ if ( str_starts_with( $path, '/__control/' ) ) {
 				}
 			);
 			einv_fake_json( 200, array( 'affected' => $count ) );
+		case 'seed':
+			$reference = (string) ( $body['mtChieu'] ?? '' );
+			unset( $body['mtChieu'] );
+			einv_fake_with_state(
+				static function ( array &$s ) use ( $reference, $body ): void {
+					$s['seeds'][ $reference ] = $body;
+				}
+			);
+			einv_fake_json( 200, array( 'ok' => true ) );
 		case 'requests':
 			$endpoint = (string) ( $_GET['endpoint'] ?? '' );
 			$log      = einv_fake_with_state( static fn( array &$s ): array => $s['requests'] );
@@ -362,7 +374,11 @@ switch ( $endpoint ) {
 				$rows = array();
 				foreach ( $s['invoices'] as $stored ) {
 					if ( in_array( $stored['mtChieu'], $references, true ) && $stored['khmshDon'] === $form && $stored['khhDon'] === $series ) {
-						$row = $stored;
+						$seed = (array) ( $s['seeds'][ $stored['mtChieu'] ] ?? array() );
+						if ( ! empty( $seed['notFound'] ) ) {
+							continue;
+						}
+						$row = array_merge( $stored, $seed );
 						if ( ! $s['lookup_total'] ) {
 							unset( $row['tgTTTBSo'], $row['nMua_Ten'] );
 						}
