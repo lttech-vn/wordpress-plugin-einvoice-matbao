@@ -7,7 +7,7 @@
 
 **Change**: `invoice-status-sync-and-links`
 **Finalized at**: `2026-11-19 14:20` (ICT)
-**Outcome**: `pr-updated` (đang chờ: push và PR cần user cho phép, theo AGENTS.md)
+**Outcome**: `pr-created`
 
 ---
 
@@ -15,8 +15,8 @@
 
 - **Branch**: `feat/invoice-status-sync-and-links`
 - **Base branch**: `main`
-- **Final state**: `pr-updated` (đang chờ). Worktree branch đã merge fast-forward (`0eb4b9c..3890f42`); feature branch chưa push lên remote.
-- **PR URL**: `N/A` (chưa có PR)
+- **Final state**: `pr-open` (worktree branch đã merge fast-forward `0eb4b9c..3890f42`; feature branch đã push)
+- **PR URL**: `https://github.com/lttech-vn/wordpress-plugin-einvoice-matbao/pull/54`
 
 ---
 
@@ -29,7 +29,7 @@
 
 ## PR comment
 
-- **PR comment status**: `skipped (no PR)` (cập nhật lại sau khi user quyết push/PR)
+- **PR comment status**: `posted` (https://github.com/lttech-vn/wordpress-plugin-einvoice-matbao/pull/54#issuecomment-7002265090)
 
 ---
 
@@ -54,10 +54,11 @@
 
 - Session bắt đầu trên `main`, nên feature branch `feat/invoice-status-sync-and-links` được tạo bằng `wt` ở bước apply step 0.
 - Bước 3 `git pull` bị bỏ qua: feature branch chưa có trên remote.
-- Bước 10–12 (push, tạo PR, comment) chờ user cho phép, theo AGENTS.md: "không push, merge hay mở PR nếu chưa được user cho phép rõ trong chat".
+- Bước 10–12 chỉ chạy sau khi user cho phép trong chat (theo AGENTS.md). SSH push bị từ chối vì key mặc định thuộc `ttdua`, nên đã push qua HTTPS bằng credential `gh` của `naicoi92`; remote không đổi.
+- Chưa có PR từ trước, nên outcome là `pr-created`, không phải `pr-updated`.
 
 ---
 
 ## Next step
 
-Sau khi user cho phép: push `feat/invoice-status-sync-and-links`, mở PR, đăng comment định hướng code review và cập nhật receipt này. Sau đó: chờ PR code review → chạy `/opsx-archive` trên feature branch → push các commit archive → merge PR (`gh pr merge --squash --delete-branch`).
+Chờ PR review, và job CI `E2E` (`bun run e2e:replay`) phải xanh, vì cảnh báo W1 trong verify.md. Sau khi PR được duyệt: chạy `/opsx-archive` trên feature branch `feat/invoice-status-sync-and-links` (commit archive nằm trên branch này), push các commit archive để cập nhật PR, rồi merge PR (`gh pr merge --squash --delete-branch` hoặc GitHub UI). Một lần merge đó đưa cả implementation lẫn archive vào main.
