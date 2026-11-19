@@ -65,6 +65,13 @@ describe("checkout invoice request", { serial: false }, () => {
 				}
 				await expect(created.first()).toBeVisible();
 
+				// The order box links to the detail of this invoice.
+				await screen.getByRole("link", "Xem chi tiết hóa đơn").tap();
+				const invoiceId = (await seam({ app }, `/invoice/${orderId}`)).invoice.id;
+				await expect(browser).toHaveURL(new RegExp(`tab=invoices&invoice=${invoiceId}$`));
+				await expect(browser.locator(`[data-einv-invoice-detail='${invoiceId}']`)).toContainText(`#${orderId}`);
+				await expect(screen.getByText("Lịch sử gửi")).toBeVisible();
+
 				await app.open(PAGES.invoices);
 				await screen.getByRole("searchbox").fill(String(orderId));
 				await screen.getByRole("searchbox").press("Enter");

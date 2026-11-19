@@ -21,7 +21,7 @@ use WP_UnitTestCase;
 final class SettingsPageTest extends WP_UnitTestCase {
 
 	public function tear_down(): void {
-		unset( $_GET['tab'] );
+		unset( $_GET['tab'], $_GET['invoice'] );
 		global $menu, $submenu, $_registered_pages, $_wp_submenu_nopriv;
 		foreach ( (array) $menu as $position => $item ) {
 			if ( SettingsPage::SLUG === ( $item[2] ?? '' ) ) {
@@ -111,6 +111,65 @@ final class SettingsPageTest extends WP_UnitTestCase {
 		$this->assertMatchesRegularExpression( '/<a [^>]*data-einv-tab-link="invoices"[^>]*aria-current="page"|<a [^>]*aria-current="page"[^>]*data-einv-tab-link="invoices"/', $page );
 		$this->assertStringContainsString( 'id="einv-invoices"', $page );
 		$this->assertStringNotContainsString( 'id="einv-mst"', $page );
+	}
+
+	public function test_invoice_query_arg_loads_detail(): void {
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+		$_GET['invoice'] = '12';
+
+		$panel = InvoicePage::render_panel();
+		unset( $_GET['invoice'] );
+
+		$this->assertMatchesRegularExpression( '#id="einv-invoices" hx-get="[^"]*/invoices/12"#', $panel );
+	}
+
+	public function test_php_int_max_loads_detail(): void {
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+		$_GET['invoice'] = (string) PHP_INT_MAX;
+
+		$panel = InvoicePage::render_panel();
+		unset( $_GET['invoice'] );
+
+		$this->assertMatchesRegularExpression( '#id="einv-invoices" hx-get="[^"]*/invoices/' . PHP_INT_MAX . '"#', $panel );
+	}
+
+	/**
+	 * Values of `invoice` that must fall back to the list.
+	 *
+	 * @return array<string, array{mixed}>
+	 */
+	public static function invalid_invoice_args(): array {
+		return array(
+			'text'             => array( 'abc' ),
+			'negative'         => array( '-3' ),
+			'zero'             => array( '0' ),
+			'decimal'          => array( '1.5' ),
+			'suffix'           => array( '12abc' ),
+			'overflow'         => array( '9999999999999999999' ),
+			'array'            => array( array( '12' ) ),
+			'max_plus_one'     => array( '9223372036854775808' ),
+			'overflow_newline' => array( "9223372036854775808\n" ),
+			'trailing_newline' => array( "12\n" ),
+			'leading_zero'     => array( '012' ),
+			'twenty_digits'    => array( '10000000000000000000' ),
+		);
+	}
+
+	/**
+	 * An invalid `invoice` arg shows the list.
+	 *
+	 * @dataProvider invalid_invoice_args
+	 *
+	 * @param mixed $value Query value.
+	 */
+	public function test_invalid_invoice_query_arg_loads_list( mixed $value ): void {
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+		$_GET['invoice'] = $value;
+
+		$panel = InvoicePage::render_panel();
+		unset( $_GET['invoice'] );
+
+		$this->assertMatchesRegularExpression( '#id="einv-invoices" hx-get="[^"]*/invoices"#', $panel );
 	}
 
 	/**

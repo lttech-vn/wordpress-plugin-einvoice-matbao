@@ -13,7 +13,7 @@ namespace LTTech\EinvoiceMatbao\Invoice;
  */
 final class Schema {
 
-	public const VERSION        = '5';
+	public const VERSION        = '6';
 	public const VERSION_OPTION = 'einvoice_matbao_db_version';
 
 	/**
@@ -73,12 +73,21 @@ final class Schema {
   retry_cycle_start bigint(20) unsigned NOT NULL DEFAULT 0,
   alert_cycle int(10) unsigned NOT NULL DEFAULT 0,
   order_state varchar(120) NOT NULL DEFAULT '',
+  matbao_status tinyint(3) unsigned NULL,
+  matbao_status_name varchar(100) NULL,
+  invoice_number int(10) unsigned NULL,
+  tax_authority_code varchar(50) NULL,
+  matbao_invoice_type tinyint(3) unsigned NULL,
+  tax_note text NULL,
+  matbao_synced_at datetime NULL,
+  matbao_checked_at datetime NULL,
   created_at datetime NOT NULL,
   updated_at datetime NOT NULL,
   PRIMARY KEY  (id),
   UNIQUE KEY order_id (order_id),
   KEY reference (reference),
-  KEY status (status)
+  KEY status (status),
+  KEY matbao_sync (status, matbao_checked_at)
 ) {$charset_collate};
 CREATE TABLE {$attempt} (
   id bigint(20) unsigned NOT NULL AUTO_INCREMENT,

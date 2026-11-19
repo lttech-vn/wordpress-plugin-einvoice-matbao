@@ -170,7 +170,7 @@ Nội dung hóa đơn:
 
 ### Xem trạng thái hóa đơn
 
-- **Trên trang đơn hàng:** hộp **Hóa đơn Mắt Bão** hiện trạng thái, mã tham chiếu, mã hóa đơn Mắt Bão, mẫu/ký hiệu, loại lỗi và lý do.
+- **Trên trang đơn hàng:** hộp **Hóa đơn Mắt Bão** hiện trạng thái plugin, mã tham chiếu, mã hóa đơn Mắt Bão, mẫu/ký hiệu, loại lỗi và lý do. Khi đã có nháp, hộp hiện thêm trạng thái trên Mắt Bão, số hóa đơn, MCCQT và link **Xem chi tiết hóa đơn** (chỉ người có quyền `manage_options` thấy link này).
 - **Danh sách đơn hàng:** bộ lọc **Hóa đơn** để lọc đơn theo trạng thái hóa đơn.
 - **Hóa đơn Mắt Bão, tab Hóa đơn** (đường dẫn cũ *Danh sách hóa đơn* tự chuyển về đây):
   - Ô tổng quan: *Lỗi / cần xử lý*, *Đang chờ gửi*, *Đã tạo nháp* (tổng và hôm nay).
@@ -187,6 +187,44 @@ Nội dung hóa đơn:
 | Đã dừng | Đơn rời *Hoàn thành* hoặc được hoàn tiền trước khi gửi | Xem lại đơn; chuyển lại *Hoàn thành* để tạo tiếp |
 | Bỏ qua | Đơn 0 đồng | Kiểm tra tay nếu cần hóa đơn |
 
+### Trạng thái trên Mắt Bão
+
+Hóa đơn có hai lớp trạng thái, không thay thế nhau:
+
+- **Trạng thái plugin** (bảng trên): plugin đã tạo được nháp hay chưa.
+- **Trạng thái trên Mắt Bão**: nháp đang ở bước nào trên Mắt Bão, plugin đọc từ Mắt Bão sau khi nháp đã được tạo.
+
+| Mã | Nhãn hiển thị | Nhóm | Ghi chú |
+|---|---|---|---|
+| 0 | Đã xóa trên Mắt Bão | Lỗi | Plugin tự ghi, không phải mã của Mắt Bão. Xem [Đồng bộ](#đồng-bộ-trạng-thái-mắt-bão) |
+| 1 | Nháp | Đang xử lý | |
+| 2 | Lỗi ký | Lỗi | Cảnh báo, xem [Cảnh báo](#cảnh-báo) |
+| 3 | Chưa gửi CQT | Đang xử lý | |
+| 4 | Đã cấp mã/tiếp nhận | Đã cấp | Trạng thái cuối, không tra cứu lại |
+| 5 | CQT chưa phản hồi | Đang xử lý | |
+| 6 | Không đủ điều kiện cấp mã/tiếp nhận | Lỗi | Cảnh báo, xem [Cảnh báo](#cảnh-báo) |
+| 7 | [Mẫu 04/SS] Chưa tạo tờ khai | Đang xử lý | |
+| 8 | [Mẫu 04/SS] CQT chưa tiếp nhận | Đang xử lý | |
+| 9 | [Mẫu 04/SS] CQT đã phê duyệt | Đang xử lý | |
+
+Mã ngoài bảng (ví dụ 12, nếu Mắt Bão bổ sung) hiện đúng tên Mắt Bão trả về, không cảnh báo.
+
+### Đồng bộ trạng thái Mắt Bão
+
+- **Tự động mỗi giờ** (WP-Cron, nhóm *einvoice-matbao*): tối đa **200 hóa đơn** mỗi giờ. Chỉ chọn hóa đơn đã tạo nháp, ngày lập trong **30 ngày** gần nhất (theo giờ Việt Nam) và chưa ở trạng thái cuối (*Đã cấp mã* hoặc *Đã xóa*). Hóa đơn kiểm tra lâu nhất được ưu tiên, nên danh sách luôn xoay vòng. Hóa đơn tạo trước khi nâng cấp plugin cũng được đồng bộ.
+- **Nút Kiểm tra trạng thái** trên chi tiết hóa đơn đã tạo nháp: tra cứu ngay và ghi kết quả (trạng thái Mắt Bão, số hóa đơn, MCCQT, ghi chú CQT, thời điểm đồng bộ). Hóa đơn ở trạng thái plugin khác chỉ được đọc, không ghi.
+- Đồng bộ **không bao giờ** đổi trạng thái plugin, tạo lại, gửi lại hay xóa hóa đơn.
+- Lỗi tra cứu (mạng, Mắt Bão lỗi) giữ nguyên trạng thái đã có, thử lại ở giờ sau. Phản hồi không đọc được hoặc không khớp hóa đơn cũng được giữ nguyên.
+- **Đã xóa trên Mắt Bão** chỉ được ghi khi Mắt Bão báo rõ nháp không tồn tại (mã lỗi 301 hoặc danh sách *không tìm thấy*). Phản hồi lạ không bao giờ đánh dấu là đã xóa.
+- Ghi chú CQT được che trước khi hiển thị.
+
+### Liên kết đơn và hóa đơn
+
+- Danh sách hóa đơn: cột **Đơn** mở trang sửa đơn hàng; đơn đã bị xóa hiện dạng chữ.
+- Chi tiết hóa đơn: link **Xem đơn #N**.
+- Hộp **Hóa đơn Mắt Bão** trên đơn: link **Xem chi tiết hóa đơn** (chỉ người có quyền `manage_options`, vì trang hóa đơn cần quyền này).
+- Chi tiết hóa đơn có địa chỉ riêng (`…&tab=invoices&invoice=<ID>`). Địa chỉ này mở thẳng chi tiết; nút **Chi tiết** và **‹ Danh sách** cập nhật địa chỉ theo, nên nút Back của trình duyệt và bookmark hoạt động. Mã hóa đơn không hợp lệ thì mở danh sách.
+
 ### Tự động thử lại
 
 Khi Mắt Bão không phản hồi, lỗi máy chủ hoặc báo trùng mã tham chiếu, plugin tự thử lại sau **1 phút, 5 phút, 15 phút, 1 giờ và 6 giờ**. Không có cảnh báo trong lúc chờ. Sau lần thứ năm vẫn lỗi, hóa đơn chuyển sang **Lỗi cần xử lý** và gửi cảnh báo.
@@ -199,7 +237,7 @@ Mỗi 15 phút, plugin cũng tự gửi tiếp các hóa đơn bị kẹt (ví d
 
 Trên trang chi tiết hóa đơn, Administrator có:
 
-- **Kiểm tra trạng thái:** tra cứu nháp trên Mắt Bão. Kết quả cho biết nháp còn, đã bị xóa, hoặc không còn ở trạng thái Nháp (đã phát hành hay xử lý trên Mắt Bão). Plugin không đồng bộ tự động.
+- **Kiểm tra trạng thái:** tra cứu nháp trên Mắt Bão. Kết quả cho biết nháp còn, đã bị xóa, hoặc không còn ở trạng thái Nháp (đã phát hành hay xử lý trên Mắt Bão). Với hóa đơn đã tạo nháp, kết quả còn được ghi vào hóa đơn và hiện ở cột *Mắt Bão* (xem [Đồng bộ trạng thái Mắt Bão](#đồng-bộ-trạng-thái-mắt-bão)); đồng bộ tự động vẫn chạy mỗi giờ.
 - **Gửi lại:** dùng cho trạng thái *Lỗi*, *Lỗi cần xử lý*, *Chưa cấu hình*, *Đã dừng*. Gửi lại luôn tra cứu trước nên không tạo trùng.
 
 Một số trường hợp cần xác nhận thêm:
@@ -226,9 +264,23 @@ Khi một hóa đơn cần người xử lý, plugin:
 - Hiện **thông báo trong wp-admin** cho Administrator (tối đa 10 cảnh báo, có đường dẫn tới đơn, bấm **Ẩn** để tắt).
 - Gửi **tin Lark** nếu đã cấu hình. Lark lỗi mạng thì gửi lại tối đa 3 lần; lỗi Lark không ảnh hưởng việc tạo hóa đơn.
 
-Mỗi lỗi chỉ cảnh báo **một lần** cho mỗi đơn. Sau mỗi lần bạn bấm *Gửi lại*, lỗi đó có thể cảnh báo lại.
+Mỗi lỗi chỉ cảnh báo **một lần** cho mỗi đơn. Sau mỗi lần bạn bấm *Gửi lại*, lỗi đó có thể cảnh báo lại. Cảnh báo *Mắt Bão* (lỗi ký, không đủ điều kiện, nháp bị xóa) theo quy tắc riêng ở mục *Cảnh báo từ trạng thái Mắt Bão*.
 
 Thông báo trong wp-admin cũng hiện dòng **Cách xử lý** cho từng đơn. Hướng dẫn này trùng với hướng dẫn trong hộp **Hóa đơn Mắt Bão** trên đơn và trang chi tiết hóa đơn, nên bạn có thể làm theo cùng một cách ở mọi nơi.
+
+### Cảnh báo từ trạng thái Mắt Bão
+
+Khi đồng bộ hoặc *Kiểm tra trạng thái* thấy hóa đơn chuyển sang một trong ba trạng thái dưới đây, plugin cảnh báo như các cảnh báo khác (wp-admin, Lark):
+
+| Trạng thái | Cảnh báo | Cách xử lý |
+|---|---|---|
+| Lỗi ký (2) | Lỗi ký trên Mắt Bão | Hóa đơn bị lỗi ký trên Mắt Bão. Mở hóa đơn trên Mắt Bão, kiểm tra chữ ký số rồi ký lại; trạng thái tự cập nhật ở lần đồng bộ sau. |
+| Không đủ điều kiện (6) | Không đủ điều kiện cấp mã/tiếp nhận | Cơ quan thuế không cấp mã/tiếp nhận hóa đơn. Xem ghi chú CQT trong chi tiết hóa đơn và xử lý trên Mắt Bão (điều chỉnh hoặc thay thế). |
+| Đã xóa trên Mắt Bão (0) | Nháp đã bị xóa trên Mắt Bão | Hóa đơn nháp không còn trên Mắt Bão. Kiểm tra trên Mắt Bão; nếu nháp bị xóa nhầm, mở chi tiết hóa đơn, bấm **Kiểm tra trạng thái** rồi xác nhận tạo lại. |
+
+- Cảnh báo khi chuyển sang trạng thái bất thường; các lần kiểm tra liên tiếp giữ nguyên trạng thái không cảnh báo lại (chuyển 2 → 1 → 2 vẫn cảnh báo lại ở lần thứ hai). Hóa đơn đã cấp mã không bao giờ bị cảnh báo.
+- Khi Mắt Bão cập nhật lại (ví dụ đã ký lại), cảnh báo trạng thái tự biến mất.
+- Mỗi hóa đơn chỉ có một mã cảnh báo. Cảnh báo trạng thái Mắt Bão **thay** cảnh báo đơn hàng đang có (ví dụ *Số tiền đơn hàng đổi sau khi có nháp*). Khi Mắt Bão trở lại bình thường, cảnh báo đơn hàng đang có không bị xóa.
 
 ## Xử lý lỗi thường gặp
 

@@ -72,6 +72,10 @@ final class OrderInvoiceMetaBox {
 			esc_html__( 'Mã tham chiếu (MTChieu):', 'einvoice-matbao' ),
 			esc_html( $invoice->reference )
 		);
+		echo MatbaoStatusView::meta_box_rows( $invoice ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in the view.
+		if ( current_user_can( 'manage_options' ) ) {
+			printf( '<p><a href="%1$s">%2$s</a></p>', esc_url( InvoicePage::detail_url( $invoice->id ) ), esc_html__( 'Xem chi tiết hóa đơn', 'einvoice-matbao' ) );
+		}
 		if ( null !== $invoice->matbao_invoice_id ) {
 			printf(
 				'<p>%1$s <code style="word-break:break-all">%2$s</code></p>',

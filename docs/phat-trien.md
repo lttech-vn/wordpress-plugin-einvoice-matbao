@@ -142,10 +142,11 @@ Mọi lý do không tạo được nháp được lưu trên dòng invoice dư�
 | `matbao` | `pending` → `needs_attention` | request không hoàn tất, HTTP 5xx/408/429, body 2xx không đọc được (create-invoice hoặc templates), trùng `MTChieu` 305 | có; retry create-invoice tra cứu `MTChieu` trước |
 | `matbao` | `failed` | HTTP khác (4xx), Mắt Bão `success` false với `errorCode` khác hoặc không có (hóa đơn bị từ chối, login) | không |
 | `matbao` | `needs_attention` | tra cứu theo `MTChieu` tìm thấy thứ có thể không phải nháp của đơn này (`matbao_lookup_mismatch`) | không |
+| `matbao` | `draft_created` (giữ nguyên) | `matbao_sign_failed`, `matbao_not_eligible`, `matbao_draft_deleted` (chỉ do đồng bộ đặt/xóa; cảnh báo khi chuyển sang trạng thái bất thường, không lặp khi trạng thái giữ nguyên) | không |
 | `system` | `pending` → `failed` | xếp hàng đợi lỗi (sweep thử thêm một lần, sau đó là lỗi cuối) | chỉ sweep |
 | `system` | `failed` | exception không lường trước | không |
 
-- `InvoiceErrorCode` có 31 mã. Lỗi người mua chỉ nêu tên trường sai, không bao giờ nêu giá trị hay CCCD, và đơn vẫn `completed`.
+- `InvoiceErrorCode` có 39 mã (gồm ba mã cảnh báo trạng thái Mắt Bão, xem dưới). Lỗi người mua chỉ nêu tên trường sai, không bao giờ nêu giá trị hay CCCD, và đơn vẫn `completed`.
 - `InvoiceErrorCode::is_auto_retryable()` là công tắc retry: `matbao_transport`, `matbao_http_temporary`, `matbao_response_unreadable` và `matbao_duplicate_reference`. Một lần create-invoice lỗi theo cách này vẫn có thể đã tạo nháp, nên retry MUST tra cứu theo `MTChieu` trước.
 - Hoàn tiền toàn phần chuyển đơn sang `refunded` (`order_not_completed`, không cảnh báo); hoàn tiền một phần giữ `completed` (`order_refunded`, cảnh báo).
 - Mỗi lỗi admin cần xử lý fire `do_action( 'einvoice_matbao_invoice_needs_attention', InvoiceRecord $invoice, InvoiceErrorCode $code )` một lần. Đơn mà shop chủ động chuyển khỏi `completed`, và lỗi còn đang chờ retry, không fire.
@@ -158,6 +159,23 @@ Mọi lý do không tạo được nháp được lưu trên dòng invoice dư�
 - Digest dùng khóa `wp_salt('auth')`. Xoay salt của site làm đổi mọi digest, nên lần lưu kế tiếp của mỗi đơn đã có nháp sẽ sinh một cảnh báo `order_amounts_changed` hoặc `order_buyer_changed` giả (không đổi gì khác). Không dùng khóa riêng: khóa suy từ `EINVOICE_MATBAO_ENCRYPTION_KEY` sẽ không có trên site thiếu hằng này, và đổi khóa nào cũng có cùng hệ quả, nên rủi ro được ghi lại thay vì xử lý. Digest bỏ qua thứ tự dòng và khoảng trắng lặp.
 - Trước khi có nháp, Administrator (`manage_options`) sửa người mua sẽ chụp lại snapshot (validate trước; sai thì giữ snapshot cũ và cảnh báo `buyer_invalid`). Sau một attempt có thể đã tới Mắt Bão, snapshot được giữ, vì việc nhận nháp có sẵn có thể mang theo người mua cũ; thay đổi được cảnh báo khi nháp tồn tại. Sửa bởi role khác không bao giờ chụp lại.
 - Thay đổi qua code bỏ qua hook CRUD của WooCommerce (SQL trực tiếp) không được phát hiện.
+
+### Đồng bộ trạng thái Mắt Bão (`MatbaoStatusSync`)
+
+Code nằm trong `src/Invoice/MatbaoStatusSync.php`; enum `MatbaoStatus` (`src/Invoice/MatbaoStatus.php`) là nơi duy nhất phân loại trạng thái (`is_final()`, `alert_code()`, `group()`). Trạng thái lưu ở các cột `matbao_*` của bảng invoice (schema `VERSION = '6'`), tách khỏi `status` plugin.
+
+- Action `einvoice_matbao_status_sync`, recurring mỗi giờ (`HOUR_IN_SECONDS`), group `einvoice-matbao`, đăng ký `as_schedule_recurring_action` khi `action_scheduler_init`. Deactivate và uninstall hủy group nên không cần code vòng đời riêng.
+- Hằng số: `SYNC_LIMIT = 200` hóa đơn mỗi lượt, `LOOKUP_CHUNK = 20` tham chiếu mỗi lần gọi `invoice-detail-batch`, `SYNC_WINDOW_DAYS = 30`. Cửa sổ tính theo `COALESCE(issued_on, DATE(created_at))` so với ngày Asia/Ho_Chi_Minh.
+- Chọn: `status = draft_created`, có `matbao_invoice_id` và mẫu, `matbao_status` NULL hoặc không thuộc `FINAL_VALUES` (0, 4). Thứ tự `matbao_checked_at IS NOT NULL, matbao_checked_at, id`. Hóa đơn `draft_created` có từ trước nâng cấp được chọn luôn.
+- Gom theo `template_form|template_series`, chia lô 20. Không có credential thì bỏ cả lượt. Lỗi tra cứu chỉ `touch_matbao_checked` lô đó, log `warn` qua `Monitor::log` (không event), các lô khác vẫn chạy.
+- `sync_one()` (nút *Kiểm tra trạng thái*) và `sync_batch()` cùng đường `apply()`.
+- Ghép kết quả theo `maSoHDon` = `matbao_invoice_id`. Không khớp dòng nào nhưng có trong `notFound` hoặc errorCode 301 thì ghi `matbao_status = 0`; dòng không parse được hoặc vắng ở cả hai danh sách thì giữ nguyên và log `warn`. Client: `find_invoices_by_references()` trả `MatbaoLookup { invoices, not_found }`.
+- "Đã xóa" (0) chỉ được ghi khi có 301 hoặc `notFound`. Không bao giờ suy từ việc thiếu dòng hay lỗi transport/HTTP.
+- Ghi bằng `InvoiceRepository::record_matbao_status()` với `WHERE id = %d AND status = 'draft_created' AND matbao_invoice_id = %s AND matbao_status IS NULL` khi trạng thái đã đọc là NULL, hoặc `matbao_status = %d` khi có giá trị (giá trị đã đọc). Kết quả `STALE` không cảnh báo. Cron và nút thủ công chạy đồng thời chỉ một bên thắng nên cảnh báo một lần.
+- Trạng thái có `alert_code()` (2, 6, 0) được ghi kèm `error_code`, `error_kind`, `status_reason`, `alert_cycle + 1`, rồi fire `DraftInvoiceWorkflow::NEEDS_ATTENTION_ACTION` khi trạng thái đổi. Trạng thái không cảnh báo xóa `error_code` nếu đang là một trong ba mã `matbao_*` (`is_matbao_status_warning()`), bằng `CASE WHEN` trong cùng câu UPDATE. Mã `order_*_changed` và các mã khác không bị đụng.
+- `update_status()` khi gán `matbao_invoice_id` mới (`mark_created`) đặt mọi cột `matbao_*` về NULL, nên nháp tạo lại được đồng bộ lại từ đầu.
+- Mã mới trong `InvoiceErrorCode`: `matbao_sign_failed`, `matbao_not_eligible`, `matbao_draft_deleted`. Đều `needs_attention() = true`, `kind() = matbao`, có `hint()`.
+- Trang admin: query arg `invoice` (`InvoicePage::detail_url()`; `requested_invoice()` chỉ nhận `[1-9][0-9]{0,18}`, sai thì mở danh sách) mở thẳng chi tiết; render hiển thị qua `Admin\MatbaoStatusView`, dùng chung cho danh sách, chi tiết và meta box. Meta box link chi tiết chỉ với `manage_options`.
 
 ### Cảnh báo (admin notice và Lark)
 
@@ -210,7 +228,7 @@ Giới hạn: đơn vị theo sản phẩm chỉ sửa được ở màn hình s
 
 ### Deactivate và uninstall
 
-Deactivate hủy mọi action đang xếp của plugin (group `einvoice-matbao`: nháp, sweep phục hồi và gửi cảnh báo `einvoice_matbao_send_alert`); dữ liệu giữ nguyên và sweep được xếp lại sau khi kích hoạt lại.
+Deactivate hủy mọi action đang xếp của plugin (group `einvoice-matbao`: nháp, sweep phục hồi, gửi cảnh báo `einvoice_matbao_send_alert` và đồng bộ `einvoice_matbao_status_sync`); dữ liệu giữ nguyên và sweep được xếp lại sau khi kích hoạt lại.
 
 `uninstall.php` chỉ chạy khi WordPress xóa plugin. File nạp `Uninstall\Uninstaller` theo đường dẫn, nên chạy được khi không có `vendor/` và khi WooCommerce đã gỡ (khi đó action được hủy trực tiếp trong bảng Action Scheduler). Trên multisite, chạy trên mọi site.
 

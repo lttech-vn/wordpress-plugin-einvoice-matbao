@@ -92,6 +92,15 @@ enum InvoiceErrorCode: string {
 	 */
 	case MATBAO_LOOKUP_MISMATCH = 'matbao_lookup_mismatch';
 
+	/** The status sync found the invoice with a sign error on Mat Bao. Warning only. */
+	case MATBAO_SIGN_FAILED = 'matbao_sign_failed';
+
+	/** The tax authority did not issue a code or receive the invoice. Warning only. */
+	case MATBAO_NOT_ELIGIBLE = 'matbao_not_eligible';
+
+	/** Mat Bao confirmed the draft no longer exists. Warning only. */
+	case MATBAO_DRAFT_DELETED = 'matbao_draft_deleted';
+
 	/**
 	 * Action Scheduler did not queue the action; nothing was sent. The row stays `pending` and the
 	 * recovery sweep queues it again; when the sweep fails too, it is final and an admin may resend safely.
@@ -189,7 +198,10 @@ enum InvoiceErrorCode: string {
 			self::MATBAO_HTTP,
 			self::MATBAO_API,
 			self::MATBAO_DUPLICATE_REFERENCE,
-			self::MATBAO_LOOKUP_MISMATCH     => InvoiceErrorKind::MATBAO,
+			self::MATBAO_LOOKUP_MISMATCH,
+			self::MATBAO_SIGN_FAILED,
+			self::MATBAO_NOT_ELIGIBLE,
+			self::MATBAO_DRAFT_DELETED       => InvoiceErrorKind::MATBAO,
 			self::QUEUE_FAILED,
 			self::UNEXPECTED            => InvoiceErrorKind::SYSTEM,
 		};
@@ -201,6 +213,14 @@ enum InvoiceErrorCode: string {
 	 */
 	public function is_post_draft_warning(): bool {
 		return in_array( $this, array( self::ORDER_AMOUNTS_CHANGED, self::ORDER_BUYER_CHANGED, self::ORDER_REFUNDED_AFTER_DRAFT ), true );
+	}
+
+	/**
+	 * Whether the code reports an abnormal Mat Bao status found by the status sync (see MatbaoStatus::alert_code()).
+	 * Only the sync sets and clears these codes.
+	 */
+	public function is_matbao_status_warning(): bool {
+		return in_array( $this, array( self::MATBAO_SIGN_FAILED, self::MATBAO_NOT_ELIGIBLE, self::MATBAO_DRAFT_DELETED ), true );
 	}
 
 	/**
@@ -252,6 +272,9 @@ enum InvoiceErrorCode: string {
 			self::MATBAO_API            => __( 'Mắt Bão từ chối hóa đơn', 'einvoice-matbao' ),
 			self::MATBAO_DUPLICATE_REFERENCE => __( 'Trùng mã tham chiếu tại Mắt Bão', 'einvoice-matbao' ),
 			self::MATBAO_LOOKUP_MISMATCH     => __( 'Hóa đơn tìm thấy không khớp đơn hàng', 'einvoice-matbao' ),
+			self::MATBAO_SIGN_FAILED    => __( 'Lỗi ký trên Mắt Bão', 'einvoice-matbao' ),
+			self::MATBAO_NOT_ELIGIBLE   => __( 'Không đủ điều kiện cấp mã/tiếp nhận', 'einvoice-matbao' ),
+			self::MATBAO_DRAFT_DELETED  => __( 'Nháp đã bị xóa trên Mắt Bão', 'einvoice-matbao' ),
 			self::QUEUE_FAILED          => __( 'Không xếp được hàng đợi', 'einvoice-matbao' ),
 			self::UNEXPECTED            => __( 'Lỗi không xác định', 'einvoice-matbao' ),
 		};
@@ -296,6 +319,9 @@ enum InvoiceErrorCode: string {
 			self::MATBAO_API => __( 'Đọc lý do Mắt Bão trả về, sửa dữ liệu hoặc cấu hình tương ứng rồi bấm "Gửi lại".', 'einvoice-matbao' ),
 			self::MATBAO_DUPLICATE_REFERENCE => __( 'Mắt Bão đã có hóa đơn cùng mã tham chiếu. Bấm "Kiểm tra trạng thái" để đối chiếu, rồi "Gửi lại": hệ thống tra cứu và nhận nháp đã có, không tạo trùng.', 'einvoice-matbao' ),
 			self::MATBAO_LOOKUP_MISMATCH => __( 'Hóa đơn tìm thấy trên Mắt Bão không khớp đơn. Đối chiếu trực tiếp trên Mắt Bão theo mã tham chiếu, rồi xử lý tay.', 'einvoice-matbao' ),
+			self::MATBAO_SIGN_FAILED => __( 'Hóa đơn bị lỗi ký trên Mắt Bão. Mở hóa đơn trên Mắt Bão, kiểm tra chữ ký số rồi ký lại; trạng thái tự cập nhật ở lần đồng bộ sau.', 'einvoice-matbao' ),
+			self::MATBAO_NOT_ELIGIBLE => __( 'Cơ quan thuế không cấp mã/tiếp nhận hóa đơn. Xem ghi chú CQT trong chi tiết hóa đơn và xử lý trên Mắt Bão (điều chỉnh hoặc thay thế).', 'einvoice-matbao' ),
+			self::MATBAO_DRAFT_DELETED => __( 'Hóa đơn nháp không còn trên Mắt Bão. Kiểm tra trên Mắt Bão; nếu nháp bị xóa nhầm, mở chi tiết hóa đơn, bấm "Kiểm tra trạng thái" rồi xác nhận tạo lại.', 'einvoice-matbao' ),
 			self::QUEUE_FAILED => __( 'Không xếp được tác vụ nền. Kiểm tra Action Scheduler (Công cụ > Tác vụ đã lên lịch) rồi bấm "Gửi lại".', 'einvoice-matbao' ),
 			self::UNEXPECTED => __( 'Lỗi không xác định. Bấm "Kiểm tra trạng thái" trên Mắt Bão trước khi bấm "Gửi lại", và xem event trên máy chủ giám sát nếu đã bật.', 'einvoice-matbao' ),
 		};

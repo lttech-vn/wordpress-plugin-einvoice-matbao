@@ -7,6 +7,7 @@
 
 namespace LTTech\EinvoiceMatbao\Tests\Integration;
 
+use LTTech\EinvoiceMatbao\Admin\AdminTabs;
 use LTTech\EinvoiceMatbao\Admin\InvoicePage;
 use LTTech\EinvoiceMatbao\Invoice\InvoiceErrorCode;
 use LTTech\EinvoiceMatbao\Invoice\InvoiceRepository;
@@ -290,6 +291,179 @@ final class InvoiceAdminListRestTest extends SettingsRestTestCase {
 		$this->assertStringContainsString( '&lt;script&gt;alert(1)&lt;/script&gt;', $html );
 		$this->assertStringNotContainsString( 'SECRET123', $html );
 		$this->assertStringNotContainsString( 'matbao.example', $html );
+	}
+
+	public function test_issued_invoice_row(): void {
+		$this->login_as( 'administrator' );
+		$id = $this->synced( 9401, 4, 'Đã cấp mã', 125 );
+
+		$html = $this->html( $this->htmx( 'GET', '/invoices' ) );
+
+		$this->assertStringContainsString( '<td>125</td>', $html );
+		$this->assertMatchesRegularExpression( '#data-einv-matbao-badge="issued"[^>]*>Đã cấp mã/tiếp nhận</span>#u', $html );
+		$this->assertStringContainsString( '2026-01-02 03:04:05', $html );
+		$this->assertStringContainsString( 'hx-push-url="' . esc_url( InvoicePage::detail_url( $id ) ) . '"', $html );
+	}
+
+	public function test_deleted_badge_is_error(): void {
+		$this->login_as( 'administrator' );
+		$this->synced( 9402, 0, '' );
+
+		$html = $this->html( $this->htmx( 'GET', '/invoices' ) );
+
+		$this->assertMatchesRegularExpression( '#data-einv-matbao-badge="error"[^>]*>Đã xóa trên Mắt Bão</span>#u', $html );
+	}
+
+	public function test_unknown_code_badge(): void {
+		$this->login_as( 'administrator' );
+		$this->synced( 9403, 12, 'Trạng thái mới' );
+
+		$html = $this->html( $this->htmx( 'GET', '/invoices' ) );
+
+		$this->assertMatchesRegularExpression( '#data-einv-matbao-badge="progress"[^>]*>Trạng thái mới</span>#u', $html );
+	}
+
+	public function test_not_yet_synced_shows_dash(): void {
+		$this->login_as( 'administrator' );
+		$this->reserve( 9404, 'WC9404', InvoiceStatus::DRAFT_CREATED );
+
+		$html = $this->html( $this->htmx( 'GET', '/invoices' ) );
+
+		$this->assertStringNotContainsString( 'data-einv-matbao-badge', $html );
+		// Cells: order, number, MTChieu, status, Mat Bao, error, updated at, synced at, detail.
+		$this->assertMatchesRegularExpression( '#<tr data-einv-invoice-row="9404">(?:<td>.*?</td>){4}<td>—</td><td>[^<]*</td><td>[^<]*</td><td>—</td>#us', $html );
+	}
+
+	public function test_list_shows_updated_and_synced_columns_in_order(): void {
+		global $wpdb;
+		$this->login_as( 'administrator' );
+		$id = $this->synced( 9405, 4, 'Đã cấp mã', 126 );
+		$wpdb->update( // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- test setup.
+			$wpdb->prefix . 'einvoice_matbao_invoice',
+			array( 'updated_at' => '2026-03-04 05:06:07' ),
+			array( 'id' => $id )
+		);
+
+		$html = $this->html( $this->htmx( 'GET', '/invoices' ) );
+
+		$this->assertStringContainsString( '<th>' . esc_html( 'Cập nhật (UTC)' ) . '</th>', $html );
+		$this->assertStringContainsString( '<th>' . esc_html( 'Đồng bộ lúc (UTC)' ) . '</th>', $html );
+		$this->assertMatchesRegularExpression( '#<td>2026-03-04 05:06:07</td><td>2026-01-02 03:04:05</td><td><button#u', $html );
+	}
+
+	public function test_matbao_text_is_escaped_in_list_and_detail(): void {
+		$this->login_as( 'administrator' );
+		$id = $this->synced( 9408, 12, '<img src=x onerror=alert(1)>', 5, null, null, '<script>alert(2)</script>' );
+
+		foreach ( array( '/invoices', '/invoices/' . $id ) as $route ) {
+			$html = $this->html( $this->htmx( 'GET', $route ) );
+			$this->assertStringNotContainsString( '<img src=x', $html );
+			$this->assertStringNotContainsString( '<script>alert(2)', $html );
+			$this->assertStringContainsString( '&lt;img src=x onerror=alert(1)&gt;', $html );
+		}
+		$this->assertStringContainsString( '&lt;script&gt;alert(2)&lt;/script&gt;', $html );
+	}
+
+	public function test_order_id_links_to_edit_order(): void {
+		$this->login_as( 'administrator' );
+		$order = wc_create_order();
+		$this->reserve( $order->get_id(), 'WC' . $order->get_id(), InvoiceStatus::PENDING );
+
+		$html = $this->html( $this->htmx( 'GET', '/invoices' ) );
+
+		$this->assertStringContainsString( 'href="' . esc_url( $order->get_edit_order_url() ) . '"', $html );
+	}
+
+	public function test_deleted_order_is_text(): void {
+		$this->login_as( 'administrator' );
+		$this->reserve( 987001, 'WC987001', InvoiceStatus::PENDING );
+
+		$html = $this->html( $this->htmx( 'GET', '/invoices' ) );
+
+		$this->assertStringContainsString( '<td>#987001</td>', $html );
+	}
+
+	public function test_detail_button_pushes_url(): void {
+		$this->login_as( 'administrator' );
+		$this->reserve( 9405, 'WC9405', InvoiceStatus::PENDING );
+		$invoice = ( new InvoiceRepository() )->find_by_order( 9405 );
+		$this->assertNotNull( $invoice );
+
+		$html = $this->html( $this->htmx( 'GET', '/invoices' ) );
+
+		$this->assertStringContainsString( 'hx-push-url="' . esc_url( InvoicePage::detail_url( $invoice->id ) ) . '"', $html );
+	}
+
+	public function test_back_button_pushes_list_url(): void {
+		$this->login_as( 'administrator' );
+		$id = $this->synced( 9406, 4, 'x', 1 );
+
+		$html = $this->html( $this->htmx( 'GET', '/invoices/' . $id ) );
+
+		$this->assertStringContainsString( 'hx-push-url="' . esc_url( AdminTabs::url( 'invoices' ) ) . '"', $html );
+	}
+
+	public function test_issued_invoice_detail(): void {
+		$this->login_as( 'administrator' );
+		$order = wc_create_order();
+		$id    = $this->synced( $order->get_id(), 4, 'Đã cấp mã', 125, '00ABC', 2 );
+
+		$html = $this->html( $this->htmx( 'GET', '/invoices/' . $id ) );
+
+		$this->assertStringContainsString( 'Đã cấp mã/tiếp nhận', $html );
+		$this->assertStringContainsString( '125', $html );
+		$this->assertStringContainsString( '00ABC', $html );
+		$this->assertStringContainsString( 'Hóa đơn mới', $html );
+		$this->assertStringContainsString( '2026-01-02 03:04:05', $html );
+		$this->assertStringContainsString( 'Xem đơn #' . $order->get_id(), $html );
+		$this->assertStringContainsString( esc_url( $order->get_edit_order_url() ), $html );
+	}
+
+	public function test_tax_note_is_redacted(): void {
+		$this->login_as( 'administrator' );
+		$id = $this->synced( 9407, 4, 'x', 1, null, null, 'CCCD ' . self::RAW_CCCD . ' xem https://x.y/z' );
+
+		$html = $this->html( $this->htmx( 'GET', '/invoices/' . $id ) );
+
+		$this->assertStringNotContainsString( self::RAW_CCCD, $html );
+		$this->assertStringNotContainsString( 'https://x.y', $html );
+		$this->assertStringContainsString( '********8901', $html );
+		$this->assertStringContainsString( '[đã ẩn]', $html );
+	}
+
+	/**
+	 * Reserves a draft_created invoice that carries a Mat Bao snapshot.
+	 *
+	 * @param int         $order_id Order ID.
+	 * @param int         $status   `maTThaiHDon`.
+	 * @param string      $name     `tenTThaiHDon`.
+	 * @param int|null    $number   Invoice number.
+	 * @param string|null $mccqt    Tax authority code.
+	 * @param int|null    $type     `maLoaiHDon`.
+	 * @param string      $note     `ghiChuCQT`.
+	 * @return int Invoice ID.
+	 */
+	private function synced( int $order_id, int $status, string $name, ?int $number = null, ?string $mccqt = null, ?int $type = null, string $note = '' ): int {
+		global $wpdb;
+
+		$this->reserve( $order_id, 'WC' . $order_id, InvoiceStatus::DRAFT_CREATED );
+		$invoice = ( new InvoiceRepository() )->find_by_order( $order_id );
+		$this->assertNotNull( $invoice );
+		$wpdb->update( // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- test setup.
+			$wpdb->prefix . 'einvoice_matbao_invoice',
+			array(
+				'matbao_status'       => $status,
+				'matbao_status_name'  => $name,
+				'invoice_number'      => $number,
+				'tax_authority_code'  => $mccqt,
+				'matbao_invoice_type' => $type,
+				'tax_note'            => $note,
+				'matbao_synced_at'    => '2026-01-02 03:04:05',
+			),
+			array( 'id' => $invoice->id )
+		);
+
+		return $invoice->id;
 	}
 
 	/**

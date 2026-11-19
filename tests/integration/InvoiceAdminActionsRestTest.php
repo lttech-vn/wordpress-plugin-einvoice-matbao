@@ -14,6 +14,7 @@ use LTTech\EinvoiceMatbao\Invoice\InvoiceRecord;
 use LTTech\EinvoiceMatbao\Invoice\InvoiceRepository;
 use LTTech\EinvoiceMatbao\Invoice\InvoiceStatus;
 use LTTech\EinvoiceMatbao\Settings;
+use LTTech\EinvoiceMatbao\Tests\Integration\Support\FakeHttp;
 use LTTech\EinvoiceMatbao\Tests\Integration\Support\InvoiceWorkflowTestCase;
 use WC_Order;
 
@@ -166,50 +167,258 @@ final class InvoiceAdminActionsRestTest extends InvoiceWorkflowTestCase {
 		$this->assertSame( 'bmV3LWRyYWZ0', $this->record( $order )->matbao_invoice_id );
 	}
 
-	public function test_check_status_reports_a_draft_that_still_exists_and_changes_nothing(): void {
+	private function check( WC_Order $order ): string {
+		return $this->html( $this->htmx( 'POST', '/invoices/' . $this->record( $order )->id . '/check' ) );
+	}
+
+	public function test_check_draft_still_exists(): void {
 		$order  = $this->order_with_draft();
 		$before = $this->record( $order );
 		$this->fake_lookup_found( 'ZHJhZnQtMQ==' );
 
-		$html = $this->html( $this->htmx( 'POST', '/invoices/' . $before->id . '/check' ) );
+		$html = $this->check( $order );
 
 		$this->assertStringContainsString( 'data-einv-check="draft"', $html );
-		$this->assertEquals( $before, $this->record( $order ) );
+		$after = $this->record( $order );
+		$this->assertSame( $before->status, $after->status );
+		$this->assertSame( 1, $after->matbao_status );
 		$lookups = $this->http->requests_to( self::LOOKUP_ROUTE );
 		$this->assertSame( array( $before->reference ), $lookups[0]['body']['danhSach'] );
 		$this->assertSame( self::TEMPLATE_SERIES, $lookups[0]['body']['kiHieu'] );
 	}
 
-	public function test_check_status_warns_when_the_draft_is_gone_and_never_recreates_it(): void {
+	public function test_check_draft_missing_confirmed(): void {
 		$order = $this->order_with_draft();
 		$this->fake_lookup_not_found();
 
-		$html = $this->html( $this->htmx( 'POST', '/invoices/' . $this->record( $order )->id . '/check' ) );
+		$html = $this->check( $order );
 
 		$this->assertStringContainsString( 'data-einv-check="missing"', $html );
 		$this->assertStringContainsString( 'name="confirm_lost"', $html, 'Offers a resend that needs explicit confirmation.' );
+		$this->assertSame( 0, $this->record( $order )->matbao_status );
 		$this->assertCount( 1, $this->http->requests_to( self::CREATE_ROUTE ) );
 		$this->assertSame( InvoiceStatus::DRAFT_CREATED, $this->record( $order )->status );
 		$this->assertSame( array(), $this->queued_draft_action_ids() );
 	}
 
-	public function test_check_status_warns_when_the_invoice_is_no_longer_a_draft(): void {
+	public function test_check_no_longer_a_draft(): void {
 		$order = $this->order_with_draft();
 		$this->fake_lookup_rows(
 			array(
 				array(
-					'maTThaiHDon'  => 2,
-					'tenTThaiHDon' => 'Đã phát hành <b>x</b>',
+					'maSoHDon'    => 'ZHJhZnQtMQ==',
+					'maTThaiHDon' => 3,
 				),
 			)
 		);
 
-		$html = $this->html( $this->htmx( 'POST', '/invoices/' . $this->record( $order )->id . '/check' ) );
+		$html = $this->check( $order );
 
-		$this->assertStringContainsString( 'data-einv-check="not_draft"', $html );
-		$this->assertStringContainsString( 'Đã phát hành &lt;b&gt;x&lt;/b&gt;', $html );
+		$this->assertStringContainsString( 'data-einv-check="synced"', $html );
+		$this->assertStringContainsString( 'Chưa gửi CQT', $html );
+		$this->assertStringNotContainsString( 'Cảnh báo', $html );
 		$this->assertStringNotContainsString( 'name="confirm_lost"', $html );
+		$this->assertSame( 3, $this->record( $order )->matbao_status );
 		$this->assertSame( InvoiceStatus::DRAFT_CREATED, $this->record( $order )->status );
+	}
+
+	public function test_check_unconfirmed_absence(): void {
+		$order = $this->order_with_draft();
+		$this->fake_lookup_rows( array() );
+
+		$html = $this->check( $order );
+
+		$this->assertStringContainsString( 'data-einv-check="unknown"', $html );
+		$this->assertStringNotContainsString( 'name="confirm_lost"', $html );
+		$this->assertNull( $this->record( $order )->matbao_status );
+	}
+
+	public function test_check_issued(): void {
+		$order = $this->order_with_draft();
+		$this->fake_lookup_rows(
+			array(
+				array(
+					'maSoHDon'    => 'ZHJhZnQtMQ==',
+					'maTThaiHDon' => 4,
+					'shDon'       => 17,
+					'mccqt'       => 'MCQT123',
+				),
+			)
+		);
+
+		$html = $this->check( $order );
+
+		$this->assertStringContainsString( 'data-einv-status="success"', $html );
+		$this->assertStringNotContainsString( 'data-einv-status="error"', $html );
+		$record = $this->record( $order );
+		$this->assertSame( 17, $record->invoice_number );
+		$this->assertSame( 'MCQT123', $record->tax_authority_code );
+		$this->assertSame( '', $record->error_code );
+	}
+
+	public function test_check_not_eligible(): void {
+		$order = $this->order_with_draft();
+		$this->fake_lookup_rows(
+			array(
+				array(
+					'maSoHDon'    => 'ZHJhZnQtMQ==',
+					'maTThaiHDon' => 6,
+				),
+			)
+		);
+
+		$html = $this->check( $order );
+
+		$this->assertStringContainsString( 'data-einv-status="error"', $html );
+		$this->assertStringContainsString( esc_html( InvoiceErrorCode::MATBAO_NOT_ELIGIBLE->hint() ), $html );
+		$this->assertSame( 'matbao_not_eligible', $this->record( $order )->error_code );
+	}
+
+	public function test_check_unknown_status_code_shows_stored_name_escaped(): void {
+		$order = $this->order_with_draft();
+		$this->fake_lookup_rows(
+			array(
+				array(
+					'maSoHDon'     => 'ZHJhZnQtMQ==',
+					'maTThaiHDon'  => 12,
+					'tenTThaiHDon' => 'Trạng thái <b>mới</b>',
+				),
+			)
+		);
+		$alerts = did_action( DraftInvoiceWorkflow::NEEDS_ATTENTION_ACTION );
+
+		$html = $this->check( $order );
+
+		$this->assertStringContainsString( 'data-einv-check="synced"', $html );
+		$this->assertStringContainsString( 'Trạng thái &lt;b&gt;mới&lt;/b&gt;', $html );
+		$this->assertStringNotContainsString( '<b>', $html );
+		$this->assertStringNotContainsString( 'data-einv-status="error"', $html );
+		$this->assertStringNotContainsString( 'name="confirm_lost"', $html );
+		$this->assertSame( 12, $this->record( $order )->matbao_status );
+		$this->assertSame( $alerts, did_action( DraftInvoiceWorkflow::NEEDS_ATTENTION_ACTION ) );
+	}
+
+	public function test_check_issued_shows_label_and_raises_no_alert(): void {
+		$order = $this->order_with_draft();
+		$this->fake_lookup_rows(
+			array(
+				array(
+					'maSoHDon'    => 'ZHJhZnQtMQ==',
+					'maTThaiHDon' => 4,
+				),
+			)
+		);
+		$alerts = did_action( DraftInvoiceWorkflow::NEEDS_ATTENTION_ACTION );
+
+		$first = $this->check( $order );
+		$again = $this->check( $order );
+
+		$this->assertStringContainsString( 'Đã cấp mã/tiếp nhận', $first );
+		$this->assertStringContainsString( 'Đã cấp mã/tiếp nhận', $again );
+		$this->assertStringContainsString( 'data-einv-status="success"', $again );
+		$this->assertSame( $alerts, did_action( DraftInvoiceWorkflow::NEEDS_ATTENTION_ACTION ) );
+	}
+
+	public function test_check_repeated_abnormal_status_keeps_error_without_new_alert(): void {
+		$order = $this->order_with_draft();
+		$this->fake_lookup_rows(
+			array(
+				array(
+					'maSoHDon'    => 'ZHJhZnQtMQ==',
+					'maTThaiHDon' => 2,
+				),
+			)
+		);
+		$this->check( $order );
+		$alerts = did_action( DraftInvoiceWorkflow::NEEDS_ATTENTION_ACTION );
+		$cycle  = $this->record( $order )->alert_cycle;
+
+		$html = $this->check( $order );
+
+		$this->assertStringContainsString( 'data-einv-status="error"', $html );
+		$this->assertStringContainsString( esc_html( InvoiceErrorCode::MATBAO_SIGN_FAILED->hint() ), $html );
+		$this->assertSame( $alerts, did_action( DraftInvoiceWorkflow::NEEDS_ATTENTION_ACTION ) );
+		$this->assertSame( $cycle, $this->record( $order )->alert_cycle );
+	}
+
+	public function test_check_repeated_deleted_still_offers_the_lost_draft_form(): void {
+		$order = $this->order_with_draft();
+		$this->fake_lookup_not_found();
+		$this->check( $order );
+
+		$html = $this->check( $order );
+
+		$this->assertStringContainsString( 'data-einv-check="missing"', $html );
+		$this->assertStringContainsString( 'name="confirm_lost"', $html );
+		$this->assertSame( 0, $this->record( $order )->matbao_status );
+	}
+
+	public function test_check_losing_the_write_race_shows_the_winner_state(): void {
+		$order = $this->order_with_draft();
+		$id    = $this->record( $order )->id;
+		$this->http->respond_with(
+			self::LOOKUP_ROUTE,
+			static function ( array $args ) use ( $id ): array {
+				global $wpdb;
+				// A concurrent writer records "issued" while this lookup is in flight.
+				$wpdb->update( $wpdb->prefix . 'einvoice_matbao_invoice', array( 'matbao_status' => 4 ), array( 'id' => $id ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+				$sent = json_decode( (string) $args['body'], true );
+
+				return FakeHttp::json_response(
+					200,
+					array(
+						'errorCode' => 200,
+						'message'   => 'Thành công',
+						'data'      => array(
+							'invoices' => array(
+								array(
+									'maSoHDon'     => 'ZHJhZnQtMQ==',
+									'khmshDon'     => $sent['mauSo'],
+									'khhDon'       => $sent['kiHieu'],
+									'shDon'        => 0,
+									'nLap'         => '2026-10-14T00:00:00',
+									'mtChieu'      => $sent['danhSach'][0],
+									'tenLoaiHDon'  => 'Nháp',
+									'tenTThaiHDon' => 'Nháp',
+									'maLoaiHDon'   => 1,
+									'maTThaiHDon'  => 1,
+								),
+							),
+							'notFound' => array(),
+						),
+						'success'   => true,
+					)
+				);
+			}
+		);
+
+		$html = $this->check( $order );
+
+		$this->assertStringContainsString( 'Đã cấp mã/tiếp nhận', $html );
+		$this->assertStringNotContainsString( 'data-einv-check="draft"', $html );
+		$this->assertSame( 4, $this->record( $order )->matbao_status );
+	}
+
+	public function test_check_not_a_created_draft_is_read_only(): void {
+		$order = $this->order_with_draft();
+		$this->force_status( $order, InvoiceStatus::FAILED );
+		$before = $this->record( $order );
+		$this->fake_lookup_found( 'ZHJhZnQtMQ==' );
+
+		$html = $this->check( $order );
+
+		$this->assertStringContainsString( 'data-einv-check="draft"', $html );
+		$this->assertEquals( $before, $this->record( $order ) );
+	}
+
+	public function test_check_lookup_failure_is_422(): void {
+		$order = $this->order_with_draft();
+		$this->http->respond_json( self::LOOKUP_ROUTE, 500, array( 'message' => 'Lỗi máy chủ' ) );
+
+		$response = $this->htmx( 'POST', '/invoices/' . $this->record( $order )->id . '/check' );
+
+		$this->assertSame( 422, $response->get_status() );
+		$this->assertNull( $this->record( $order )->matbao_status );
 	}
 
 	public function test_check_status_without_a_stored_template_asks_nothing_of_mat_bao(): void {

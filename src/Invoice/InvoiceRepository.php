@@ -21,6 +21,18 @@ final class InvoiceRepository {
 	/** `from` of a status log when the caller does not know the previous status. */
 	private const UNKNOWN_STATUS = 'unknown';
 
+	/** Columns holding what was read from Mat Bao; cleared when the invoice gets another Mat Bao invoice ID. */
+	private const MATBAO_STATUS_COLUMNS = array(
+		'matbao_status',
+		'matbao_status_name',
+		'invoice_number',
+		'tax_authority_code',
+		'matbao_invoice_type',
+		'tax_note',
+		'matbao_synced_at',
+		'matbao_checked_at',
+	);
+
 	/**
 	 * Inserts the invoice row of an order unless one already exists.
 	 *
@@ -147,6 +159,9 @@ final class InvoiceRepository {
 	public function update_status( int $invoice_id, string $status, string $reason = '', array $fields = array(), ?string $from = null ): void {
 		global $wpdb;
 
+		// A new Mat Bao invoice ID (a recreated draft) starts a fresh Mat Bao status.
+		$reset = array_key_exists( 'matbao_invoice_id', $fields ) ? array_fill_keys( self::MATBAO_STATUS_COLUMNS, null ) : array();
+
 		$updated = $wpdb->update(
 			Schema::invoice_table(),
 			array_merge(
@@ -154,6 +169,7 @@ final class InvoiceRepository {
 					'error_code' => '',
 					'error_kind' => '',
 				),
+				$reset,
 				$fields,
 				array(
 					'status'        => $status,
@@ -364,6 +380,166 @@ final class InvoiceRepository {
 		);
 
 		return is_array( $rows ) ? array_values( array_map( array( InvoiceRecord::class, 'from_row' ), $rows ) ) : array();
+	}
+
+	/**
+	 * Invoices whose Mat Bao status the sync should look up: `draft_created` with a Mat Bao invoice ID
+	 * and template, not yet in a final Mat Bao status, dated (or created) on or after `$since_date`.
+	 * Never-checked invoices come first, then the one checked longest ago.
+	 *
+	 * @param int    $limit      Maximum number of invoices.
+	 * @param string $since_date `Y-m-d`; older invoices are not synced.
+	 * @return list<InvoiceRecord>
+	 */
+	public function due_for_status_sync( int $limit, string $since_date ): array {
+		global $wpdb;
+
+		$final  = MatbaoStatus::FINAL_VALUES;
+		$params = array_merge(
+			array( Schema::invoice_table(), InvoiceStatus::DRAFT_CREATED ),
+			$final,
+			array( $since_date, $limit )
+		);
+
+		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- the fragment only holds fixed text and one %d per final status.
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT * FROM %i WHERE status = %s AND matbao_invoice_id IS NOT NULL AND matbao_invoice_id <> '' AND template_form <> '' AND template_series <> '' AND (matbao_status IS NULL OR matbao_status NOT IN (" . implode( ',', array_fill( 0, count( $final ), '%d' ) ) . ')) AND COALESCE(issued_on, DATE(created_at)) >= %s ORDER BY matbao_checked_at, id LIMIT %d',
+				$params
+			),
+			ARRAY_A
+		);
+		// phpcs:enable WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber
+
+		return is_array( $rows ) ? array_values( array_map( array( InvoiceRecord::class, 'from_row' ), $rows ) ) : array();
+	}
+
+	/**
+	 * Stores what a lookup read, only while the row is still the one that was read: still
+	 * `draft_created`, with the same Mat Bao invoice ID and Mat Bao status. A result read before the
+	 * draft was recreated or another run recorded it therefore changes nothing.
+	 *
+	 * A new abnormal status also stores its warning (`error_code`, kind, reason) and starts a new
+	 * alert cycle; the same abnormal status again leaves the warning alone; a status that is not
+	 * abnormal clears the error only when it is a Mat Bao status warning, never an order warning.
+	 * The caller alerts only when the result is WRITTEN for a new abnormal status.
+	 *
+	 * @param InvoiceRecord  $read   Invoice as read before the lookup.
+	 * @param MatbaoSnapshot $snapshot Lookup result.
+	 * @param string         $reason Vietnamese reason stored with a new warning.
+	 */
+	public function record_matbao_status( InvoiceRecord $read, MatbaoSnapshot $snapshot, string $reason = '' ): RecordResult {
+		global $wpdb;
+
+		$now    = current_time( 'mysql', true );
+		$sets   = array();
+		$params = array( Schema::invoice_table() );
+
+		foreach ( array(
+			'matbao_status'       => array( $snapshot->status, '%d' ),
+			'matbao_status_name'  => array( $snapshot->status_name, '%s' ),
+			'invoice_number'      => array( $snapshot->invoice_number, '%d' ),
+			'tax_authority_code'  => array( $snapshot->tax_authority_code, '%s' ),
+			'matbao_invoice_type' => array( $snapshot->invoice_type, '%d' ),
+			'tax_note'            => array( $snapshot->tax_note, '%s' ),
+		) as $column => $pair ) {
+			if ( null === $pair[0] ) {
+				$sets[] = $column . ' = NULL';
+			} else {
+				$sets[]   = $column . ' = ' . $pair[1];
+				$params[] = $pair[0];
+			}
+		}
+		$sets[]   = 'matbao_synced_at = %s';
+		$sets[]   = 'matbao_checked_at = %s';
+		$params[] = $now;
+		$params[] = $now;
+
+		$alert   = null === $snapshot->status ? null : MatbaoStatus::tryFrom( $snapshot->status )?->alert_code();
+		$changed = $snapshot->status !== $read->matbao_status;
+		if ( null !== $alert && $changed ) {
+			array_push( $sets, 'error_code = %s', 'error_kind = %s', 'status_reason = %s', 'alert_cycle = alert_cycle + 1', 'updated_at = %s' );
+			array_push( $params, $alert->value, $alert->kind()->value, $reason, $now );
+		} elseif ( null === $alert ) {
+			// MySQL assigns left to right: error_code is last so the other two still see the old code.
+			$warnings = "'" . implode( "','", self::matbao_warning_codes() ) . "'";
+			foreach ( array( 'status_reason', 'error_kind', 'error_code' ) as $column ) {
+				$sets[] = "{$column} = CASE WHEN error_code IN ({$warnings}) THEN '' ELSE {$column} END";
+			}
+		}
+
+		$guard = null === $read->matbao_status ? 'matbao_status IS NULL' : 'matbao_status = %d';
+		array_push( $params, $read->id, InvoiceStatus::DRAFT_CREATED, (string) $read->matbao_invoice_id );
+		if ( null !== $read->matbao_status ) {
+			$params[] = $read->matbao_status;
+		}
+
+		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- fixed column names and placeholders; every value is bound.
+		$updated = $wpdb->query(
+			$wpdb->prepare(
+				'UPDATE %i SET ' . implode( ', ', $sets ) . ' WHERE id = %d AND status = %s AND matbao_invoice_id = %s AND ' . $guard,
+				$params
+			)
+		);
+		// phpcs:enable WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber
+
+		if ( false === $updated ) {
+			return RecordResult::FAILED;
+		}
+		if ( 0 === $updated ) {
+			// Guard did not match, or the same values were written within the same second: both safe to skip.
+			return RecordResult::STALE;
+		}
+
+		if ( null !== $alert && $changed ) {
+			Monitor::log(
+				'info',
+				'invoice matbao status warning recorded',
+				array(
+					'invoice.id' => $read->id,
+					'error_code' => $alert->value,
+				)
+			);
+		}
+
+		return RecordResult::WRITTEN;
+	}
+
+	/**
+	 * Marks invoices as attempted now, without touching what was read, so a failed lookup moves
+	 * them to the back of the sync queue.
+	 *
+	 * @param int[] $invoice_ids Invoice row IDs.
+	 */
+	public function touch_matbao_checked( array $invoice_ids ): void {
+		global $wpdb;
+
+		if ( array() === $invoice_ids ) {
+			return;
+		}
+
+		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- one %d per ID.
+		$wpdb->query(
+			$wpdb->prepare(
+				'UPDATE %i SET matbao_checked_at = %s WHERE id IN (' . implode( ',', array_fill( 0, count( $invoice_ids ), '%d' ) ) . ')',
+				array_merge( array( Schema::invoice_table(), current_time( 'mysql', true ) ), $invoice_ids )
+			)
+		);
+		// phpcs:enable WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber
+	}
+
+	/**
+	 * Values of the error codes only the status sync sets and clears.
+	 *
+	 * @return list<string>
+	 */
+	private static function matbao_warning_codes(): array {
+		return array_values(
+			array_map(
+				static fn( InvoiceErrorCode $code ): string => $code->value,
+				array_filter( InvoiceErrorCode::cases(), static fn( InvoiceErrorCode $code ): bool => $code->is_matbao_status_warning() )
+			)
+		);
 	}
 
 	/**
