@@ -4,6 +4,7 @@ Never creates, signs or deletes invoices. Credentials come from the environment 
 EINV_DEMO_MST, EINV_DEMO_USER, EINV_DEMO_PASS. Output carries structure only (key names, types, sizes):
 no token, base64, MaTraCuu or MaSoHDon value.
 
+Self-test only (no network): add --self-test.
 Run: uv run --no-project python -I docs/research/demo-download-probe.py
 """
 import base64
@@ -11,6 +12,7 @@ import datetime
 import json
 import os
 import ssl
+import sys
 import urllib.error
 import urllib.request
 
@@ -52,7 +54,28 @@ def shape(value, depth=0):
 
 
 def envelope(body):
-    return {k: (v if k in ("success", "errorCode", "message") and not isinstance(v, (dict, list)) else shape(v)) for k, v in body.items()}
+    """Typed success/errorCode only; message and every other value as type (and length), never content."""
+    out = {}
+    for key, value in body.items():
+        if key == "success" and isinstance(value, bool):
+            out[key] = value
+        elif key == "errorCode" and isinstance(value, int) and not isinstance(value, bool):
+            out[key] = value
+        elif key == "message" and isinstance(value, str):
+            out[key] = "<str, %d chars>" % len(value)
+        else:
+            out[key] = shape(value)
+    return out
+
+
+def self_test():
+    """A synthetic envelope full of secrets must print none of them."""
+    secrets = ("FAKE-TOKEN-abc123", "RkFLRS1CQVNFNjQ=", "FAKE-LOOKUP-CODE", "FAKE-MASOHDON")
+    body = {"success": False, "errorCode": 201, "message": "denied " + " ".join(secrets), "data": {"accessToken": secrets[0], "data_PDF_Base64": secrets[1], "maTraCuu": secrets[2], "maSoHDon": secrets[3]}, "extra": secrets[0], "errorCode2": secrets[2]}
+    printed = str(envelope(body)) + str(shape(body))
+    assert not any(secret in printed for secret in secrets), printed
+    assert envelope({"success": "FAKE-TOKEN-abc123", "errorCode": "FAKE-LOOKUP-CODE"}) == {"success": "str", "errorCode": "str"}
+    print("self-test ok")
 
 
 def find(value, *names):
@@ -73,6 +96,10 @@ def find(value, *names):
     return None
 
 
+self_test()
+if "--self-test" in sys.argv:
+    raise SystemExit(0)
+
 mst, user, password = (os.environ.get(k) for k in ("EINV_DEMO_MST", "EINV_DEMO_USER", "EINV_DEMO_PASS"))
 if not (mst and user and password):
     raise SystemExit("Set EINV_DEMO_MST, EINV_DEMO_USER, EINV_DEMO_PASS.")
@@ -86,11 +113,6 @@ if not token:
 status, _, templates = call("GET", "/api/invoice/templates?year=%d" % datetime.date.today().year, token=token)
 print("templates: HTTP", status, "success", templates.get("success"), "shape", shape(templates.get("data")))
 today = datetime.date.today()
-
-
-def detail(form, series, state, days):
-    body = {"KHMSHDon": form, "KHHDon": series, "SHDon": 0, "TNLap": (today - datetime.timedelta(days=days)).isoformat(), "DNLap": today.isoformat(), "LoaiHDon": 0, "TThaiHDon": state, "TTKhachHang": "", "MaSoHDon": ""}
-    return call("POST", "/api/invoice/invoice-detail", body, token)
 
 
 chosen = {}

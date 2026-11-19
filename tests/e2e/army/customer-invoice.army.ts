@@ -23,13 +23,13 @@ describe("customer invoice view", { serial: false }, () => {
 
 		await fake("issue", { mtChieu: `E2EWC${orderId}` });
 		await seam({ app }, "/status-sync", {});
-		let row: any;
+		let row: { invoice?: { matbao_status: number | null } } | undefined;
 		for (let i = 0; i < 20; i++) {
-			row = await invoiceOf({ app }, orderId);
-			if (row.invoice?.matbao_status === 4) break;
+			row = (await invoiceOf({ app }, orderId)) as typeof row;
+			if (row?.invoice?.matbao_status === 4) break;
 			await new Promise((r) => setTimeout(r, 250));
 		}
-		expect(row.invoice?.matbao_status).toBe(4);
+		expect(row?.invoice?.matbao_status).toBe(4);
 
 		await app.open(PAGES.viewOrder(orderId));
 		await expect(screen.getByText("Đã xuất hóa đơn", { exact: false }).first()).toBeVisible();
@@ -43,7 +43,7 @@ describe("customer invoice view", { serial: false }, () => {
 			const response = await fetch(url, { credentials: "same-origin" });
 			const bytes = new Uint8Array(await response.arrayBuffer());
 			return { status: response.status, type: response.headers.get("content-type") ?? "", head: String.fromCharCode(...bytes.slice(0, 5)) };
-		}, href);
+		}, href ?? "");
 		expect(result.status).toBe(200);
 		expect(result.type).toContain("application/pdf");
 		expect(result.head).toBe("%PDF-");
