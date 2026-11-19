@@ -22,7 +22,7 @@
 
 ## Commits
 
-- **Range**: `0611904..<receipt commit>` (implementation `0611904..2509b3f`; commit artifact là `0611904` trên `feat/customer-invoice-view`)
+- **Range**: `0611904..a33f777` (implementation `0611904..2509b3f`, receipt `a33f777`; commit artifact là `0611904` trên `feat/customer-invoice-view`)
 - **Count**: `19` (18 implementation và tick, cộng commit receipt)
 
 ---
