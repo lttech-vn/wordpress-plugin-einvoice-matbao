@@ -2,10 +2,10 @@
 
 Blocked by: none
 
-- [ ] 1.1 `MatbaoInvoice` đọc `maTraCuu` (rỗng → null) thành `lookup_code`; test trong `tests/integration/MatbaoLookupTest.php` (Lookup code read, Lookup code missing)
-- [ ] 1.2 `MatbaoSnapshot` thêm `lookup_code` (`from_invoice` lấy từ hóa đơn, `deleted()` để null)
-- [ ] 1.3 `Schema` lên version 7, thêm cột `lookup_code varchar(100) NULL`; test nâng cấp trong `tests/integration/SchemaUpgradeTest.php`
-- [ ] 1.4 `InvoiceRecord` thêm `lookup_code`; `InvoiceRepository::record_matbao_status` ghi cột; `MATBAO_STATUS_COLUMNS` thêm `lookup_code`; test trong `tests/integration/InvoiceRepositoryTest.php` (Lookup code stored, Deleted clears the lookup code, Recorded after recreation)
+- [x] 1.1 `MatbaoInvoice` đọc `maTraCuu` (rỗng → null) thành `lookup_code`; test trong `tests/integration/MatbaoLookupTest.php` (Lookup code read, Lookup code missing)
+- [x] 1.2 `MatbaoSnapshot` thêm `lookup_code` (`from_invoice` lấy từ hóa đơn, `deleted()` để null)
+- [x] 1.3 `Schema` lên version 7, thêm cột `lookup_code varchar(100) NULL`; test nâng cấp trong `tests/integration/SchemaUpgradeTest.php`
+- [x] 1.4 `InvoiceRecord` thêm `lookup_code`; `InvoiceRepository::record_matbao_status` ghi cột; `MATBAO_STATUS_COLUMNS` thêm `lookup_code`; test trong `tests/integration/InvoiceRepositoryTest.php` (Lookup code stored, Deleted clears the lookup code, Recorded after recreation)
 
 ## 2. Mat Bao PDF download call
 
