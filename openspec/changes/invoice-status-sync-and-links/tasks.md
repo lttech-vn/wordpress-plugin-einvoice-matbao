@@ -30,11 +30,11 @@ Blocked by: 2
 
 Blocked by: 1
 
-- [ ] 4.1 `Admin\MatbaoStatusView`: badge `data-einv-matbao-badge` (`issued`/`error`/`progress`, "—" khi chưa có) và các dòng thông tin Mắt Bão, ghi chú CQT qua `Redactor` (design D8)
-- [ ] 4.2 Danh sách hóa đơn: link đơn qua `get_edit_order_url()` (text khi đơn đã xóa), thêm cột Số HĐ, trạng thái Mắt Bão, "Đồng bộ lúc"; nút "Chi tiết" và "‹ Danh sách" dùng `hx-push-url` (design D7)
-- [ ] 4.3 `InvoicePage::render_panel()` đọc query arg `invoice` (absint) để nạp thẳng chi tiết; chi tiết hóa đơn thêm link "Xem đơn #N" và các dòng Mắt Bão (design D7)
-- [ ] 4.4 `OrderInvoiceMetaBox`: thêm trạng thái Mắt Bão, số HĐ, MCCQT và link "Xem chi tiết hóa đơn" chỉ khi có `manage_options` (design D7)
-- [ ] 4.5 Test integration (`InvoiceAdminListRestTest`, `OrderInvoiceMetaBoxTest`, `SettingsPageTest` hoặc test panel) cho mọi scenario ADDED/MODIFIED về hiển thị và liên kết của `specs/admin-invoice-management`
+- [x] 4.1 `Admin\MatbaoStatusView`: badge `data-einv-matbao-badge` (`issued`/`error`/`progress`, "—" khi chưa có) và các dòng thông tin Mắt Bão, ghi chú CQT qua `Redactor` (design D8)
+- [x] 4.2 Danh sách hóa đơn: link đơn qua `get_edit_order_url()` (text khi đơn đã xóa), thêm cột Số HĐ, trạng thái Mắt Bão, "Đồng bộ lúc"; nút "Chi tiết" và "‹ Danh sách" dùng `hx-push-url` (design D7)
+- [x] 4.3 `InvoicePage::render_panel()` đọc query arg `invoice` (absint) để nạp thẳng chi tiết; chi tiết hóa đơn thêm link "Xem đơn #N" và các dòng Mắt Bão (design D7)
+- [x] 4.4 `OrderInvoiceMetaBox`: thêm trạng thái Mắt Bão, số HĐ, MCCQT và link "Xem chi tiết hóa đơn" chỉ khi có `manage_options` (design D7)
+- [x] 4.5 Test integration (`InvoiceAdminListRestTest`, `OrderInvoiceMetaBoxTest`, `SettingsPageTest` hoặc test panel) cho mọi scenario ADDED/MODIFIED về hiển thị và liên kết của `specs/admin-invoice-management`
 
 ## 5. Browser E2E
 
