@@ -10,7 +10,8 @@ Plugin dành riêng cho cửa hàng tại Việt Nam: tiền VND, thuế suất 
 - **Không tạo trùng:** mỗi đơn một hóa đơn gốc, mã tham chiếu cố định, tra cứu Mắt Bão trước mỗi lần gửi lại.
 - **Tự thử lại** khi Mắt Bão lỗi tạm thời (1 phút, 5 phút, 15 phút, 1 giờ, 6 giờ).
 - **Yêu cầu xuất hóa đơn ở checkout** cho cá nhân (CCCD) hoặc doanh nghiệp (MST), hỗ trợ Classic và Checkout Blocks. Khách không yêu cầu được xuất cho người mua vãng lai.
-- **Quản lý hóa đơn trong wp-admin:** tổng quan, danh sách, bộ lọc, lịch sử gửi, kiểm tra trạng thái, gửi lại.
+- **Quản lý hóa đơn trong wp-admin:** tổng quan, danh sách, bộ lọc, lịch sử gửi, kiểm tra trạng thái, gửi lại; liên kết hai chiều giữa đơn và hóa đơn.
+- **Đồng bộ trạng thái Mắt Bão:** mỗi giờ theo dõi nháp trong 30 ngày gần nhất, cảnh báo khi hóa đơn lỗi ký, không đủ điều kiện cấp mã hoặc nháp bị xóa trên Mắt Bão.
 - **Cảnh báo** qua thông báo wp-admin và Lark.
 - **Giám sát lỗi (tùy chọn, mặc định tắt):** gửi lỗi, hiệu năng, log và cron monitor tới máy chủ Sentry của bạn, với dữ liệu người mua được che trước khi gửi.
 - **Bảo vệ dữ liệu:** credential và CCCD mã hóa, CCCD luôn được che, hỗ trợ xuất/xóa dữ liệu cá nhân của WordPress.
