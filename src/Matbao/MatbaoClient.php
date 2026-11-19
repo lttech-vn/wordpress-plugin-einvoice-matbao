@@ -177,6 +177,44 @@ final class MatbaoClient {
 	}
 
 	/**
+	 * Downloads the PDF of an issued invoice (`download-invoice`).
+	 *
+	 * @param string $invoice_id  `MaSoHDon` Mat Bao returned for the invoice.
+	 * @param string $lookup_code `MaTraCuu` of the invoice.
+	 * @return string Raw PDF bytes.
+	 * @throws MatbaoError When the call fails or the answer carries no readable PDF.
+	 */
+	public function download_invoice_pdf( string $invoice_id, string $lookup_code ): string {
+		$data = $this->authorized(
+			'POST',
+			'/api/invoice/download-invoice',
+			array(
+				'MaTraCuu' => $lookup_code,
+				'MaSoHDon' => $invoice_id,
+			)
+		);
+
+		// Messages never carry the body: it is base64 of a customer document.
+		if ( ! is_array( $data ) ) {
+			throw new MatbaoError( MatbaoError::KIND_API, 'Unreadable invoice download response.' ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- plain text.
+		}
+		$data  = array_change_key_case( $data, CASE_LOWER );
+		$value = $data['data_pdf_base64'] ?? null;
+		if ( ! is_string( $value ) ) {
+			throw new MatbaoError( MatbaoError::KIND_API, 'Invoice download response has no PDF.' ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- plain text.
+		}
+		$bytes = base64_decode( $value, true ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode -- the API carries the PDF as base64.
+		if ( false === $bytes ) {
+			throw new MatbaoError( MatbaoError::KIND_API, 'Invoice PDF is not valid base64.' ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- plain text.
+		}
+		if ( ! str_starts_with( $bytes, '%PDF-' ) ) {
+			throw new MatbaoError( MatbaoError::KIND_API, 'Invoice download is not a PDF.' ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- plain text.
+		}
+
+		return $bytes;
+	}
+
+	/**
 	 * Calls an endpoint with the cached token, logging in again once if Mat Bao rejects it.
 	 *
 	 * @param string            $method     HTTP method.

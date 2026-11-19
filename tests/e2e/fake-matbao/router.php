@@ -138,6 +138,8 @@ if ( str_starts_with( $path, '/__control/' ) ) {
 						} else {
 							$invoice['maTThaiHDon']  = 4;
 							$invoice['tenTThaiHDon'] = 'Đã cấp mã';
+							$invoice['maLoaiHDon']   = (int) ( $body['maLoaiHDon'] ?? 2 );
+							$invoice['shDon']        = (int) ( $body['shDon'] ?? 1 );
 						}
 					}
 					return $n;
@@ -196,6 +198,7 @@ $endpoint = match ( $method . ' ' . $path ) {
 	'GET /api/invoice/templates'             => 'templates',
 	'POST /api/invoice/create-invoice'       => 'create-invoice',
 	'POST /api/invoice/invoice-detail-batch' => 'invoice-detail-batch',
+	'POST /api/invoice/download-invoice'     => 'download-invoice',
 	default                                  => '',
 };
 if ( '' === $endpoint ) {
@@ -396,6 +399,30 @@ switch ( $endpoint ) {
 			array(
 				'invoices' => $found,
 				'notFound' => array_values( array_diff( $references, $returned ) ),
+			)
+		);
+
+	case 'download-invoice':
+		$respond_scripted( $step );
+		$lookup_code = (string) ( $body['MaTraCuu'] ?? '' );
+		$invoice_id  = (string) ( $body['MaSoHDon'] ?? '' );
+		$reference   = einv_fake_with_state(
+			static function ( array &$s ) use ( $lookup_code, $invoice_id ): ?string {
+				foreach ( $s['invoices'] as $stored ) {
+					if ( $stored['maSoHDon'] === $invoice_id && $stored['maTraCuu'] === $lookup_code ) {
+						return (string) $stored['mtChieu'];
+					}
+				}
+				return null;
+			}
+		);
+		if ( null === $reference ) {
+			einv_fake_json( 200, einv_fake_envelope( false, 301, 'Không tìm thấy hóa đơn', null ) );
+		}
+		einv_fake_ok(
+			array(
+				'data_PDF_Base64' => base64_encode( "%PDF-1.4\n% e2e " . $reference . "\n%%EOF\n" ),
+				'data_XML_Base64' => base64_encode( '<HDon/>' ),
 			)
 		);
 }

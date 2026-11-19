@@ -43,7 +43,7 @@ export async function fake(path: string, body?: Json, method = body === undefine
 }
 
 /** Scripts the next answers of one fake endpoint (one step per call). */
-export const script = (endpoint: "create-invoice" | "invoice-detail-batch" | "templates" | "login", steps: Json[]) => fake("script", { endpoint, steps });
+export const script = (endpoint: "create-invoice" | "invoice-detail-batch" | "download-invoice" | "templates" | "login", steps: Json[]) => fake("script", { endpoint, steps });
 
 /** Resets the fake, the plugin ledger and the settings every test relies on. */
 export async function resetWorld(ctx: Pick<Ctx, "app">): Promise<void> {
