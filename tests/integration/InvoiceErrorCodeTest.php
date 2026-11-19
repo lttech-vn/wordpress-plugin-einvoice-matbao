@@ -58,6 +58,9 @@ final class InvoiceErrorCodeTest extends WP_UnitTestCase {
 			'matbao_api'                 => array( 'matbao_api', 'matbao', 'failed', false ),
 			'matbao_duplicate_reference' => array( 'matbao_duplicate_reference', 'matbao', 'failed', true ),
 			'matbao_lookup_mismatch'     => array( 'matbao_lookup_mismatch', 'matbao', 'failed', false ),
+			'matbao_sign_failed'         => array( 'matbao_sign_failed', 'matbao', 'failed', false ),
+			'matbao_not_eligible'        => array( 'matbao_not_eligible', 'matbao', 'failed', false ),
+			'matbao_draft_deleted'       => array( 'matbao_draft_deleted', 'matbao', 'failed', false ),
 			'queue_failed'               => array( 'queue_failed', 'system', 'failed', false ),
 			'unexpected'                 => array( 'unexpected', 'system', 'failed', false ),
 		);
@@ -97,7 +100,7 @@ final class InvoiceErrorCodeTest extends WP_UnitTestCase {
 		sort( $listed );
 		sort( $cases );
 		$this->assertSame( $listed, $cases );
-		$this->assertCount( 36, $cases );
+		$this->assertCount( 39, $cases );
 	}
 
 	/**
@@ -140,6 +143,26 @@ final class InvoiceErrorCodeTest extends WP_UnitTestCase {
 		foreach ( InvoiceErrorCode::cases() as $code ) {
 			$this->assertNotSame( '', trim( $code->hint() ), $code->value );
 		}
+	}
+
+	public function test_matbao_status_hints_verbatim(): void {
+		$this->assertSame( 'Hóa đơn bị lỗi ký trên Mắt Bão. Mở hóa đơn trên Mắt Bão, kiểm tra chữ ký số rồi ký lại; trạng thái tự cập nhật ở lần đồng bộ sau.', InvoiceErrorCode::MATBAO_SIGN_FAILED->hint() );
+		$this->assertSame( 'Cơ quan thuế không cấp mã/tiếp nhận hóa đơn. Xem ghi chú CQT trong chi tiết hóa đơn và xử lý trên Mắt Bão (điều chỉnh hoặc thay thế).', InvoiceErrorCode::MATBAO_NOT_ELIGIBLE->hint() );
+		$this->assertSame( 'Hóa đơn nháp không còn trên Mắt Bão. Kiểm tra trên Mắt Bão; nếu nháp bị xóa nhầm, mở chi tiết hóa đơn, bấm "Kiểm tra trạng thái" rồi xác nhận tạo lại.', InvoiceErrorCode::MATBAO_DRAFT_DELETED->hint() );
+		$this->assertSame( 'Lỗi ký trên Mắt Bão', InvoiceErrorCode::MATBAO_SIGN_FAILED->label() );
+		$this->assertSame( 'Không đủ điều kiện cấp mã/tiếp nhận', InvoiceErrorCode::MATBAO_NOT_ELIGIBLE->label() );
+		$this->assertSame( 'Nháp đã bị xóa trên Mắt Bão', InvoiceErrorCode::MATBAO_DRAFT_DELETED->label() );
+	}
+
+	public function test_matbao_status_codes_need_attention_and_are_status_warnings(): void {
+		foreach ( array( InvoiceErrorCode::MATBAO_SIGN_FAILED, InvoiceErrorCode::MATBAO_NOT_ELIGIBLE, InvoiceErrorCode::MATBAO_DRAFT_DELETED ) as $code ) {
+			$this->assertTrue( $code->needs_attention(), $code->value );
+			$this->assertTrue( $code->is_matbao_status_warning(), $code->value );
+			$this->assertFalse( $code->is_post_draft_warning(), $code->value );
+			$this->assertFalse( $code->is_auto_retryable(), $code->value );
+		}
+		$this->assertFalse( InvoiceErrorCode::ORDER_AMOUNTS_CHANGED->is_matbao_status_warning() );
+		$this->assertFalse( InvoiceErrorCode::MATBAO_API->is_matbao_status_warning() );
 	}
 
 	public function test_data_error_hint(): void {

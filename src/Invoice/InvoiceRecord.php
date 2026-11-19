@@ -31,6 +31,14 @@ final class InvoiceRecord {
 	 * @param int         $alert_cycle       Counts restarts; alerts are deduplicated per value, also when no attempt was made.
 	 * @param string      $updated_at        Last change (UTC, `Y-m-d H:i:s`), compared by the recovery sweep's claim.
 	 * @param string      $order_state       OrderState::encode() of the order as last sent or acknowledged, or empty.
+	 * @param int|null    $matbao_status     `maTThaiHDon` last read from Mat Bao (0 = deleted on Mat Bao), or null before the first lookup.
+	 * @param string      $matbao_status_name `tenTThaiHDon` last read, or empty.
+	 * @param int|null    $invoice_number    `shDon` last read, or null while there is none.
+	 * @param string|null $tax_authority_code `mccqt` last read.
+	 * @param int|null    $matbao_invoice_type `maLoaiHDon` last read.
+	 * @param string      $tax_note          `ghiChuCQT` last read, or empty. Personal data may appear in it: redact before display.
+	 * @param string|null $matbao_synced_at  Last successful lookup (UTC, `Y-m-d H:i:s`).
+	 * @param string|null $matbao_checked_at Last lookup attempt (UTC, `Y-m-d H:i:s`).
 	 */
 	public function __construct(
 		public readonly int $id,
@@ -49,6 +57,14 @@ final class InvoiceRecord {
 		public readonly int $alert_cycle = 0,
 		public readonly string $updated_at = '',
 		public readonly string $order_state = '',
+		public readonly ?int $matbao_status = null,
+		public readonly string $matbao_status_name = '',
+		public readonly ?int $invoice_number = null,
+		public readonly ?string $tax_authority_code = null,
+		public readonly ?int $matbao_invoice_type = null,
+		public readonly string $tax_note = '',
+		public readonly ?string $matbao_synced_at = null,
+		public readonly ?string $matbao_checked_at = null,
 	) {
 	}
 
@@ -75,6 +91,14 @@ final class InvoiceRecord {
 			is_numeric( $row['alert_cycle'] ?? null ) ? (int) $row['alert_cycle'] : 0,
 			self::text( $row['updated_at'] ?? null ),
 			self::text( $row['order_state'] ?? null ),
+			is_numeric( $row['matbao_status'] ?? null ) ? (int) $row['matbao_status'] : null,
+			self::text( $row['matbao_status_name'] ?? null ),
+			is_numeric( $row['invoice_number'] ?? null ) ? (int) $row['invoice_number'] : null,
+			is_string( $row['tax_authority_code'] ?? null ) ? $row['tax_authority_code'] : null,
+			is_numeric( $row['matbao_invoice_type'] ?? null ) ? (int) $row['matbao_invoice_type'] : null,
+			self::text( $row['tax_note'] ?? null ),
+			is_string( $row['matbao_synced_at'] ?? null ) ? $row['matbao_synced_at'] : null,
+			is_string( $row['matbao_checked_at'] ?? null ) ? $row['matbao_checked_at'] : null,
 		);
 	}
 
@@ -86,15 +110,29 @@ final class InvoiceRecord {
 	}
 
 	/**
+	 * The Mat Bao status last read, or null before the first lookup or for a code outside the known table.
+	 */
+	public function matbao_status(): ?MatbaoStatus {
+		return null === $this->matbao_status ? null : MatbaoStatus::tryFrom( $this->matbao_status );
+	}
+
+	/**
 	 * Whether an admin has to look at the row: an error status, or a draft that the order has
-	 * since drifted away from (the order was changed or refunded after the draft).
+	 * since drifted away from (the order was changed or refunded after the draft, or Mat Bao reports
+	 * it as signed wrongly, not accepted or deleted).
 	 */
 	public function needs_admin(): bool {
 		if ( in_array( $this->status, InvoiceStatus::error_statuses(), true ) ) {
 			return true;
 		}
 
-		return InvoiceStatus::DRAFT_CREATED === $this->status && true === $this->error()?->is_post_draft_warning();
+		if ( InvoiceStatus::DRAFT_CREATED !== $this->status ) {
+			return false;
+		}
+
+		$error = $this->error();
+
+		return true === $error?->is_post_draft_warning() || true === $error?->is_matbao_status_warning();
 	}
 
 	/**

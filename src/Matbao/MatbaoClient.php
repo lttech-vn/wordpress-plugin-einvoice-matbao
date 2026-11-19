@@ -132,6 +132,19 @@ final class MatbaoClient {
 	 * @throws MatbaoError When the call fails.
 	 */
 	public function find_invoices_by_reference( string $reference, string $form, string $series ): array {
+		return array_values( $this->find_invoices_by_references( array( $reference ), $form, $series )->invoices );
+	}
+
+	/**
+	 * Looks up several invoices of one template in one request (`invoice-detail-batch`, `loai` 1).
+	 * `errorCode` 301 means none of them exists, so every reference is reported as not found.
+	 *
+	 * @param string[] $references `MTChieu` values.
+	 * @param string   $form       `KHMSHDon` the invoices were sent with.
+	 * @param string   $series     `KHHDon` the invoices were sent with.
+	 * @throws MatbaoError When the call fails or the answer carries no invoice list.
+	 */
+	public function find_invoices_by_references( array $references, string $form, string $series ): MatbaoLookup {
 		try {
 			$data = $this->authorized(
 				'POST',
@@ -140,12 +153,12 @@ final class MatbaoClient {
 					'loai'     => 1,
 					'mauSo'    => $form,
 					'kiHieu'   => $series,
-					'danhSach' => array( $reference ),
+					'danhSach' => $references,
 				)
 			);
 		} catch ( MatbaoError $error ) {
 			if ( MatbaoError::API_NOT_FOUND === $error->api_code ) {
-				return array();
+				return new MatbaoLookup( array(), $references );
 			}
 			throw $error;
 		}
@@ -155,7 +168,12 @@ final class MatbaoClient {
 			throw new MatbaoError( MatbaoError::KIND_API, 'Unreadable invoice lookup response.' ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- plain text, escaped where rendered (Admin\Fragment).
 		}
 
-		return array_values( array_map( array( MatbaoInvoice::class, 'from_api' ), array_filter( $data['invoices'], 'is_array' ) ) );
+		$not_found = is_array( $data['notFound'] ?? null ) ? array_values( array_map( 'strval', array_filter( $data['notFound'], 'is_scalar' ) ) ) : array();
+
+		return new MatbaoLookup(
+			array_values( array_map( array( MatbaoInvoice::class, 'from_api' ), array_filter( $data['invoices'], 'is_array' ) ) ),
+			$not_found
+		);
 	}
 
 	/**

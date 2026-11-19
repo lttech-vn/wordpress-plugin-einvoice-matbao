@@ -189,6 +189,88 @@ final class SchemaUpgradeTest extends WP_UnitTestCase {
 		$this->assertSame( '', $invoice->order_state );
 	}
 
+	public function test_v5_table_gets_matbao_columns_and_keeps_its_rows(): void {
+		global $wpdb;
+		$this->create_v5_table();
+		$new_columns = array( 'matbao_status', 'matbao_status_name', 'invoice_number', 'tax_authority_code', 'matbao_invoice_type', 'tax_note', 'matbao_synced_at', 'matbao_checked_at' );
+		foreach ( $new_columns as $column ) {
+			$this->assertNotContains( $column, $this->columns(), $column );
+		}
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery -- test fixture row.
+		$wpdb->insert(
+			Schema::invoice_table(),
+			array(
+				'order_id'          => 7005,
+				'reference'         => 'WC7005',
+				'status'            => InvoiceStatus::DRAFT_CREATED,
+				'matbao_invoice_id' => 'abc',
+				'alert_cycle'       => 3,
+				'created_at'        => '2026-01-02 03:04:05',
+				'updated_at'        => '2026-01-02 03:04:05',
+			)
+		);
+		update_option( Schema::VERSION_OPTION, '5' );
+
+		Schema::maybe_install();
+
+		$this->assertSame( '6', get_option( Schema::VERSION_OPTION ) );
+		foreach ( $new_columns as $column ) {
+			$this->assertContains( $column, $this->columns(), $column );
+		}
+		$invoice = ( new InvoiceRepository() )->find_by_order( 7005 );
+		$this->assertNotNull( $invoice );
+		$this->assertSame( InvoiceStatus::DRAFT_CREATED, $invoice->status );
+		$this->assertSame( 'abc', $invoice->matbao_invoice_id );
+		$this->assertSame( 3, $invoice->alert_cycle );
+		$this->assertNull( $invoice->matbao_status );
+		$this->assertSame( '', $invoice->matbao_status_name );
+		$this->assertNull( $invoice->invoice_number );
+		$this->assertNull( $invoice->tax_authority_code );
+		$this->assertNull( $invoice->matbao_invoice_type );
+		$this->assertSame( '', $invoice->tax_note );
+		$this->assertNull( $invoice->matbao_synced_at );
+		$this->assertNull( $invoice->matbao_checked_at );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery -- test inspects the schema.
+		$indexes = $wpdb->get_col( $wpdb->prepare( 'SHOW INDEX FROM %i', Schema::invoice_table() ), 2 );
+		$this->assertContains( 'matbao_sync', $indexes );
+	}
+
+	/**
+	 * Creates the v5 invoice table: every column of the schema before the Mat Bao status columns.
+	 */
+	private function create_v5_table(): void {
+		global $wpdb;
+		$table = Schema::invoice_table();
+
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- test fixture DDL; the collation clause cannot be a placeholder.
+		$wpdb->query(
+			"CREATE TABLE {$table} (
+  id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  order_id bigint(20) unsigned NOT NULL,
+  reference varchar(20) NOT NULL,
+  status varchar(20) NOT NULL,
+  status_reason text NULL,
+  error_code varchar(40) NOT NULL DEFAULT '',
+  error_kind varchar(20) NOT NULL DEFAULT '',
+  buyer_name varchar(400) NOT NULL DEFAULT '',
+  template_form varchar(6) NOT NULL DEFAULT '',
+  template_series varchar(6) NOT NULL DEFAULT '',
+  matbao_invoice_id varchar(100) NULL,
+  issued_on date NULL,
+  retry_cycle_start bigint(20) unsigned NOT NULL DEFAULT 0,
+  alert_cycle int(10) unsigned NOT NULL DEFAULT 0,
+  order_state varchar(120) NOT NULL DEFAULT '',
+  created_at datetime NOT NULL,
+  updated_at datetime NOT NULL,
+  PRIMARY KEY  (id),
+  UNIQUE KEY order_id (order_id),
+  KEY reference (reference),
+  KEY status (status)
+) {$wpdb->get_charset_collate()}"
+		);
+		// phpcs:enable
+	}
+
 	/**
 	 * Creates the v1 invoice table (without `error_code` / `error_kind`).
 	 */

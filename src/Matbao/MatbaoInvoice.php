@@ -29,6 +29,10 @@ final class MatbaoInvoice {
 	 * @param int|null    $total       `tgTTTBSo` (total with tax), when present.
 	 * @param string|null $buyer_name  Buyer name (`nMua_Ten`), when the response carries one.
 	 * @param string|null $buyer_tax   Buyer tax code (`nMua_MST`), when the response carries one.
+	 * @param int|null    $invoice_number `shDon`; null while the invoice has no number (0).
+	 * @param string|null $tax_authority_code `mccqt`; null while empty.
+	 * @param int|null    $invoice_type `maLoaiHDon`, when present.
+	 * @param string|null $tax_note     `ghiChuCQT` (note of the tax authority); null while empty.
 	 */
 	public function __construct(
 		public readonly string $invoice_id,
@@ -39,6 +43,10 @@ final class MatbaoInvoice {
 		public readonly ?int $total,
 		public readonly ?string $buyer_name = null,
 		public readonly ?string $buyer_tax = null,
+		public readonly ?int $invoice_number = null,
+		public readonly ?string $tax_authority_code = null,
+		public readonly ?int $invoice_type = null,
+		public readonly ?string $tax_note = null,
 	) {
 	}
 
@@ -59,6 +67,10 @@ final class MatbaoInvoice {
 			is_numeric( $item['tgTTTBSo'] ?? null ) ? (int) round( (float) $item['tgTTTBSo'] ) : null,
 			self::optional_text( $item['nMua_Ten'] ?? null ),
 			self::optional_text( $item['nMua_MST'] ?? null ),
+			is_numeric( $item['shDon'] ?? null ) && (int) $item['shDon'] > 0 ? (int) $item['shDon'] : null,
+			self::optional_text( $item['mccqt'] ?? null ),
+			is_numeric( $item['maLoaiHDon'] ?? null ) ? (int) $item['maLoaiHDon'] : null,
+			self::optional_text( $item['ghiChuCQT'] ?? null ),
 		);
 	}
 
