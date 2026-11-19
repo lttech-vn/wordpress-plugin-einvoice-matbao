@@ -202,7 +202,7 @@ final class MatbaoStatusSync {
 
 	/**
 	 * The snapshot to store, or null when the answer does not settle the invoice: the reference
-	 * is missing from both lists, unreadable, or carries a different Mat Bao invoice.
+	 * is missing from both lists, unreadable (no valid status), or carries a different Mat Bao invoice.
 	 *
 	 * @param InvoiceRecord $read   Invoice.
 	 * @param MatbaoLookup  $lookup Answer.
@@ -210,7 +210,9 @@ final class MatbaoStatusSync {
 	private function snapshot_for( InvoiceRecord $read, MatbaoLookup $lookup ): ?MatbaoSnapshot {
 		foreach ( $lookup->invoices as $row ) {
 			if ( $row->reference === $read->reference && $row->invoice_id === $read->matbao_invoice_id ) {
-				return MatbaoSnapshot::from_invoice( $row );
+				// Deleted (0) is only ever proven by errorCode 301 / `notFound`, never by a row; an
+				// unreadable or out-of-range status settles nothing. Unknown codes (e.g. 12) are kept.
+				return null !== $row->status && $row->status >= 1 && $row->status <= 255 ? MatbaoSnapshot::from_invoice( $row ) : null;
 			}
 		}
 

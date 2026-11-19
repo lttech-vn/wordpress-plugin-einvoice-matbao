@@ -129,19 +129,33 @@ final class MatbaoStatusSyncTest extends InvoiceWorkflowTestCase {
 	}
 
 	public function test_requests_grouped_by_template(): void {
+		$expected = array();
 		for ( $i = 0; $i < 25; $i++ ) {
-			$this->draft();
+			$expected[ $this->draft()->reference ] = self::TEMPLATE_SERIES;
 		}
 		for ( $i = 0; $i < 3; $i++ ) {
-			$this->draft( array( 'template_series' => 'C26TBB' ) );
+			$expected[ $this->draft( array( 'template_series' => 'C26TBB' ) )->reference ] = 'C26TBB';
 		}
 		$this->answer( array() );
 
 		( new MatbaoStatusSync() )->sync_batch();
 
-		$sizes = array_map( static fn( array $request ): int => count( $request['body']['danhSach'] ), $this->http->requests_to( self::LOOKUP_ROUTE ) );
+		$requests = $this->http->requests_to( self::LOOKUP_ROUTE );
+		$sizes    = array_map( static fn( array $request ): int => count( $request['body']['danhSach'] ), $requests );
 		sort( $sizes );
 		$this->assertSame( array( 3, 5, 20 ), $sizes );
+		$seen = array();
+		foreach ( $requests as $request ) {
+			$body   = $request['body'];
+			$series = $body['kiHieu'];
+			$this->assertSame( self::TEMPLATE_FORM, $body['mauSo'] );
+			$this->assertContains( $series, array( self::TEMPLATE_SERIES, 'C26TBB' ) );
+			foreach ( $body['danhSach'] as $reference ) {
+				$this->assertSame( $series, $expected[ $reference ] ?? null, 'Reference sent under the wrong template.' );
+				$seen[] = $reference;
+			}
+		}
+		$this->assertCount( 28, array_unique( $seen ) );
 	}
 
 	public function test_other_plugin_statuses_ignored(): void {
@@ -214,6 +228,89 @@ final class MatbaoStatusSyncTest extends InvoiceWorkflowTestCase {
 		$this->assertSame( SyncOutcome::UNCONFIRMED, ( new MatbaoStatusSync() )->sync_one( $invoice ) );
 
 		$this->assertNull( $this->reload( $invoice )->matbao_status );
+	}
+
+	public function test_matching_row_with_deleted_code_keeps_status_and_polling(): void {
+		$this->enable_log_capture();
+		$invoice = $this->draft( array( 'matbao_status' => 1 ) );
+		$this->answer( array( $invoice->reference => $this->row_with_status( 0 ) ) );
+
+		$this->assertSame( SyncOutcome::UNCONFIRMED, ( new MatbaoStatusSync() )->sync_one( $invoice ) );
+
+		$after = $this->reload( $invoice );
+		$this->assertSame( 1, $after->matbao_status );
+		$this->assertNotNull( $after->matbao_checked_at );
+		$this->assertContains( 'Mat Bao status lookup did not confirm the invoice', $this->warn_logs() );
+		$this->assertCount( 1, ( new InvoiceRepository() )->due_for_status_sync( 10, $this->days_ago( 30 ) ) );
+	}
+
+	/**
+	 * A matching row without a readable status changes nothing.
+	 *
+	 * @dataProvider unreadable_status_rows
+	 *
+	 * @param array<string, mixed> $override Fields replacing the status of the matching row.
+	 */
+	public function test_matching_row_with_unreadable_status_keeps_state( array $override ): void {
+		$this->enable_log_capture();
+		$invoice = $this->draft(
+			array(
+				'matbao_status' => 2,
+				'error_code'    => 'matbao_sign_failed',
+				'error_kind'    => 'matbao',
+				'status_reason' => 'Lỗi ký',
+			)
+		);
+		$row     = $this->row_with_status( 4 );
+		unset( $row['maTThaiHDon'] );
+		$this->answer( array( $invoice->reference => array_merge( $row, $override ) ) );
+
+		$this->assertSame( SyncOutcome::UNCONFIRMED, ( new MatbaoStatusSync() )->sync_one( $invoice ) );
+
+		$after = $this->reload( $invoice );
+		$this->assertSame( 2, $after->matbao_status );
+		$this->assertSame( 'matbao_sign_failed', $after->error_code );
+		$this->assertContains( 'Mat Bao status lookup did not confirm the invoice', $this->warn_logs() );
+	}
+
+	/**
+	 * Rows whose `maTThaiHDon` is missing or not a number.
+	 *
+	 * @return array<string, array{0: array<string, mixed>}>
+	 */
+	public static function unreadable_status_rows(): array {
+		return array(
+			'missing'   => array( array() ),
+			'not_a_num' => array( array( 'maTThaiHDon' => 'abc' ) ),
+			'null'      => array( array( 'maTThaiHDon' => null ) ),
+		);
+	}
+
+	public function test_db_failure_isolated_to_one_invoice(): void {
+		$this->enable_log_capture();
+		$broken = $this->draft();
+		$good   = $this->draft();
+		$this->answer(
+			array(
+				$broken->reference => $this->row_with_status( 2 ),
+				$good->reference   => $this->row_with_status( 4 ),
+			)
+		);
+		$break = static fn( string $query ): string => 1 === preg_match( '/^UPDATE .*matbao_status = .* WHERE id = ' . $broken->id . ' /', $query ) ? 'UPDATE broken_table_xyz SET a = 1' : $query;
+		add_filter( 'query', $break );
+		global $wpdb;
+		$suppressed = $wpdb->suppress_errors( true );
+		$alerts     = did_action( DraftInvoiceWorkflow::NEEDS_ATTENTION_ACTION );
+
+		( new MatbaoStatusSync() )->sync_batch();
+
+		$wpdb->suppress_errors( $suppressed );
+		remove_filter( 'query', $break );
+		$this->assertNull( $this->reload( $broken )->matbao_status );
+		$this->assertSame( '', $this->reload( $broken )->error_code );
+		$this->assertSame( 4, $this->reload( $good )->matbao_status );
+		$this->assertSame( $alerts, did_action( DraftInvoiceWorkflow::NEEDS_ATTENTION_ACTION ) );
+		$this->assertContains( 'Mat Bao status could not be stored', $this->warn_logs() );
 	}
 
 	public function test_reference_missing_from_answer_keeps_status(): void {
