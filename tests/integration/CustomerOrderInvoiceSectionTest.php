@@ -22,6 +22,15 @@ final class CustomerOrderInvoiceSectionTest extends InvoiceWorkflowTestCase {
 
 	private const REFERENCE = 'WC-REF-7741';
 
+	/** Customer-facing labels, verbatim from the spec. */
+	private const LABELS = array(
+		'processing'   => 'Đang xuất hóa đơn',
+		'needs_store'  => 'Đang xử lý, cửa hàng sẽ liên hệ nếu cần',
+		'not_required' => 'Đơn hàng không cần xuất hóa đơn',
+		'issued'       => 'Đã xuất hóa đơn',
+		'adjusted'     => 'Hóa đơn đã được điều chỉnh, vui lòng liên hệ cửa hàng',
+	);
+
 	/**
 	 * Saved `$wp->query_vars`, restored in tear_down.
 	 *
@@ -51,6 +60,81 @@ final class CustomerOrderInvoiceSectionTest extends InvoiceWorkflowTestCase {
 
 		$this->assertStringContainsString( 'Hóa đơn điện tử', $html );
 		$this->assertStringContainsString( 'Đang xuất hóa đơn', $html );
+	}
+
+	/**
+	 * The rendered block shows exactly the mapped label, and the download link only when issued.
+	 *
+	 * @dataProvider every_status
+	 *
+	 * @param string      $status     Plugin status.
+	 * @param int|null    $matbao     Mat Bao status.
+	 * @param int|null    $type       Mat Bao invoice type.
+	 * @param string|null $invoice_id Mat Bao invoice ID.
+	 * @param string      $label      Expected customer label.
+	 * @param bool        $link       Whether the download link is expected.
+	 */
+	public function test_block_for_every_status( string $status, ?int $matbao, ?int $type, ?string $invoice_id, string $label, bool $link ): void {
+		$customer = $this->customer();
+		$order    = $this->order_of( $customer );
+		$this->insert_invoice(
+			$order,
+			array(
+				'status'              => $status,
+				'matbao_status'       => $matbao,
+				'matbao_invoice_type' => $type,
+				'matbao_invoice_id'   => $invoice_id,
+				'template_form'       => '1',
+				'template_series'     => 'C26TAT',
+				'invoice_number'      => 4 === $matbao ? 125 : null,
+			)
+		);
+
+		$html = $this->render_as( $customer, $order );
+
+		$this->assertStringContainsString( 'Hóa đơn điện tử', $html );
+		$this->assertStringContainsString( $label, $html );
+		foreach ( array_diff( self::LABELS, array( $label ) ) as $other ) {
+			$this->assertStringNotContainsString( $other, $html );
+		}
+		if ( $link ) {
+			$this->assertStringContainsString( InvoicePdfDownload::QUERY_ARG . '=1', $html );
+		} else {
+			$this->assertStringNotContainsString( InvoicePdfDownload::QUERY_ARG, $html );
+		}
+	}
+
+	/**
+	 * Plugin status, Mat Bao status, type, Mat Bao invoice ID, expected label, link expected.
+	 *
+	 * @return array<string, array{0: string, 1: int|null, 2: int|null, 3: string|null, 4: string, 5: bool}>
+	 */
+	public static function every_status(): array {
+		return array(
+			'pending'                     => array( InvoiceStatus::PENDING, null, null, null, self::LABELS['processing'], false ),
+			'sending'                     => array( InvoiceStatus::SENDING, null, null, null, self::LABELS['processing'], false ),
+			'failed'                      => array( InvoiceStatus::FAILED, null, null, null, self::LABELS['needs_store'], false ),
+			'needs attention'             => array( InvoiceStatus::NEEDS_ATTENTION, null, null, null, self::LABELS['needs_store'], false ),
+			'not configured'              => array( InvoiceStatus::NOT_CONFIGURED, null, null, null, self::LABELS['needs_store'], false ),
+			'stopped'                     => array( InvoiceStatus::STOPPED, null, null, null, self::LABELS['needs_store'], false ),
+			'skipped'                     => array( InvoiceStatus::SKIPPED, null, null, null, self::LABELS['not_required'], false ),
+			'draft, no Mat Bao status'    => array( InvoiceStatus::DRAFT_CREATED, null, null, 'abc', self::LABELS['processing'], false ),
+			'draft, Mat Bao draft'        => array( InvoiceStatus::DRAFT_CREATED, 1, null, 'abc', self::LABELS['processing'], false ),
+			'draft, not sent to CQT'      => array( InvoiceStatus::DRAFT_CREATED, 3, null, 'abc', self::LABELS['processing'], false ),
+			'draft, CQT no response'      => array( InvoiceStatus::DRAFT_CREATED, 5, null, 'abc', self::LABELS['processing'], false ),
+			'draft, form 04 undeclared'   => array( InvoiceStatus::DRAFT_CREATED, 7, null, 'abc', self::LABELS['processing'], false ),
+			'draft, form 04 pending'      => array( InvoiceStatus::DRAFT_CREATED, 8, null, 'abc', self::LABELS['processing'], false ),
+			'draft, form 04 approved'     => array( InvoiceStatus::DRAFT_CREATED, 9, null, 'abc', self::LABELS['processing'], false ),
+			'draft, unknown Mat Bao code' => array( InvoiceStatus::DRAFT_CREATED, 12, null, 'abc', self::LABELS['processing'], false ),
+			'draft, deleted on Mat Bao'   => array( InvoiceStatus::DRAFT_CREATED, 0, null, 'abc', self::LABELS['needs_store'], false ),
+			'draft, sign failed'          => array( InvoiceStatus::DRAFT_CREATED, 2, null, 'abc', self::LABELS['needs_store'], false ),
+			'draft, not eligible'         => array( InvoiceStatus::DRAFT_CREATED, 6, null, 'abc', self::LABELS['needs_store'], false ),
+			'issued, new invoice'         => array( InvoiceStatus::DRAFT_CREATED, 4, 2, 'abc', self::LABELS['issued'], true ),
+			'issued, unknown type'        => array( InvoiceStatus::DRAFT_CREATED, 4, null, 'abc', self::LABELS['issued'], true ),
+			'issued, deleted invoice'     => array( InvoiceStatus::DRAFT_CREATED, 4, 3, 'abc', self::LABELS['adjusted'], false ),
+			'issued, replaced invoice'    => array( InvoiceStatus::DRAFT_CREATED, 4, 5, 'abc', self::LABELS['adjusted'], false ),
+			'issued, no Mat Bao ID'       => array( InvoiceStatus::DRAFT_CREATED, 4, 2, null, self::LABELS['processing'], false ),
+		);
 	}
 
 	public function test_no_invoice_record_renders_nothing(): void {

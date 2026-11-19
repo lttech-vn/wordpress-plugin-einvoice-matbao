@@ -36,6 +36,20 @@ final class RecordingResponder extends PdfResponder {
 	public int $buffer_cleanings = 0;
 
 	/**
+	 * Number of times send() asked to turn off server-side compression.
+	 *
+	 * @var int
+	 */
+	public int $compression_disablings = 0;
+
+	/**
+	 * Records the call and leaves the test process ini untouched.
+	 */
+	protected function disable_compression(): void {
+		++$this->compression_disablings;
+	}
+
+	/**
 	 * Records the call and keeps PHPUnit's own buffer open.
 	 *
 	 * @param int $keep Levels to keep open.

@@ -388,6 +388,7 @@ final class CustomerInvoicePdfDownloadTest extends InvoiceWorkflowTestCase {
 		$responder = $this->download( $customer, $order->get_id() );
 
 		$this->assertSame( 1, $responder->buffer_cleanings );
+		$this->assertSame( 1, $responder->compression_disablings );
 	}
 
 	public function test_file_name_without_invoice_number(): void {
