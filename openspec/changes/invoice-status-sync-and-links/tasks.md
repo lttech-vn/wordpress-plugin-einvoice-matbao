@@ -13,10 +13,10 @@ Blocked by: none
 
 Blocked by: 1
 
-- [ ] 2.1 `Invoice\MatbaoStatusSync`: `sync_batch()` gom theo mẫu, mỗi request tối đa 20 `MTChieu`, tối đa 200 hóa đơn mỗi lượt, ghép theo `maSoHDon`, chỉ ghi "Đã xóa" khi 301/`notFound`, lỗi tra cứu chỉ chạm `matbao_checked_at` và `Monitor::log` warning, bỏ lượt khi thiếu credential; `sync_one()` dùng chung đường áp kết quả (design D3, D4)
-- [ ] 2.2 Phát `DraftInvoiceWorkflow::NEEDS_ATTENTION_ACTION` khi `record_matbao_status()` thắng một chuyển sang trạng thái bất thường; không phát với trạng thái khác (design D5)
-- [ ] 2.3 Đăng ký recurring action `einvoice_matbao_status_sync` mỗi giờ trong group `einvoice-matbao` ở `action_scheduler_init`; xác nhận deactivate/uninstall hủy nó (design D3)
-- [ ] 2.4 Test integration `MatbaoStatusSyncTest` cho mọi scenario của `specs/matbao-status-sync` (kể cả race hai tiến trình, nháp tạo lại, cảnh báo đơn hàng còn giữ), và các scenario mới của `specs/failure-alerts` và `specs/error-monitoring` (alert, Lark không chứa ghi chú CQT, event warning, log khi 503)
+- [x] 2.1 `Invoice\MatbaoStatusSync`: `sync_batch()` gom theo mẫu, mỗi request tối đa 20 `MTChieu`, tối đa 200 hóa đơn mỗi lượt, ghép theo `maSoHDon`, chỉ ghi "Đã xóa" khi 301/`notFound`, lỗi tra cứu chỉ chạm `matbao_checked_at` và `Monitor::log` warning, bỏ lượt khi thiếu credential; `sync_one()` dùng chung đường áp kết quả (design D3, D4)
+- [x] 2.2 Phát `DraftInvoiceWorkflow::NEEDS_ATTENTION_ACTION` khi `record_matbao_status()` thắng một chuyển sang trạng thái bất thường; không phát với trạng thái khác (design D5)
+- [x] 2.3 Đăng ký recurring action `einvoice_matbao_status_sync` mỗi giờ trong group `einvoice-matbao` ở `action_scheduler_init`; xác nhận deactivate/uninstall hủy nó (design D3)
+- [x] 2.4 Test integration `MatbaoStatusSyncTest` cho mọi scenario của `specs/matbao-status-sync` (kể cả race hai tiến trình, nháp tạo lại, cảnh báo đơn hàng còn giữ), và các scenario mới của `specs/failure-alerts` và `specs/error-monitoring` (alert, Lark không chứa ghi chú CQT, event warning, log khi 503)
 
 ## 3. Kiểm tra trạng thái thủ công
 
