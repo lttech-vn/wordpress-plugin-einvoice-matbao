@@ -39,6 +39,7 @@ final class InvoiceRecord {
 	 * @param string      $tax_note          `ghiChuCQT` last read, or empty. Personal data may appear in it: redact before display.
 	 * @param string|null $matbao_synced_at  Last successful lookup (UTC, `Y-m-d H:i:s`).
 	 * @param string|null $matbao_checked_at Last lookup attempt (UTC, `Y-m-d H:i:s`).
+	 * @param string|null $lookup_code       `maTraCuu` last read; a credential for the public lookup page, never display it.
 	 */
 	public function __construct(
 		public readonly int $id,
@@ -65,6 +66,7 @@ final class InvoiceRecord {
 		public readonly string $tax_note = '',
 		public readonly ?string $matbao_synced_at = null,
 		public readonly ?string $matbao_checked_at = null,
+		public readonly ?string $lookup_code = null,
 	) {
 	}
 
@@ -99,6 +101,7 @@ final class InvoiceRecord {
 			self::text( $row['tax_note'] ?? null ),
 			is_string( $row['matbao_synced_at'] ?? null ) ? $row['matbao_synced_at'] : null,
 			is_string( $row['matbao_checked_at'] ?? null ) ? $row['matbao_checked_at'] : null,
+			is_string( $row['lookup_code'] ?? null ) ? $row['lookup_code'] : null,
 		);
 	}
 

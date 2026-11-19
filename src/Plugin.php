@@ -45,6 +45,8 @@ final class Plugin {
 		Alert\InvoiceAlerts::register();
 		Invoice\OrderChangeWatcher::register();
 		Privacy\BuyerPersonalData::register();
+		Customer\OrderInvoiceSection::register();
+		Customer\InvoicePdfDownload::register();
 		Monitoring\ActionSchedulerTracing::register();
 		Monitoring\RestTracing::register();
 

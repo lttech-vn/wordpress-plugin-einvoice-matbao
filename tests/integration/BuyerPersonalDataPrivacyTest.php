@@ -114,6 +114,7 @@ final class BuyerPersonalDataPrivacyTest extends InvoiceWorkflowTestCase {
 		$this->assertTrue( $result['done'] );
 		$messages = implode( "\n", $result['messages'] );
 		$this->assertStringContainsString( 'nghĩa vụ kế toán', $messages );
+		$this->assertStringContainsString( 'mã tra cứu', $messages );
 		$this->assertStringContainsString( 'Mắt Bão', $messages );
 
 		$reloaded = wc_get_order( $order->get_id() );
@@ -258,6 +259,7 @@ final class BuyerPersonalDataPrivacyTest extends InvoiceWorkflowTestCase {
 		$this->assertTrue( $result['items_retained'] );
 		$messages = implode( "\n", $result['messages'] );
 		$this->assertStringContainsString( 'nghĩa vụ kế toán', $messages );
+		$this->assertStringContainsString( 'mã tra cứu', $messages );
 		$this->assertStringNotContainsString( 'đã được ẩn danh', $messages );
 		$this->assertStringContainsString( 'không có dữ liệu cá nhân', $messages );
 		$this->assertSame( $walk_in_name, $this->invoice_of( $order )?->buyer_name, 'The walk-in text is not a personal value.' );

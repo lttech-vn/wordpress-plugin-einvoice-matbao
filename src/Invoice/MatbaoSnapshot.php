@@ -23,6 +23,7 @@ final class MatbaoSnapshot {
 	 * @param string|null $tax_authority_code `mccqt`.
 	 * @param int|null    $invoice_type       `maLoaiHDon`.
 	 * @param string|null $tax_note           `ghiChuCQT`.
+	 * @param string|null $lookup_code        `maTraCuu`.
 	 */
 	public function __construct(
 		public readonly ?int $status,
@@ -31,6 +32,7 @@ final class MatbaoSnapshot {
 		public readonly ?string $tax_authority_code,
 		public readonly ?int $invoice_type,
 		public readonly ?string $tax_note,
+		public readonly ?string $lookup_code = null,
 	) {
 	}
 
@@ -40,13 +42,13 @@ final class MatbaoSnapshot {
 	 * @param MatbaoInvoice $invoice Matched lookup row.
 	 */
 	public static function from_invoice( MatbaoInvoice $invoice ): self {
-		return new self( $invoice->status, $invoice->status_name, $invoice->invoice_number, $invoice->tax_authority_code, $invoice->invoice_type, $invoice->tax_note );
+		return new self( $invoice->status, $invoice->status_name, $invoice->invoice_number, $invoice->tax_authority_code, $invoice->invoice_type, $invoice->tax_note, $invoice->lookup_code );
 	}
 
 	/**
 	 * Snapshot of an invoice Mat Bao confirmed it does not have.
 	 */
 	public static function deleted(): self {
-		return new self( MatbaoStatus::DELETED->value, '', null, null, null, null );
+		return new self( MatbaoStatus::DELETED->value, '', null, null, null, null, null );
 	}
 }

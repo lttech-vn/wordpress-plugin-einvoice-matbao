@@ -16,7 +16,7 @@ Ghi nhận quyết định người dùng trong phiên khảo sát trước khi 
 - Refund: báo kế toán, xử lý tay; không tự hủy hoặc điều chỉnh.
 - Retry background có giới hạn cho lỗi tạm thời; tra cứu trước khi gửi lại nếu kết quả chưa rõ. Lỗi dữ liệu không retry tự động.
 - Trang chi tiết đơn hiển thị trạng thái, mã hóa đơn, lỗi, nút gửi lại; danh sách đơn có bộ lọc lỗi.
-- Bản đầu không hiển thị hoặc gửi nháp cho khách.
+- Khách đã đăng nhập xem trạng thái hóa đơn trong My Account; chỉ hóa đơn đã cấp mã, không xóa bỏ hay bị thay thế, mới tải được PDF; nháp không bao giờ hiện.
 - Đơn 0 đồng chuyển admin kiểm tra, không tự tạo nháp.
 - Sửa tiền hoặc thông tin người mua sau khi có nháp: cảnh báo, kế toán xử lý tay; không tự cập nhật/tạo lại.
 - Trước khi background job gửi, đơn rời completed hoặc bị hủy/refund: dừng và báo admin.

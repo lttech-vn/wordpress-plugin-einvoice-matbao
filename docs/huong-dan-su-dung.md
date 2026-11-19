@@ -226,6 +226,24 @@ Mã ngoài bảng (ví dụ 12, nếu Mắt Bão bổ sung) hiện đúng tên M
 - Hộp **Hóa đơn Mắt Bão** trên đơn: link **Xem chi tiết hóa đơn** (chỉ người có quyền `manage_options`, vì trang hóa đơn cần quyền này).
 - Chi tiết hóa đơn có địa chỉ riêng (`…&tab=invoices&invoice=<ID>`). Địa chỉ này mở thẳng chi tiết; nút **Chi tiết** và **‹ Danh sách** cập nhật địa chỉ theo, nên nút Back của trình duyệt và bookmark hoạt động. Mã hóa đơn không hợp lệ thì mở danh sách.
 
+### Khách xem hóa đơn trong My Account
+
+Khách đã đăng nhập, là chủ đơn, thấy mục **Hóa đơn điện tử** ở trang xem đơn (My Account → Đơn hàng → Xem). Khách vãng lai (đơn không gắn tài khoản), trang cảm ơn và người khác không thấy mục này.
+
+| Hiển thị cho khách | Khi nào |
+|---|---|
+| Đang xuất hóa đơn | Nháp mới tạo, chờ cấp mã, hoặc hóa đơn đã cấp nhưng thiếu mã hóa đơn trên Mắt Bão |
+| Đang xử lý, cửa hàng sẽ liên hệ nếu cần | Hóa đơn lỗi hoặc cần cửa hàng xử lý; không hiện chi tiết lỗi |
+| Đơn hàng không cần xuất hóa đơn | Đơn bị bỏ qua (ví dụ đơn 0 đồng) |
+| Đã xuất hóa đơn | Hóa đơn đã cấp mã; hiện số hóa đơn, ký hiệu, ngày lập và nút **Tải hóa đơn (PDF)** |
+| Hóa đơn đã được điều chỉnh, vui lòng liên hệ cửa hàng | Hóa đơn đã cấp nhưng bị xóa bỏ hoặc thay thế; không có nút tải |
+
+- Nút tải chỉ có khi hóa đơn đã cấp mã, không bị xóa bỏ hay thay thế. Nháp không bao giờ có nút tải, kể cả khi ai đó tự dựng đường dẫn.
+- Mỗi lần khách bấm tải, plugin kiểm tra lại trạng thái trên Mắt Bão rồi mới lấy PDF; không lưu PDF trên site. Nếu Mắt Bão lỗi hoặc không xác nhận hóa đơn, khách quay lại trang đơn với thông báo lỗi.
+- Mỗi lần tải, plugin gọi Mắt Bão một lần để tra cứu và một lần để tải PDF (thêm lần đăng nhập lại nếu phiên hết hạn), nên khi Mắt Bão chậm thì khách phải chờ. Hiện chưa giới hạn số lần tải theo từng đơn.
+- Đường dẫn tải có nonce theo từng đơn, chỉ dùng được khi đang đăng nhập đúng tài khoản chủ đơn.
+- Lưu ý theme: mục này chèn qua hook `woocommerce_order_details_after_order_table`. Theme ghi đè template `order/order-details.php` mà không gọi hook này sẽ không hiện mục; thêm lại `do_action( 'woocommerce_order_details_after_order_table', $order )` vào template đó.
+
 ### Tự động thử lại
 
 Khi Mắt Bão không phản hồi, lỗi máy chủ hoặc báo trùng mã tham chiếu, plugin tự thử lại sau **1 phút, 5 phút, 15 phút, 1 giờ và 6 giờ**. Không có cảnh báo trong lúc chờ. Sau lần thứ năm vẫn lỗi, hóa đơn chuyển sang **Lỗi cần xử lý** và gửi cảnh báo.
@@ -316,7 +334,7 @@ Cách xử lý đầy đủ của mỗi lỗi giống nhau ở mọi nơi: hộp
 
 - **CCCD** chỉ lưu dạng mã hóa trong dữ liệu đơn hàng. Danh sách, ghi chú đơn, nhật ký và cảnh báo chỉ hiện 4 số cuối (`********1234`). CCCD không bao giờ xuất hiện trong phản hồi REST API của WooCommerce.
 - **Xuất dữ liệu cá nhân** (Công cụ → Xuất dữ liệu cá nhân): gồm loại người mua, tên, MST, địa chỉ, CCCD đã che, điện thoại, email, mã tham chiếu và trạng thái hóa đơn. File xuất không bao giờ có CCCD đầy đủ.
-- **Xóa dữ liệu cá nhân** (Công cụ → Xóa dữ liệu cá nhân): xóa thông tin xuất hóa đơn trên đơn và tên người mua trong bảng hóa đơn. Bản ghi hóa đơn, mã tham chiếu, trạng thái và mã hóa đơn Mắt Bão được giữ cho kế toán. **Hóa đơn đã tạo trên Mắt Bão nằm ngoài plugin**, phải xử lý trên Mắt Bão. Nếu xóa khi hóa đơn còn chờ gửi, lần gửi sau sẽ lỗi thiếu thông tin người mua.
+- **Xóa dữ liệu cá nhân** (Công cụ → Xóa dữ liệu cá nhân): xóa thông tin xuất hóa đơn trên đơn và tên người mua trong bảng hóa đơn. Bản ghi hóa đơn, mã tham chiếu, trạng thái và mã hóa đơn Mắt Bão được giữ cho kế toán. **Mã tra cứu** cũng được giữ trên bản ghi hóa đơn cùng các trường kế toán khác, vì nó thuộc về hóa đơn đã phát hành mà cửa hàng phải lưu giữ; mã này không bao giờ hiện cho quản trị viên, nhật ký hay giám sát lỗi. **Hóa đơn đã tạo trên Mắt Bão nằm ngoài plugin**, phải xử lý trên Mắt Bão. Nếu xóa khi hóa đơn còn chờ gửi, lần gửi sau sẽ lỗi thiếu thông tin người mua.
 
 ## Tắt và gỡ plugin
 

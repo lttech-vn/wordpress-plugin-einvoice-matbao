@@ -53,6 +53,23 @@ final class MatbaoLookupTest extends SettingsRestTestCase {
 		$this->assertSame( 'Hóa đơn mới', MatbaoStatus::invoice_type_label( 2 ) );
 	}
 
+	public function test_lookup_code_read(): void {
+		$this->answer_rows( array( array_merge( $this->row( 'WC1' ), array( 'maTraCuu' => 'FM80520C49' ) ) ) );
+
+		$invoice = $this->client()->find_invoices_by_references( array( 'WC1' ), '1', 'C26TAT' )->invoices[0];
+
+		$this->assertSame( 'FM80520C49', $invoice->lookup_code );
+	}
+
+	public function test_lookup_code_missing(): void {
+		$this->answer_rows( array( $this->row( 'WC1' ), array_merge( $this->row( 'WC2' ), array( 'maTraCuu' => '' ) ) ) );
+
+		$lookup = $this->client()->find_invoices_by_references( array( 'WC1', 'WC2' ), '1', 'C26TAT' );
+
+		$this->assertNull( $lookup->invoices[0]->lookup_code );
+		$this->assertNull( $lookup->invoices[1]->lookup_code );
+	}
+
 	public function test_draft_without_number(): void {
 		$this->answer_rows(
 			array(

@@ -213,7 +213,7 @@ final class SchemaUpgradeTest extends WP_UnitTestCase {
 
 		Schema::maybe_install();
 
-		$this->assertSame( '6', get_option( Schema::VERSION_OPTION ) );
+		$this->assertSame( Schema::VERSION, get_option( Schema::VERSION_OPTION ) );
 		foreach ( $new_columns as $column ) {
 			$this->assertContains( $column, $this->columns(), $column );
 		}
@@ -233,6 +233,41 @@ final class SchemaUpgradeTest extends WP_UnitTestCase {
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery -- test inspects the schema.
 		$indexes = $wpdb->get_col( $wpdb->prepare( 'SHOW INDEX FROM %i', Schema::invoice_table() ), 2 );
 		$this->assertContains( 'matbao_sync', $indexes );
+	}
+
+	public function test_upgrade_from_v6_adds_lookup_code(): void {
+		global $wpdb;
+		$this->create_v5_table();
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- test fixture DDL.
+		$table = Schema::invoice_table();
+		$wpdb->query( "ALTER TABLE {$table} ADD COLUMN matbao_status tinyint(3) unsigned NULL, ADD COLUMN matbao_status_name varchar(100) NULL, ADD COLUMN invoice_number int(10) unsigned NULL, ADD COLUMN tax_authority_code varchar(50) NULL, ADD COLUMN matbao_invoice_type tinyint(3) unsigned NULL, ADD COLUMN tax_note text NULL, ADD COLUMN matbao_synced_at datetime NULL, ADD COLUMN matbao_checked_at datetime NULL" );
+		$wpdb->insert(
+			$table,
+			array(
+				'order_id'           => 7006,
+				'reference'          => 'WC7006',
+				'status'             => InvoiceStatus::DRAFT_CREATED,
+				'matbao_status'      => 4,
+				'invoice_number'     => 125,
+				'tax_authority_code' => '00ABC',
+				'created_at'         => '2026-01-02 03:04:05',
+				'updated_at'         => '2026-01-02 03:04:05',
+			)
+		);
+		// phpcs:enable
+		$this->assertNotContains( 'lookup_code', $this->columns() );
+		update_option( Schema::VERSION_OPTION, '6' );
+
+		Schema::maybe_install();
+
+		$this->assertContains( 'lookup_code', $this->columns() );
+		$this->assertSame( Schema::VERSION, get_option( Schema::VERSION_OPTION ) );
+		$invoice = ( new InvoiceRepository() )->find_by_order( 7006 );
+		$this->assertNotNull( $invoice );
+		$this->assertSame( 4, $invoice->matbao_status );
+		$this->assertSame( 125, $invoice->invoice_number );
+		$this->assertSame( '00ABC', $invoice->tax_authority_code );
+		$this->assertNull( $invoice->lookup_code );
 	}
 
 	/**

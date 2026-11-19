@@ -89,11 +89,19 @@ Confidence: inferred
 - **THEN** chỉ 100 bản ghi cũ nhất được trả về
 
 ### Requirement: Mat Bao status fields
-Hệ thống SHALL lưu trên bản ghi hóa đơn trạng thái Mắt Bão, tên trạng thái do Mắt Bão trả, số hóa đơn, MCCQT, loại hóa đơn, ghi chú CQT, thời điểm đồng bộ thành công gần nhất và thời điểm thử gần nhất; các giá trị này rỗng cho đến lần đồng bộ hoặc kiểm tra đầu tiên. Nâng cấp schema SHALL thêm các trường này mà giữ nguyên dữ liệu cũ.
+Hệ thống SHALL lưu trên bản ghi hóa đơn trạng thái Mắt Bão, tên trạng thái do Mắt Bão trả, số hóa đơn, MCCQT, loại hóa đơn, ghi chú CQT, mã tra cứu, thời điểm đồng bộ thành công gần nhất và thời điểm thử gần nhất; các giá trị này rỗng cho đến lần đồng bộ hoặc kiểm tra đầu tiên. Nâng cấp schema SHALL thêm các trường này mà giữ nguyên dữ liệu cũ.
 
 #### Scenario: Upgrade from the previous schema
 - **WHEN** plugin nâng cấp từ schema trước trên site có hóa đơn `draft_created`
 - **THEN** hóa đơn cũ giữ nguyên mọi giá trị và các trường Mắt Bão mới rỗng
+
+#### Scenario: Lookup code stored
+- **WHEN** kết quả Mắt Bão được ghi cho hóa đơn với mã tra cứu "FM80520C49"
+- **THEN** bản ghi có mã tra cứu "FM80520C49"
+
+#### Scenario: Deleted clears the lookup code
+- **WHEN** bản ghi có mã tra cứu "FM80520C49" được ghi trạng thái "Đã xóa trên Mắt Bão"
+- **THEN** bản ghi không còn mã tra cứu
 
 ### Requirement: Mat Bao status written only from the expected value
 Hệ thống SHALL chỉ ghi kết quả Mắt Bão khi status plugin, mã hóa đơn Mắt Bão và trạng thái Mắt Bão hiện tại vẫn bằng giá trị đã đọc, để khi nhiều tiến trình cùng ghi một chuyển trạng thái chỉ một tiến trình thắng và kết quả cũ không ghi đè nháp mới; khi kèm cảnh báo, cùng thao tác đó SHALL ghi mã lỗi, lý do và tăng chu kỳ alert mà không đổi status plugin.
@@ -107,11 +115,11 @@ Hệ thống SHALL chỉ ghi kết quả Mắt Bão khi status plugin, mã hóa 
 - **THEN** lần ghi của tiến trình đó không đổi gì
 
 ### Requirement: New Mat Bao invoice resets Mat Bao status fields
-Hệ thống SHALL xóa các trường trạng thái Mắt Bão trong cùng thao tác ghi mã hóa đơn Mắt Bão mới cho bản ghi.
+Hệ thống SHALL xóa các trường trạng thái Mắt Bão, kể cả mã tra cứu, trong cùng thao tác ghi mã hóa đơn Mắt Bão mới cho bản ghi.
 
 #### Scenario: Recorded after recreation
 - **WHEN** bản ghi có trạng thái Mắt Bão "Đã xóa trên Mắt Bão" được ghi mã hóa đơn mới
-- **THEN** trạng thái, số hóa đơn, MCCQT và các thời điểm đồng bộ đều rỗng
+- **THEN** trạng thái, số hóa đơn, MCCQT, mã tra cứu và các thời điểm đồng bộ đều rỗng
 
 ### Requirement: Bounded status sync query
 Hệ thống SHALL trả tối đa số hóa đơn được yêu cầu trong các hóa đơn `draft_created` có mã hóa đơn Mắt Bão và mẫu, chưa ở trạng thái Mắt Bão cuối, và có ngày lập (hoặc ngày tạo khi thiếu) không sớm hơn mốc đã cho, theo thứ tự hóa đơn chưa thử trước rồi thời điểm thử cũ nhất.

@@ -33,6 +33,7 @@ final class MatbaoInvoice {
 	 * @param string|null $tax_authority_code `mccqt`; null while empty.
 	 * @param int|null    $invoice_type `maLoaiHDon`, when present.
 	 * @param string|null $tax_note     `ghiChuCQT` (note of the tax authority); null while empty.
+	 * @param string|null $lookup_code  `maTraCuu`; null while empty.
 	 */
 	public function __construct(
 		public readonly string $invoice_id,
@@ -47,6 +48,7 @@ final class MatbaoInvoice {
 		public readonly ?string $tax_authority_code = null,
 		public readonly ?int $invoice_type = null,
 		public readonly ?string $tax_note = null,
+		public readonly ?string $lookup_code = null,
 	) {
 	}
 
@@ -71,6 +73,7 @@ final class MatbaoInvoice {
 			self::optional_text( $item['mccqt'] ?? null ),
 			is_numeric( $item['maLoaiHDon'] ?? null ) ? (int) $item['maLoaiHDon'] : null,
 			self::optional_text( $item['ghiChuCQT'] ?? null ),
+			self::optional_text( $item['maTraCuu'] ?? null ),
 		);
 	}
 

@@ -273,9 +273,29 @@ final class InvoiceRepositoryTest extends WP_UnitTestCase {
 			'tax_authority_code'  => '00ABC',
 			'matbao_invoice_type' => 2,
 			'tax_note'            => 'Ghi chú',
+			'lookup_code'         => 'FM80520C49',
 			'matbao_synced_at'    => '2026-10-14 01:02:03',
 			'matbao_checked_at'   => '2026-10-14 01:02:03',
 		);
+	}
+
+	public function test_record_matbao_status_stores_lookup_code(): void {
+		$repository = new InvoiceRepository();
+		$read       = $this->record( $this->draft( 9183, array( 'matbao_status' => 1 ) ) );
+
+		$repository->record_matbao_status( $read, new MatbaoSnapshot( 4, 'Đã cấp mã', 125, '00ABC', 2, null, 'FM80520C49' ) );
+
+		$this->assertSame( 'FM80520C49', $this->record( $read->id )->lookup_code );
+	}
+
+	public function test_deleted_snapshot_clears_lookup_code(): void {
+		$repository = new InvoiceRepository();
+		$read       = $this->record( $this->draft( 9184, array( 'matbao_status' => 1 ) ) );
+		$repository->record_matbao_status( $read, new MatbaoSnapshot( 4, 'Đã cấp mã', 125, '00ABC', 2, null, 'FM80520C49' ) );
+
+		$repository->record_matbao_status( $this->record( $read->id ), MatbaoSnapshot::deleted() );
+
+		$this->assertNull( $this->record( $read->id )->lookup_code );
 	}
 
 	public function test_new_invoice_id_resets_matbao_fields(): void {
