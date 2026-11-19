@@ -22,9 +22,9 @@ Blocked by: 1
 
 Blocked by: 2
 
-- [ ] 3.1 `InvoiceController::check_status()` gọi `MatbaoStatusSync::sync_one()` cho hóa đơn `draft_created`, giữ chỉ đọc cho status khác; giữ 409/422 hiện có (design D6)
-- [ ] 3.2 `InvoicePage::render_check()` hiển thị theo trạng thái Mắt Bão vừa ghi: thành công cho nháp/trung gian/đã cấp mã, lỗi kèm hint cho bất thường, form tạo lại chỉ khi xác nhận đã xóa, thông báo không xác định khi vắng mặt chưa xác nhận (design D6)
-- [ ] 3.3 Cập nhật `InvoiceAdminActionsRestTest` cho mọi scenario của requirement `Mat Bao status check`
+- [x] 3.1 `InvoiceController::check_status()` gọi `MatbaoStatusSync::sync_one()` cho hóa đơn `draft_created`, giữ chỉ đọc cho status khác; giữ 409/422 hiện có (design D6)
+- [x] 3.2 `InvoicePage::render_check()` hiển thị theo trạng thái Mắt Bão vừa ghi: thành công cho nháp/trung gian/đã cấp mã, lỗi kèm hint cho bất thường, form tạo lại chỉ khi xác nhận đã xóa, thông báo không xác định khi vắng mặt chưa xác nhận (design D6)
+- [x] 3.3 Cập nhật `InvoiceAdminActionsRestTest` cho mọi scenario của requirement `Mat Bao status check`
 
 ## 4. Hiển thị thông tin và liên kết
 
