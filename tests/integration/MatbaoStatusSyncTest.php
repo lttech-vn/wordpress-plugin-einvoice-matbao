@@ -1184,6 +1184,24 @@ final class MatbaoStatusSyncTest extends InvoiceWorkflowTestCase {
 		$this->assertSame( $alerts, did_action( DraftInvoiceWorkflow::NEEDS_ATTENTION_ACTION ) );
 	}
 
+	public function test_retry_not_queued_keeps_backoff_and_warns(): void {
+		$this->enable_log_capture();
+		$this->draft();
+		$this->fail_lookups( 503 );
+		$alerts = did_action( DraftInvoiceWorkflow::NEEDS_ATTENTION_ACTION );
+		$refuse = static fn(): int => 0;
+		add_filter( 'pre_as_schedule_single_action', $refuse );
+
+		( new MatbaoStatusSync() )->sync_batch();
+
+		remove_filter( 'pre_as_schedule_single_action', $refuse );
+		$this->assertSame( 1, $this->backoff_state()['failures'] );
+		$this->assertTrue( ( new StatusSyncBackoff() )->is_paused() );
+		$this->assertSame( array(), $this->pending_retries() );
+		$this->assertContains( 'Mat Bao status sync retry not queued', $this->warn_logs() );
+		$this->assertSame( $alerts, did_action( DraftInvoiceWorkflow::NEEDS_ATTENTION_ACTION ) );
+	}
+
 	public function test_deactivation_cancels_pending_retry(): void {
 		$this->draft();
 		$this->fail_lookups( 503 );
@@ -1195,6 +1213,29 @@ final class MatbaoStatusSyncTest extends InvoiceWorkflowTestCase {
 
 		$this->assertSame( array(), $this->pending_retries() );
 		$this->assertSame( $alerts, did_action( DraftInvoiceWorkflow::NEEDS_ATTENTION_ACTION ) );
+	}
+
+	/**
+	 * A failure recorded between clear() deleting the option and cancelling the retry keeps its retry.
+	 */
+	public function test_clear_keeps_retry_for_pause_recorded_meanwhile(): void {
+		$this->pause_with( 1, time() + 600 );
+		$this->queue_retry_at( time() + 600 );
+		$recorded = false;
+		$record   = static function ( string $name ) use ( &$recorded ): void {
+			if ( StatusSyncBackoff::OPTION === $name && ! $recorded ) {
+				$recorded = true;
+				( new StatusSyncBackoff() )->record_failure();
+			}
+		};
+		add_action( 'deleted_option', $record );
+
+		( new StatusSyncBackoff() )->clear();
+
+		remove_action( 'deleted_option', $record );
+		$this->assertTrue( $recorded );
+		$this->assertTrue( ( new StatusSyncBackoff() )->is_paused() );
+		$this->assertCount( 1, $this->pending_retries() );
 	}
 
 	/**
