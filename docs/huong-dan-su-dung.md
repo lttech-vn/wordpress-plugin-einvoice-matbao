@@ -211,7 +211,7 @@ Mã ngoài bảng (ví dụ 12, nếu Mắt Bão bổ sung) hiện đúng tên M
 
 ### Đồng bộ trạng thái Mắt Bão
 
-- **Tự động mỗi giờ** (WP-Cron, nhóm *einvoice-matbao*): tối đa **200 hóa đơn** mỗi giờ. Chỉ chọn hóa đơn đã tạo nháp, ngày lập trong **30 ngày** gần nhất (theo giờ Việt Nam) và chưa ở trạng thái cuối (*Đã cấp mã* hoặc *Đã xóa*). Hóa đơn kiểm tra lâu nhất được ưu tiên, nên danh sách luôn xoay vòng. Hóa đơn tạo trước khi nâng cấp plugin cũng được đồng bộ.
+- **Tự động mỗi giờ** (WP-Cron, nhóm *einvoice-matbao*): tối đa **200 hóa đơn** mỗi lượt đồng bộ. Chỉ chọn hóa đơn đã tạo nháp, ngày lập trong **30 ngày** gần nhất (theo giờ Việt Nam) và chưa ở trạng thái cuối (*Đã cấp mã* hoặc *Đã xóa*). Hóa đơn kiểm tra lâu nhất được ưu tiên, nên danh sách luôn xoay vòng. Hóa đơn tạo trước khi nâng cấp plugin cũng được đồng bộ.
 - **Nút Kiểm tra trạng thái** trên chi tiết hóa đơn đã tạo nháp: tra cứu ngay và ghi kết quả (trạng thái Mắt Bão, số hóa đơn, MCCQT, ghi chú CQT, thời điểm đồng bộ). Hóa đơn ở trạng thái plugin khác chỉ được đọc, không ghi.
 - Đồng bộ **không bao giờ** đổi trạng thái plugin, tạo lại, gửi lại hay xóa hóa đơn.
 - Lỗi tra cứu (mạng, Mắt Bão lỗi) giữ nguyên trạng thái đã có. Phản hồi không đọc được hoặc không khớp hóa đơn cũng được giữ nguyên.
