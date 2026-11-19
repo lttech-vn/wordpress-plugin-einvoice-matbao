@@ -209,6 +209,9 @@ $logged = $body;
 if ( isset( $logged['MKhau'] ) ) {
 	$logged['MKhau'] = '[REDACTED]';
 }
+if ( isset( $logged['MaTraCuu'] ) ) {
+	$logged['MaTraCuu'] = '[REDACTED]';
+}
 
 /** Take the first scripted step of this endpoint and log the call. */
 $step = einv_fake_with_state(

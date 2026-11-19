@@ -47,7 +47,16 @@ final class MatbaoDownloadInvoiceTest extends SettingsRestTestCase {
 	}
 
 	public function test_field_name_casing(): void {
-		$this->answer_data( array( 'Data_PDF_Base64' => base64_encode( self::PDF ) ) );
+		$this->http->respond_json(
+			self::ROUTE,
+			200,
+			array(
+				'ErrorCode' => 200,
+				'Message'   => 'Thành công',
+				'Data'      => array( 'Data_PDF_Base64' => base64_encode( self::PDF ) ),
+				'Success'   => true,
+			)
+		);
 
 		$this->assertSame( self::PDF, $this->client()->download_invoice_pdf( 'abc', 'FM80520C49' ) );
 	}
