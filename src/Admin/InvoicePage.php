@@ -322,6 +322,13 @@ final class InvoicePage {
 	 */
 	public static function render_synced_check( InvoiceRecord $updated, SyncOutcome $outcome ): string {
 		$status = $updated->matbao_status();
+		if ( null === $status && null !== $updated->matbao_status && SyncOutcome::UNCONFIRMED !== $outcome ) {
+			// A code outside MatbaoStatus (e.g. 12) that Mat Bao reported: show its stored name, no warning.
+			$name = '' !== $updated->matbao_status_name ? $updated->matbao_status_name : (string) $updated->matbao_status;
+
+			/* translators: %s: Mat Bao status name. */
+			return sprintf( '<div data-einv-check="synced">%s</div>', Fragment::notice( Fragment::STATUS_SUCCESS, sprintf( __( 'Trạng thái trên Mắt Bão: %s.', 'einvoice-matbao' ), Redactor::redact( $name ) ) ) );
+		}
 		if ( SyncOutcome::UNCONFIRMED === $outcome || null === $status ) {
 			return sprintf(
 				'<div data-einv-check="unknown">%s</div>',
