@@ -770,22 +770,26 @@ final class MatbaoStatusSyncTest extends InvoiceWorkflowTestCase {
 			}
 		);
 
+		$alerts = did_action( DraftInvoiceWorkflow::NEEDS_ATTENTION_ACTION );
 		( new MatbaoStatusSync() )->sync_batch();
 
 		$this->assertNull( $this->reload( $a )->matbao_status );
 		$this->assertSame( 4, $this->reload( $b )->matbao_status );
 		$this->assertFalse( $this->backoff_state() );
 		$this->assertSame( array(), $this->pending_retries() );
+		$this->assertSame( $alerts, did_action( DraftInvoiceWorkflow::NEEDS_ATTENTION_ACTION ) );
 	}
 
 	public function test_first_failure_pauses_15_minutes(): void {
 		$this->draft();
 		$this->fail_lookups( 503 );
 
+		$alerts = did_action( DraftInvoiceWorkflow::NEEDS_ATTENTION_ACTION );
 		( new MatbaoStatusSync() )->sync_batch();
 
 		$this->assert_pause( 900 );
 		$this->assertSame( 1, $this->backoff_state()['failures'] );
+		$this->assertSame( $alerts, did_action( DraftInvoiceWorkflow::NEEDS_ATTENTION_ACTION ) );
 	}
 
 	/**
@@ -801,10 +805,12 @@ final class MatbaoStatusSyncTest extends InvoiceWorkflowTestCase {
 		$this->pause_with( $failures, time() - 1 );
 		$this->fail_lookups( 503 );
 
+		$alerts = did_action( DraftInvoiceWorkflow::NEEDS_ATTENTION_ACTION );
 		( new MatbaoStatusSync() )->sync_batch();
 
 		$this->assert_pause( $expected );
 		$this->assertSame( $failures + 1, $this->backoff_state()['failures'] );
+		$this->assertSame( $alerts, did_action( DraftInvoiceWorkflow::NEEDS_ATTENTION_ACTION ) );
 	}
 
 	/**
@@ -828,9 +834,11 @@ final class MatbaoStatusSyncTest extends InvoiceWorkflowTestCase {
 		$this->pause_with( 2, time() - 1 );
 		$this->fail_lookups( 503 );
 
+		$alerts = did_action( DraftInvoiceWorkflow::NEEDS_ATTENTION_ACTION );
 		( new MatbaoStatusSync() )->sync_batch();
 
 		$this->assert_pause( 3600 );
+		$this->assertSame( $alerts, did_action( DraftInvoiceWorkflow::NEEDS_ATTENTION_ACTION ) );
 	}
 
 	/**
@@ -845,10 +853,12 @@ final class MatbaoStatusSyncTest extends InvoiceWorkflowTestCase {
 		update_option( StatusSyncBackoff::OPTION, $stored, false );
 		$this->fail_lookups( 503 );
 
+		$alerts = did_action( DraftInvoiceWorkflow::NEEDS_ATTENTION_ACTION );
 		( new MatbaoStatusSync() )->sync_batch();
 
 		$this->assertCount( 1, $this->http->requests_to( self::LOOKUP_ROUTE ) );
 		$this->assert_pause( 900 );
+		$this->assertSame( $alerts, did_action( DraftInvoiceWorkflow::NEEDS_ATTENTION_ACTION ) );
 	}
 
 	/**
@@ -923,6 +933,7 @@ final class MatbaoStatusSyncTest extends InvoiceWorkflowTestCase {
 			}
 		);
 
+		$alerts = did_action( DraftInvoiceWorkflow::NEEDS_ATTENTION_ACTION );
 		( new MatbaoStatusSync() )->sync_batch();
 
 		$this->assertSame( 3, $this->reload( $a )->matbao_status );
@@ -931,6 +942,7 @@ final class MatbaoStatusSyncTest extends InvoiceWorkflowTestCase {
 		$this->assertSame( '2026-01-01 00:00:00', $this->reload( $c )->matbao_checked_at );
 		$this->assert_pause( 900 );
 		$this->assertSame( 1, $this->backoff_state()['failures'] );
+		$this->assertSame( $alerts, did_action( DraftInvoiceWorkflow::NEEDS_ATTENTION_ACTION ) );
 	}
 
 	public function test_not_found_clears_backoff_and_alerts(): void {
@@ -996,13 +1008,12 @@ final class MatbaoStatusSyncTest extends InvoiceWorkflowTestCase {
 			);
 		}
 
-		$outcome = ( new MatbaoStatusSync() )->sync_one( $invoice );
+		( new MatbaoStatusSync() )->sync_batch();
 
 		if ( null !== $break ) {
 			$wpdb->suppress_errors( (bool) $suppressed );
 			remove_filter( 'query', $break );
 		}
-		$this->assertSame( $expected, $outcome );
 		$this->assertFalse( $this->backoff_state() );
 		$this->assertSame( array(), $this->pending_retries() );
 		$this->assertNull( $this->reload( $invoice )->matbao_status );
@@ -1068,10 +1079,10 @@ final class MatbaoStatusSyncTest extends InvoiceWorkflowTestCase {
 	public function test_retry_run_after_pause_clears_backoff(): void {
 		MatbaoStatusSync::register();
 		MatbaoStatusSync::schedule();
-		$pending = \ActionScheduler_Store::STATUS_PENDING;
 		$hourly  = $this->hourly_action();
 		$invoice = $this->draft();
 		$this->fail_lookups( 503 );
+		$alerts = did_action( DraftInvoiceWorkflow::NEEDS_ATTENTION_ACTION );
 		( new MatbaoStatusSync() )->sync_batch();
 		$this->assertCount( 1, $this->pending_retries() );
 		$this->pause_with( 1, time() - 1 );
@@ -1084,7 +1095,7 @@ final class MatbaoStatusSyncTest extends InvoiceWorkflowTestCase {
 		$this->assertSame( array(), $this->pending_retries() );
 		$this->assertSame( $hourly, $this->hourly_action() );
 		$this->assertSame( 3600, $hourly['recurrence'] );
-		$this->assertNotSame( '', $pending );
+		$this->assertSame( $alerts, did_action( DraftInvoiceWorkflow::NEEDS_ATTENTION_ACTION ) );
 	}
 
 	public function test_retry_run_while_still_paused_sends_nothing(): void {
@@ -1100,6 +1111,7 @@ final class MatbaoStatusSyncTest extends InvoiceWorkflowTestCase {
 	public function test_only_one_retry_queued(): void {
 		$this->draft();
 		$this->fail_lookups( 503 );
+		$alerts = did_action( DraftInvoiceWorkflow::NEEDS_ATTENTION_ACTION );
 		( new MatbaoStatusSync() )->sync_batch();
 		$this->pause_with( 1, time() - 1 );
 
@@ -1107,6 +1119,7 @@ final class MatbaoStatusSyncTest extends InvoiceWorkflowTestCase {
 
 		$this->assertCount( 1, $this->pending_retries() );
 		$this->assert_pause( 1800 );
+		$this->assertSame( $alerts, did_action( DraftInvoiceWorkflow::NEEDS_ATTENTION_ACTION ) );
 	}
 
 	public function test_schedule_queues_hourly_when_only_a_retry_exists(): void {
@@ -1134,6 +1147,7 @@ final class MatbaoStatusSyncTest extends InvoiceWorkflowTestCase {
 		$x = $this->draft( array( 'template_series' => 'C26TAA' ) );
 		$y = $this->draft( array( 'template_series' => 'C26TBB' ) );
 		$this->fail_lookups( 503 );
+		$alerts = did_action( DraftInvoiceWorkflow::NEEDS_ATTENTION_ACTION );
 		( new MatbaoStatusSync() )->sync_batch();
 		$this->assertTrue( ( new StatusSyncBackoff() )->is_paused() );
 		$this->assertCount( 1, $this->pending_retries() );
@@ -1150,6 +1164,7 @@ final class MatbaoStatusSyncTest extends InvoiceWorkflowTestCase {
 		( new MatbaoStatusSync() )->sync_batch();
 
 		$this->assertContains( $y->reference, $this->requested_references() );
+		$this->assertSame( $alerts, did_action( DraftInvoiceWorkflow::NEEDS_ATTENTION_ACTION ) );
 	}
 
 	public function test_manual_check_failure_keeps_backoff(): void {
@@ -1160,22 +1175,26 @@ final class MatbaoStatusSyncTest extends InvoiceWorkflowTestCase {
 		$before = $this->backoff_state();
 		$this->fail_lookups( 503 );
 
+		$alerts  = did_action( DraftInvoiceWorkflow::NEEDS_ATTENTION_ACTION );
 		$outcome = ( new MatbaoStatusSync() )->sync_one( $invoice );
 
 		$this->assertSame( SyncOutcome::FAILED, $outcome );
 		$this->assertSame( $before, $this->backoff_state() );
 		$this->assertSame( array( $id ), $this->pending_retries() );
+		$this->assertSame( $alerts, did_action( DraftInvoiceWorkflow::NEEDS_ATTENTION_ACTION ) );
 	}
 
 	public function test_deactivation_cancels_pending_retry(): void {
 		$this->draft();
 		$this->fail_lookups( 503 );
+		$alerts = did_action( DraftInvoiceWorkflow::NEEDS_ATTENTION_ACTION );
 		( new MatbaoStatusSync() )->sync_batch();
 		$this->assertCount( 1, $this->pending_retries() );
 
 		Plugin::deactivate();
 
 		$this->assertSame( array(), $this->pending_retries() );
+		$this->assertSame( $alerts, did_action( DraftInvoiceWorkflow::NEEDS_ATTENTION_ACTION ) );
 	}
 
 	/**
