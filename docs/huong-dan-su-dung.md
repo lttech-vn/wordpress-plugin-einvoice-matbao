@@ -215,6 +215,7 @@ Mã ngoài bảng (ví dụ 12, nếu Mắt Bão bổ sung) hiện đúng tên M
 - **Nút Kiểm tra trạng thái** trên chi tiết hóa đơn đã tạo nháp: tra cứu ngay và ghi kết quả (trạng thái Mắt Bão, số hóa đơn, MCCQT, ghi chú CQT, thời điểm đồng bộ). Hóa đơn ở trạng thái plugin khác chỉ được đọc, không ghi.
 - Đồng bộ **không bao giờ** đổi trạng thái plugin, tạo lại, gửi lại hay xóa hóa đơn.
 - Lỗi tra cứu (mạng, Mắt Bão lỗi) giữ nguyên trạng thái đã có, thử lại ở giờ sau. Phản hồi không đọc được hoặc không khớp hóa đơn cũng được giữ nguyên.
+- Khi Mắt Bão lỗi tạm thời, lượt đồng bộ dừng và tạm nghỉ 15 phút, 30 phút, 1 giờ, 2 giờ, 4 giờ, tối đa 6 giờ, rồi tự thử lại; nút *Kiểm tra trạng thái* vẫn dùng được và lần tra cứu thành công đưa đồng bộ về mỗi giờ.
 - **Đã xóa trên Mắt Bão** chỉ được ghi khi Mắt Bão báo rõ nháp không tồn tại (mã lỗi 301 hoặc danh sách *không tìm thấy*). Phản hồi lạ không bao giờ đánh dấu là đã xóa.
 - Ghi chú CQT được che trước khi hiển thị.
 
