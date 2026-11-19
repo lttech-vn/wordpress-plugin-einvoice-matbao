@@ -14,7 +14,9 @@ use LTTech\EinvoiceMatbao\Invoice\InvoiceErrorCode;
 use LTTech\EinvoiceMatbao\Invoice\InvoiceRecord;
 use LTTech\EinvoiceMatbao\Invoice\InvoiceRepository;
 use LTTech\EinvoiceMatbao\Invoice\InvoiceStatus;
+use LTTech\EinvoiceMatbao\Invoice\MatbaoStatusSync;
 use LTTech\EinvoiceMatbao\Invoice\Redactor;
+use LTTech\EinvoiceMatbao\Invoice\SyncOutcome;
 use LTTech\EinvoiceMatbao\Matbao\MatbaoClient;
 use LTTech\EinvoiceMatbao\Matbao\MatbaoError;
 use LTTech\EinvoiceMatbao\Settings;
@@ -133,12 +135,14 @@ final class InvoiceController {
 
 	/**
 	 * Asks Mat Bao for the invoice under its `MTChieu` and the stored template, and reports what is
-	 * there. Reads only: it never changes the row and never creates or resends anything.
+	 * there. A created draft has its Mat Bao status recorded (never its plugin status); any other
+	 * invoice is read only. Nothing is ever created or resent here.
 	 *
 	 * @param WP_REST_Request $request Request.
 	 */
 	public function check_status( WP_REST_Request $request ): WP_REST_Response {
-		$invoice = ( new InvoiceRepository() )->find( (int) $request['id'] );
+		$repository = new InvoiceRepository();
+		$invoice    = $repository->find( (int) $request['id'] );
 		if ( null === $invoice ) {
 			return self::not_found();
 		}
@@ -150,6 +154,10 @@ final class InvoiceController {
 			return Fragment::error( __( 'Chưa có thông tin kết nối Mắt Bão dùng được. Hãy lưu lại thông tin kết nối.', 'einvoice-matbao' ) );
 		}
 
+		if ( InvoiceStatus::DRAFT_CREATED === $invoice->status ) {
+			return $this->check_created_draft( $repository, $invoice );
+		}
+
 		try {
 			$found = ( new MatbaoClient( $credentials ) )->find_invoices_by_reference( $invoice->reference, $invoice->template_form, $invoice->template_series );
 		} catch ( MatbaoError $error ) {
@@ -157,6 +165,25 @@ final class InvoiceController {
 		}
 
 		return Fragment::response( InvoicePage::render_check( $invoice, $found ) );
+	}
+
+	/**
+	 * Records the Mat Bao status of a created draft through the sync service and shows it.
+	 *
+	 * @param InvoiceRepository $repository Storage.
+	 * @param InvoiceRecord     $invoice    A `draft_created` invoice.
+	 */
+	private function check_created_draft( InvoiceRepository $repository, InvoiceRecord $invoice ): WP_REST_Response {
+		$outcome = ( new MatbaoStatusSync( $repository ) )->sync_one( $invoice );
+		if ( SyncOutcome::FAILED === $outcome ) {
+			return Fragment::error( __( 'Không tra cứu được trạng thái trên Mắt Bão.', 'einvoice-matbao' ), 422 );
+		}
+		$updated = $repository->find( $invoice->id );
+		if ( null === $updated ) {
+			return self::not_found();
+		}
+
+		return Fragment::response( InvoicePage::render_synced_check( $updated, $outcome ) );
 	}
 
 	/**

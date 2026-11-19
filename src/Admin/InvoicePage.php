@@ -10,7 +10,9 @@ namespace LTTech\EinvoiceMatbao\Admin;
 use LTTech\EinvoiceMatbao\Invoice\InvoiceErrorCode;
 use LTTech\EinvoiceMatbao\Invoice\InvoiceRecord;
 use LTTech\EinvoiceMatbao\Invoice\InvoiceStatus;
+use LTTech\EinvoiceMatbao\Invoice\MatbaoStatus;
 use LTTech\EinvoiceMatbao\Invoice\Redactor;
+use LTTech\EinvoiceMatbao\Invoice\SyncOutcome;
 use LTTech\EinvoiceMatbao\Matbao\MatbaoInvoice;
 
 /**
@@ -310,6 +312,37 @@ final class InvoicePage {
 				sprintf( __( 'Cảnh báo: trên Mắt Bão hóa đơn không còn ở trạng thái Nháp (%s). Kiểm tra trực tiếp trên Mắt Bão.', 'einvoice-matbao' ), Redactor::redact( implode( ', ', $names ) ) )
 			)
 		);
+	}
+
+	/**
+	 * Result of a status check that recorded the Mat Bao status of a created draft.
+	 *
+	 * @param InvoiceRecord $updated Invoice re-read after the sync.
+	 * @param SyncOutcome   $outcome What the sync did.
+	 */
+	public static function render_synced_check( InvoiceRecord $updated, SyncOutcome $outcome ): string {
+		$status = $updated->matbao_status();
+		if ( SyncOutcome::UNCONFIRMED === $outcome || null === $status ) {
+			return sprintf(
+				'<div data-einv-check="unknown">%s</div>',
+				Fragment::notice( Fragment::STATUS_ERROR, __( 'Không xác định được trạng thái hóa đơn trên Mắt Bão. Hãy kiểm tra trực tiếp trên Mắt Bão; hệ thống không tự tạo lại.', 'einvoice-matbao' ) )
+			);
+		}
+
+		if ( MatbaoStatus::DELETED === $status ) {
+			return sprintf( '<div data-einv-check="missing">%s</div>', Fragment::notice( Fragment::STATUS_ERROR, $status->alert_code()?->hint() ?? $status->label() ) )
+				. self::lost_draft_form( rest_url( SettingsController::NAMESPACE . '/invoices/' . $updated->id . '/resend' ) );
+		}
+
+		$alert = $status->alert_code();
+		if ( null !== $alert ) {
+			$notice = Fragment::notice( Fragment::STATUS_ERROR, $status->label() . ': ' . $alert->hint() );
+		} else {
+			/* translators: %s: Mat Bao status label. */
+			$notice = Fragment::notice( Fragment::STATUS_SUCCESS, sprintf( __( 'Trạng thái trên Mắt Bão: %s.', 'einvoice-matbao' ), $status->label() ) );
+		}
+
+		return sprintf( '<div data-einv-check="%s">%s</div>', MatbaoStatus::DRAFT === $status ? 'draft' : 'synced', $notice );
 	}
 
 	/**
