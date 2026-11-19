@@ -22,6 +22,9 @@ use LTTech\EinvoiceMatbao\Monitoring\Monitor;
  *
  * A new abnormal status (sign error, not eligible, deleted) fires the needs-attention hook once:
  * only the writer that actually changed the row alerts (see InvoiceRepository::record_matbao_status()).
+ *
+ * A temporary Mat Bao failure (see MatbaoError::is_retryable()) stops the run at once and pauses the
+ * automatic sync with a growing delay (StatusSyncBackoff); the first successful lookup ends the pause.
  */
 final class MatbaoStatusSync {
 
@@ -48,6 +51,7 @@ final class MatbaoStatusSync {
 	 */
 	public static function register(): void {
 		add_action( self::ACTION, array( self::class, 'run' ) );
+		add_action( StatusSyncBackoff::RETRY_ACTION, array( self::class, 'run' ) );
 		add_action( 'action_scheduler_init', array( self::class, 'schedule' ) );
 	}
 
@@ -72,20 +76,26 @@ final class MatbaoStatusSync {
 	 *
 	 * @param InvoiceRepository $repository Invoice storage.
 	 * @param MatbaoClient|null $client     Mat Bao client; built from the saved credentials when null.
+	 * @param StatusSyncBackoff $backoff    Pause state after temporary Mat Bao failures.
 	 */
 	public function __construct(
 		private readonly InvoiceRepository $repository = new InvoiceRepository(),
 		private readonly ?MatbaoClient $client = null,
+		private readonly StatusSyncBackoff $backoff = new StatusSyncBackoff(),
 	) {
 	}
 
 	/**
-	 * Looks up the next batch of due invoices, one request per template chunk. A failing lookup
-	 * keeps the stored statuses, is retried at the next run and does not stop the other chunks.
+	 * Looks up the next batch of due invoices, one request per template chunk. Does nothing while
+	 * paused. A temporary failure keeps the stored statuses, extends the pause and ends the run;
+	 * other failures only skip their chunk.
 	 */
 	public function sync_batch(): void {
 		$client = $this->resolve_client();
 		if ( null === $client ) {
+			return;
+		}
+		if ( $this->backoff->is_paused() ) {
 			return;
 		}
 
@@ -97,7 +107,11 @@ final class MatbaoStatusSync {
 
 		foreach ( $groups as $group ) {
 			foreach ( array_chunk( $group, self::LOOKUP_CHUNK ) as $chunk ) {
-				$this->sync_chunk( $client, $chunk );
+				if ( ! $this->sync_chunk( $client, $chunk ) ) {
+					$this->backoff->record_failure();
+
+					return;
+				}
 			}
 		}
 	}
@@ -115,7 +129,12 @@ final class MatbaoStatusSync {
 
 		$lookup = $this->lookup( $client, array( $invoice ) );
 
-		return null === $lookup ? SyncOutcome::FAILED : $this->apply( $invoice, $lookup );
+		if ( $lookup instanceof MatbaoError ) {
+			return SyncOutcome::FAILED;
+		}
+		$this->backoff->clear();
+
+		return $this->apply( $invoice, $lookup );
 	}
 
 	/**
@@ -123,26 +142,30 @@ final class MatbaoStatusSync {
 	 *
 	 * @param MatbaoClient    $client   Client.
 	 * @param InvoiceRecord[] $invoices Invoices of one template.
+	 * @return bool Whether to go on with the next chunk (false after a temporary failure).
 	 */
-	private function sync_chunk( MatbaoClient $client, array $invoices ): void {
+	private function sync_chunk( MatbaoClient $client, array $invoices ): bool {
 		$lookup = $this->lookup( $client, $invoices );
-		if ( null === $lookup ) {
-			return;
+		if ( $lookup instanceof MatbaoError ) {
+			return ! $lookup->is_retryable();
 		}
+		$this->backoff->clear();
 		foreach ( $invoices as $invoice ) {
 			$this->apply( $invoice, $lookup );
 		}
+
+		return true;
 	}
 
 	/**
-	 * One lookup request. A Mat Bao error is logged (no event: the next run retries) and the
-	 * invoices are marked as checked so others are tried first.
+	 * One lookup request. A Mat Bao error is logged (no event) and the invoices are marked as
+	 * checked so others are tried first.
 	 *
 	 * @param MatbaoClient    $client   Client.
 	 * @param InvoiceRecord[] $invoices Invoices of one template.
-	 * @return MatbaoLookup|null Null when the lookup failed.
+	 * @return MatbaoLookup|MatbaoError The answer, or the error when the lookup failed.
 	 */
-	private function lookup( MatbaoClient $client, array $invoices ): ?MatbaoLookup {
+	private function lookup( MatbaoClient $client, array $invoices ): MatbaoLookup|MatbaoError {
 		try {
 			return $client->find_invoices_by_references(
 				array_map( static fn( InvoiceRecord $invoice ): string => $invoice->reference, $invoices ),
@@ -161,7 +184,7 @@ final class MatbaoStatusSync {
 				)
 			);
 
-			return null;
+			return $error;
 		}
 	}
 
