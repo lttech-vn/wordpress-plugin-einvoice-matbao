@@ -26,9 +26,9 @@ Blocked by: 1
 
 Blocked by: 3
 
-- [ ] 4.1 `src/Customer/OrderInvoiceSection.php`: hook `woocommerce_order_details_after_order_table`, chỉ khi endpoint `view-order` và người xem là chủ đơn; render nhãn và, khi `ISSUED`, số/ký hiệu/ngày lập và link tải có nonce theo đơn
-- [ ] 4.2 Đăng ký trong `src/Plugin.php::boot()` (ngoài nhánh `is_admin()`)
-- [ ] 4.3 Test `tests/integration/CustomerOrderInvoiceSectionTest.php`: các scenario của *Invoice section on the customer order page*, *Customer view hides staff details*, nút tải theo trạng thái
+- [x] 4.1 `src/Customer/OrderInvoiceSection.php`: hook `woocommerce_order_details_after_order_table`, chỉ khi endpoint `view-order` và người xem là chủ đơn; render nhãn và, khi `ISSUED`, số/ký hiệu/ngày lập và link tải có nonce theo đơn
+- [x] 4.2 Đăng ký trong `src/Plugin.php::boot()` (ngoài nhánh `is_admin()`)
+- [x] 4.3 Test `tests/integration/CustomerOrderInvoiceSectionTest.php`: các scenario của *Invoice section on the customer order page*, *Customer view hides staff details*, nút tải theo trạng thái
 
 ## 5. PDF download handler
 
