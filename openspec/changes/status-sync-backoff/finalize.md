@@ -6,8 +6,8 @@
 > from "keep as-is" to PR later).
 
 **Change**: `status-sync-backoff`
-**Finalized at**: `2026-11-19 19:35`
-**Outcome**: `pr-updated` (một phần: đã merge cục bộ, chưa push, chưa mở PR; xem Policy deviation)
+**Finalized at**: `2026-11-19 19:50`
+**Outcome**: `pr-created`
 
 ---
 
@@ -15,25 +15,26 @@
 
 - **Branch**: `fix/status-sync-backoff`
 - **Base branch**: `main`
-- **Final state**: `kept-open`. Worktree branch `status-sync-backoff` đã fast-forward vào `fix/status-sync-backoff` tại `183baf4` (tree giống hệt), nhưng feature branch chưa có remote.
-- **PR URL**: N/A (chưa có PR)
+- **Final state**: `pr-open`. Worktree branch `status-sync-backoff` đã fast-forward vào `fix/status-sync-backoff` tại `183baf4`, sau đó push lên `origin`.
+- **PR URL**: https://github.com/lttech-vn/wordpress-plugin-einvoice-matbao/pull/60 (`Closes #56`)
 
 ### Policy deviation
 
-`AGENTS.md` của user quy định không push, merge hay mở PR khi chưa được user cho phép rõ trong chat. Vì vậy dừng trước bước 10 (push) và bước 11 (mở PR). Hai bước này sẽ chạy sau khi user đồng ý.
+- `AGENTS.md` của user cấm push hay mở PR khi chưa được cho phép rõ, nên finalize dừng trước bước 10. User đã cho phép trong chat, sau đó mới push và mở PR.
+- Push qua SSH bị từ chối vì key SSH thuộc `ttdua`. Theo `AGENTS.md`, đã chuyển `gh auth switch` sang `naicoi92` (owner `lttech-vn` có quyền push) và push qua HTTPS bằng `gh auth git-credential`. Không đổi remote hay token.
 
 ---
 
 ## Workspace
 
-- **Worktree**: `removed`. Apply worktree `~/Projects/wordpress/wordpress-plugin-einvoice-matbao.status-sync-backoff` đã được xóa bằng `wt remove`, docker stack `einv-status-sync-backoff` đã `down -v`. Feature worktree `~/Projects/wordpress/wordpress-plugin-einvoice-matbao.fix-status-sync-backoff` vẫn giữ.
+- **Worktree**: `removed`. Apply worktree `~/Projects/wordpress/wordpress-plugin-einvoice-matbao.status-sync-backoff` đã xóa bằng `wt remove`, docker stack `einv-status-sync-backoff` đã `down -v`. Feature worktree `~/Projects/wordpress/wordpress-plugin-einvoice-matbao.fix-status-sync-backoff` vẫn giữ để xử lý feedback PR.
 - **Cleanup**: `removed`. Branch `status-sync-backoff` đã xóa sau khi xác nhận nó là ancestor của `fix/status-sync-backoff`.
 
 ---
 
 ## PR comment
 
-- **PR comment status**: `skipped (no PR)`. Chưa push và chưa mở PR, chờ user cho phép.
+- **PR comment status**: `posted` (https://github.com/lttech-vn/wordpress-plugin-einvoice-matbao/pull/60#issuecomment-7008845731)
 
 ---
 
@@ -53,4 +54,4 @@
 
 ## Next step
 
-Khi user cho phép: push `fix/status-sync-backoff` lên `origin` và mở PR, đóng issue #56. Sau khi PR được duyệt, chạy `/opsx-archive` trên feature branch, push các commit archive, rồi merge PR (`gh pr merge --squash --delete-branch`).
+Chờ PR được review. Sau khi PR được duyệt, chạy `/opsx-archive` trên feature branch này (commit nằm tại đây), push các commit archive để cập nhật PR, rồi merge PR (`gh pr merge --squash --delete-branch` hoặc qua GitHub UI). Một lần merge đó đưa cả implementation lẫn archive vào main.
