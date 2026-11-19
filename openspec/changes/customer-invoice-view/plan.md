@@ -53,6 +53,8 @@
 | Fake Mắt Bão `download-invoice` | new | `POST /api/invoice/download-invoice` body `{MaTraCuu, MaSoHDon}` → `{success:true,errorCode:200,data:{data_PDF_Base64,data_XML_Base64}}` when a stored invoice matches, else `{success:false,errorCode:301}`; control `issue` accepts optional `maLoaiHDon`, `shDon` | no (test only) |
 | E2E seam `/order` param `customer_id` | modified | optional int; sets `$order->set_customer_id()` | no (test only) |
 | E2E seam `/user` response | modified | also returns `id` | no (test only) |
+| E2E seam `/invoice/<id>` response | modified (deviation, apply) | also returns `matbao_status` (int or null), needed by the Task 6 poll | no (test only) |
+| `PdfResponder::clean_buffers` | new (deviation, apply) | `protected function clean_buffers( int $keep = 0 ): void`, called by `send()` before `emit()`; production closes all buffers (`wc_clean_buffers()`) — final review Minor 1 | no |
 | E2E seam `/status-sync` | new | POST, no body; runs `MatbaoStatusSync::run()`; returns `{ok:true}` | no (test only) |
 
 ---
