@@ -240,6 +240,7 @@ Khách đã đăng nhập, là chủ đơn, thấy mục **Hóa đơn điện t�
 
 - Nút tải chỉ có khi hóa đơn đã cấp mã, không bị xóa bỏ hay thay thế. Nháp không bao giờ có nút tải, kể cả khi ai đó tự dựng đường dẫn.
 - Mỗi lần khách bấm tải, plugin kiểm tra lại trạng thái trên Mắt Bão rồi mới lấy PDF; không lưu PDF trên site. Nếu Mắt Bão lỗi hoặc không xác nhận hóa đơn, khách quay lại trang đơn với thông báo lỗi.
+- Mỗi lần tải, plugin gọi Mắt Bão một lần để tra cứu và một lần để tải PDF (thêm lần đăng nhập lại nếu phiên hết hạn), nên khi Mắt Bão chậm thì khách phải chờ. Hiện chưa giới hạn số lần tải theo từng đơn.
 - Đường dẫn tải có nonce theo từng đơn, chỉ dùng được khi đang đăng nhập đúng tài khoản chủ đơn.
 - Lưu ý theme: mục này chèn qua hook `woocommerce_order_details_after_order_table`. Theme ghi đè template `order/order-details.php` mà không gọi hook này sẽ không hiện mục; thêm lại `do_action( 'woocommerce_order_details_after_order_table', $order )` vào template đó.
 
@@ -333,7 +334,7 @@ Cách xử lý đầy đủ của mỗi lỗi giống nhau ở mọi nơi: hộp
 
 - **CCCD** chỉ lưu dạng mã hóa trong dữ liệu đơn hàng. Danh sách, ghi chú đơn, nhật ký và cảnh báo chỉ hiện 4 số cuối (`********1234`). CCCD không bao giờ xuất hiện trong phản hồi REST API của WooCommerce.
 - **Xuất dữ liệu cá nhân** (Công cụ → Xuất dữ liệu cá nhân): gồm loại người mua, tên, MST, địa chỉ, CCCD đã che, điện thoại, email, mã tham chiếu và trạng thái hóa đơn. File xuất không bao giờ có CCCD đầy đủ.
-- **Xóa dữ liệu cá nhân** (Công cụ → Xóa dữ liệu cá nhân): xóa thông tin xuất hóa đơn trên đơn và tên người mua trong bảng hóa đơn. Bản ghi hóa đơn, mã tham chiếu, trạng thái và mã hóa đơn Mắt Bão được giữ cho kế toán. **Hóa đơn đã tạo trên Mắt Bão nằm ngoài plugin**, phải xử lý trên Mắt Bão. Nếu xóa khi hóa đơn còn chờ gửi, lần gửi sau sẽ lỗi thiếu thông tin người mua.
+- **Xóa dữ liệu cá nhân** (Công cụ → Xóa dữ liệu cá nhân): xóa thông tin xuất hóa đơn trên đơn và tên người mua trong bảng hóa đơn. Bản ghi hóa đơn, mã tham chiếu, trạng thái và mã hóa đơn Mắt Bão được giữ cho kế toán. **Mã tra cứu** cũng được giữ trên bản ghi hóa đơn cùng các trường kế toán khác, vì nó thuộc về hóa đơn đã phát hành mà cửa hàng phải lưu giữ; mã này không bao giờ hiện cho quản trị viên, nhật ký hay giám sát lỗi. **Hóa đơn đã tạo trên Mắt Bão nằm ngoài plugin**, phải xử lý trên Mắt Bão. Nếu xóa khi hóa đơn còn chờ gửi, lần gửi sau sẽ lỗi thiếu thông tin người mua.
 
 ## Tắt và gỡ plugin
 

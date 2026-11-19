@@ -383,7 +383,7 @@ final class BuyerPersonalData {
 
 		return sprintf(
 			/* translators: 1: order number, 2: reference (MTChieu), 3: what happened to the buyer's data in the record. */
-			__( 'Giữ lại bản ghi hóa đơn của đơn %1$s (mã tham chiếu %2$s, trạng thái, lịch sử gửi) vì nghĩa vụ kế toán; %3$s. Hóa đơn hoặc bản nháp đã tạo trên Mắt Bão nằm ngoài phạm vi plugin: cần xử lý trực tiếp trên hệ thống hóa đơn Mắt Bão. Nếu hóa đơn đang chờ gửi hoặc gửi lại, yêu cầu xóa được ưu tiên: hóa đơn có thể chuyển sang trạng thái lỗi để quản trị viên xử lý.', 'einvoice-matbao' ),
+			__( 'Giữ lại bản ghi hóa đơn của đơn %1$s (mã tham chiếu %2$s, mã tra cứu, trạng thái, lịch sử gửi) vì nghĩa vụ kế toán; %3$s. Hóa đơn hoặc bản nháp đã tạo trên Mắt Bão nằm ngoài phạm vi plugin: cần xử lý trực tiếp trên hệ thống hóa đơn Mắt Bão. Nếu hóa đơn đang chờ gửi hoặc gửi lại, yêu cầu xóa được ưu tiên: hóa đơn có thể chuyển sang trạng thái lỗi để quản trị viên xử lý.', 'einvoice-matbao' ),
 			$order->get_order_number(),
 			$invoice->reference,
 			$personal

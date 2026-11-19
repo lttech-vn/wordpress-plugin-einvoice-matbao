@@ -200,14 +200,16 @@ final class InvoicePdfDownload {
 	}
 
 	/**
-	 * Attachment name `hoa-don-<form><series>-<number>.pdf`, keeping only ASCII letters, digits and `-`.
+	 * Attachment name `hoa-don-<form><series>[-<number>].pdf`, keeping only ASCII letters, digits and `-`.
 	 *
 	 * @param InvoiceRecord $record Issued invoice.
 	 */
 	private static function filename( InvoiceRecord $record ): string {
 		$template = (string) preg_replace( '/[^A-Za-z0-9-]/', '', $record->template_form . $record->template_series );
 
-		return 'hoa-don-' . $template . '-' . $record->invoice_number . '.pdf';
+		$number = null === $record->invoice_number ? '' : '-' . $record->invoice_number;
+
+		return 'hoa-don-' . $template . $number . '.pdf';
 	}
 
 	/**

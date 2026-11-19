@@ -19,6 +19,7 @@ class PdfResponder {
 	 * @param string $bytes    PDF bytes.
 	 */
 	public function send( string $filename, string $bytes ): void {
+		$this->clean_buffers();
 		$this->emit( self::headers( $filename, strlen( $bytes ) ) + wp_get_nocache_headers(), $bytes );
 		$this->finish();
 	}
@@ -47,6 +48,21 @@ class PdfResponder {
 			'X-Content-Type-Options' => 'nosniff',
 			'Content-Length'         => (string) $length,
 		);
+	}
+
+	/**
+	 * Closes output buffers so stray output or buffering cannot corrupt the PDF bytes.
+	 *
+	 * @param int $keep Number of outer buffer levels to leave open (0 in production).
+	 */
+	protected function clean_buffers( int $keep = 0 ): void {
+		if ( 0 === $keep && function_exists( 'wc_clean_buffers' ) ) {
+			wc_clean_buffers();
+			return;
+		}
+		while ( ob_get_level() > $keep ) {
+			ob_end_clean();
+		}
 	}
 
 	/**

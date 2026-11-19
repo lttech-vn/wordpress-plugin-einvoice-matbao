@@ -29,6 +29,22 @@ final class RecordingResponder extends PdfResponder {
 	public ?string $body = null;
 
 	/**
+	 * Number of times send() asked to clean output buffers.
+	 *
+	 * @var int
+	 */
+	public int $buffer_cleanings = 0;
+
+	/**
+	 * Records the call and keeps PHPUnit's own buffer open.
+	 *
+	 * @param int $keep Levels to keep open.
+	 */
+	protected function clean_buffers( int $keep = 0 ): void {
+		++$this->buffer_cleanings;
+	}
+
+	/**
 	 * Records headers and body.
 	 *
 	 * @param array<string, mixed> $headers Header name => value.

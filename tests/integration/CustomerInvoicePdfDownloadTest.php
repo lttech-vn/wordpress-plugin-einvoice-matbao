@@ -380,6 +380,30 @@ final class CustomerInvoicePdfDownloadTest extends InvoiceWorkflowTestCase {
 		$this->assertMatchesRegularExpression( '/no-store|no-cache/', (string) ( $headers['Cache-Control'] ?? '' ) );
 	}
 
+	public function test_buffers_cleaned_before_emit(): void {
+		$customer = $this->customer();
+		$order    = $this->issued_order( $customer );
+		$this->fake_lookup_rows( array( $this->issued_row( array( 'maTraCuu' => self::LOOKUP_CODE ) ) ) );
+
+		$responder = $this->download( $customer, $order->get_id() );
+
+		$this->assertSame( 1, $responder->buffer_cleanings );
+	}
+
+	public function test_file_name_without_invoice_number(): void {
+		$customer = $this->customer();
+		$order    = $this->issued_order( $customer, array( 'invoice_number' => null ) );
+		$row      = $this->issued_row(
+			array(
+				'maTraCuu' => self::LOOKUP_CODE,
+				'shDon'    => null,
+			)
+		);
+		$this->fake_lookup_rows( array( $row ) );
+
+		$this->assertSame( 'hoa-don-1C26TAT.pdf', $this->filename_of( $this->download( $customer, $order->get_id() ) ) );
+	}
+
 	public function test_unsafe_file_name(): void {
 		$customer = $this->customer();
 		$order    = $this->issued_order( $customer, array( 'template_series' => 'C26"/Ấ' ) );
