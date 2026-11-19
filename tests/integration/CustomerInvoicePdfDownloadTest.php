@@ -240,9 +240,14 @@ final class CustomerInvoicePdfDownloadTest extends InvoiceWorkflowTestCase {
 	public function test_lookup_fails_at_download(): void {
 		$customer = $this->customer();
 		$order    = $this->issued_order( $customer );
-		$this->http->respond_json( self::LOOKUP_ROUTE, 503, array( 'message' => 'failure' ) );
+		$this->http->respond_json( self::LOOKUP_ROUTE, 503, array( 'message' => 'LOOKUP-FAILURE-BODY' ) );
+		$sink = $this->start_monitoring();
 
-		$this->assert_rejected_after_lookup( $this->download( $customer, $order->get_id() ) );
+		$responder = $this->download( $customer, $order->get_id() );
+
+		$this->stop_monitoring();
+		$this->assert_rejected_after_lookup( $responder );
+		$this->assert_download_failure_logged( $sink, $order->get_id(), 'recheck_failed' );
 	}
 
 	/**
@@ -349,8 +354,12 @@ final class CustomerInvoicePdfDownloadTest extends InvoiceWorkflowTestCase {
 		$customer = $this->customer();
 		$order    = $this->issued_order( $customer );
 
+		$sink = $this->start_monitoring();
+
 		$responder = $this->download( $customer, $order->get_id(), null, $this->competing_writer( SyncOutcome::UNCONFIRMED ) );
 
+		$this->stop_monitoring();
+		$this->assert_download_failure_logged( $sink, $order->get_id(), 'recheck_unconfirmed' );
 		$this->assertNull( $responder->body );
 		$this->assertSame( array(), $this->http->requests_to( self::DOWNLOAD_ROUTE ) );
 		$this->assertSame( array( self::GENERIC_ERROR ), $this->error_notices() );
@@ -537,6 +546,140 @@ final class CustomerInvoicePdfDownloadTest extends InvoiceWorkflowTestCase {
 		InvoicePdfDownload::register();
 
 		$this->assertTrue( has_action( 'template_redirect' ) );
+	}
+
+	public function test_view_order_without_query_arg_does_nothing(): void {
+		$order = $this->issued_order( $this->customer() );
+
+		$this->run_template_redirect( $this->customer(), array( 'view-order' => (string) $order->get_id() ), $order->get_id(), false );
+
+		$this->assert_handler_not_run();
+	}
+
+	/**
+	 * Query contexts that are not the view-order endpoint.
+	 *
+	 * @return array<string, array{0: string|null}>
+	 */
+	public static function other_endpoints(): array {
+		return array(
+			'order-received' => array( 'order-received' ),
+			'no endpoint'    => array( null ),
+		);
+	}
+
+	/**
+	 * The query arg outside view-order never runs the handler.
+	 *
+	 * @dataProvider other_endpoints
+	 *
+	 * @param string|null $endpoint Query var set instead of `view-order`, or null for none.
+	 */
+	public function test_query_arg_outside_view_order_does_nothing( ?string $endpoint ): void {
+		$order = $this->issued_order( $this->customer() );
+		$vars  = null === $endpoint ? array() : array( $endpoint => (string) $order->get_id() );
+
+		$this->run_template_redirect( $this->customer(), $vars, $order->get_id(), true );
+
+		$this->assert_handler_not_run();
+	}
+
+	public function test_view_order_with_query_arg_runs_handler_for_query_var_order(): void {
+		$order = $this->issued_order( $this->customer() );
+
+		// A non-owner with a valid nonce: the production responder redirects, observed via wp_redirect.
+		$this->run_template_redirect( $this->customer(), array( 'view-order' => (string) $order->get_id() ), $order->get_id(), true );
+
+		$this->assertSame( array( self::GENERIC_ERROR ), $this->error_notices() );
+		$this->assert_redirect_to_order( $order->get_id() );
+		$this->assertSame( $this->requests_before, count( $this->http->raw_requests() ) );
+	}
+
+	/**
+	 * Fires `template_redirect` with only this plugin's callback, as `$viewer`, with the given
+	 * WooCommerce query vars and a valid nonce for `$order_id`. The production responder is used, so
+	 * the redirect filter throws ResponseFinished to stop before `exit`.
+	 *
+	 * @param WP_User               $viewer    Logged-in viewer.
+	 * @param array<string, string> $vars      Query vars of the request.
+	 * @param int                   $order_id  Order the nonce is for.
+	 * @param bool                  $with_arg  Whether the download query arg is present.
+	 */
+	private function run_template_redirect( WP_User $viewer, array $vars, int $order_id, bool $with_arg ): void {
+		global $wp, $wp_query;
+
+		wp_set_current_user( $viewer->ID );
+		$_GET = array( '_wpnonce' => wp_create_nonce( InvoicePdfDownload::NONCE_ACTION_PREFIX . $order_id ) );
+		if ( $with_arg ) {
+			$_GET[ InvoicePdfDownload::QUERY_ARG ] = '1';
+		}
+		$saved_wp_vars         = $wp->query_vars;
+		$wp->query_vars        = $vars;
+		$wp_query->query_vars  = array_merge( $wp_query->query_vars, $vars );
+		$this->redirected_to   = null;
+		$this->requests_before = count( $this->http->raw_requests() );
+		remove_all_actions( 'template_redirect' );
+		InvoicePdfDownload::register();
+		$stop = static function (): never {
+			throw new ResponseFinished();
+		};
+		add_filter( 'wp_redirect', $stop, 20 );
+
+		try {
+			do_action( 'template_redirect' ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- core hook.
+		} catch ( ResponseFinished ) { // phpcs:ignore Generic.CodeAnalysis.EmptyStatement.DetectedCatch -- the response ended like `exit`.
+		} finally {
+			remove_filter( 'wp_redirect', $stop, 20 );
+			$wp->query_vars = $saved_wp_vars;
+			$wp_query->init();
+		}
+	}
+
+	/**
+	 * Nothing happened: no Mat Bao request, no notice, no redirect.
+	 */
+	private function assert_handler_not_run(): void {
+		$this->assertSame( $this->requests_before, count( $this->http->raw_requests() ) );
+		$this->assertSame( array(), $this->error_notices() );
+		$this->assertNull( $this->redirected_to );
+	}
+
+	/**
+	 * Installs the fake Sentry sink, enables monitoring and starts a transaction.
+	 */
+	private function start_monitoring(): SentrySink {
+		$sink = SentrySink::install( $this->http );
+		$this->enable_monitoring();
+		Monitor::start_transaction( 'customer download', 'test' );
+
+		return $sink;
+	}
+
+	/**
+	 * Finishes the transaction and sends everything to the sink.
+	 */
+	private function stop_monitoring(): void {
+		Monitor::finish_transaction();
+		Monitor::flush();
+	}
+
+	/**
+	 * One download-failure warning for the order with the reason, and nothing sensitive sent.
+	 *
+	 * @param SentrySink $sink     Fake Sentry endpoint.
+	 * @param int        $order_id Order ID.
+	 * @param string     $reason   Expected `reason` attribute.
+	 */
+	private function assert_download_failure_logged( SentrySink $sink, int $order_id, string $reason ): void {
+		$logs = array_values( array_filter( $this->warnings( $sink ), static fn( array $log ): bool => 'customer invoice download failed' === $log['body'] ) );
+		$this->assertCount( 1, $logs );
+		$this->assertSame( $order_id, $logs[0]['attributes']['order_id']['value'] ?? null );
+		$this->assertSame( $reason, $logs[0]['attributes']['reason']['value'] ?? null );
+		foreach ( $sink->raw_bodies() as $raw ) {
+			foreach ( array( self::LOOKUP_CODE, 'LOOKUP-FAILURE-BODY', '%PDF-', base64_encode( self::PDF ) ) as $forbidden ) {
+				$this->assertStringNotContainsString( $forbidden, $raw );
+			}
+		}
 	}
 
 	/**

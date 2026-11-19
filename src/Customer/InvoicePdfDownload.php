@@ -136,6 +136,16 @@ final class InvoicePdfDownload {
 		$recheck = $this->recheck ?? fn( InvoiceRecord $read ): SyncOutcome => ( new MatbaoStatusSync( $this->repository, $client ) )->sync_one( $read );
 		$outcome = $recheck( $record );
 		if ( SyncOutcome::UPDATED !== $outcome && SyncOutcome::UNCHANGED !== $outcome ) {
+			// The sync logs its own lookup failure without the order; this ties it to the download.
+			Monitor::log(
+				'warn',
+				'customer invoice download failed',
+				array(
+					'order_id' => $record->order_id,
+					'reason'   => 'recheck_' . $outcome->value,
+				)
+			);
+
 			return null;
 		}
 
