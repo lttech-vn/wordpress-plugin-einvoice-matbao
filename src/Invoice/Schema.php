@@ -13,7 +13,7 @@ namespace LTTech\EinvoiceMatbao\Invoice;
  */
 final class Schema {
 
-	public const VERSION        = '6';
+	public const VERSION        = '7';
 	public const VERSION_OPTION = 'einvoice_matbao_db_version';
 
 	/**
@@ -79,6 +79,7 @@ final class Schema {
   tax_authority_code varchar(50) NULL,
   matbao_invoice_type tinyint(3) unsigned NULL,
   tax_note text NULL,
+  lookup_code varchar(100) NULL,
   matbao_synced_at datetime NULL,
   matbao_checked_at datetime NULL,
   created_at datetime NOT NULL,

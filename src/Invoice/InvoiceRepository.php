@@ -29,6 +29,7 @@ final class InvoiceRepository {
 		'tax_authority_code',
 		'matbao_invoice_type',
 		'tax_note',
+		'lookup_code',
 		'matbao_synced_at',
 		'matbao_checked_at',
 	);
@@ -442,6 +443,7 @@ final class InvoiceRepository {
 			'tax_authority_code'  => array( $snapshot->tax_authority_code, '%s' ),
 			'matbao_invoice_type' => array( $snapshot->invoice_type, '%d' ),
 			'tax_note'            => array( $snapshot->tax_note, '%s' ),
+			'lookup_code'         => array( $snapshot->lookup_code, '%s' ),
 		) as $column => $pair ) {
 			if ( null === $pair[0] ) {
 				$sets[] = $column . ' = NULL';
