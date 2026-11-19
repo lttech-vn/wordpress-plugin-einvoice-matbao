@@ -105,6 +105,24 @@ export async function signInAs(ctx: Ctx, role: string): Promise<void> {
 	await submitLogin(ctx, user.login, user.password);
 }
 
+/** Signs in as a throwaway customer through the store login form (not wp-admin); returns the user ID. */
+export async function signInCustomer(ctx: Ctx): Promise<{ id: number }> {
+	const user = await seam(ctx, "/user", { role: "customer" });
+	if (!user.ok) throw new Error("could not create a customer user");
+	for (let attempt = 1; ; attempt++) {
+		await ctx.app.open("/my-account/");
+		await ctx.screen.getByLabel("Username or email address", { exact: false }).first().fill(user.login);
+		await ctx.screen.getByLabel("Password", { exact: false }).first().fill(user.password);
+		await ctx.screen.getByRole("button", "Log in").tap();
+		try {
+			await expect(ctx.screen.getByText("Hello", { exact: false }).first()).toBeVisible();
+			return { id: Number(user.id) };
+		} catch (error) {
+			if (attempt >= 2) throw error;
+		}
+	}
+}
+
 export const PAGES = {
 	tab: (key: string) => `/wp-admin/admin.php?page=einvoice-matbao-settings&tab=${key}`,
 	settings: "/wp-admin/admin.php?page=einvoice-matbao-settings&tab=connection",
@@ -114,6 +132,7 @@ export const PAGES = {
 	legacyMonitoring: "/wp-admin/admin.php?page=einvoice-matbao-settings&tab=monitoring",
 	invoices: "/wp-admin/admin.php?page=einvoice-matbao-settings&tab=invoices",
 	oldInvoices: "/wp-admin/admin.php?page=einvoice-matbao-invoices",
+	viewOrder: (id: number) => `/my-account/view-order/${id}/`,
 	order: (id: number) => `/wp-admin/post.php?post=${id}&action=edit`,
 };
 

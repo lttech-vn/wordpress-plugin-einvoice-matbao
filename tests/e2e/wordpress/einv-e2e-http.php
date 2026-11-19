@@ -133,12 +133,13 @@ add_action(
 			}
 		);
 
-		// Creates a VND order from product SKUs. Body: lines (sku and qty), optional billing, request (buyer type fields), total, status.
+		// Creates a VND order from product SKUs. Body: lines (sku and qty), optional customer_id, billing, request (buyer type fields), total, status.
 		$route(
 			'/order',
 			static function ( WP_REST_Request $request ): array {
 				$order = wc_create_order();
 				$order->set_currency( 'VND' );
+				$order->set_customer_id( (int) $request->get_param( 'customer_id' ) );
 				$billing = array_merge(
 					array(
 						'first_name' => 'Nguyễn',
@@ -267,8 +268,11 @@ add_action(
 			'/invoice/(?P<id>\d+)',
 			static function ( WP_REST_Request $request ): array {
 				global $wpdb;
-				$row      = $wpdb->get_row( $wpdb->prepare( "SELECT id, order_id, reference, status, error_code, error_kind, alert_cycle FROM {$wpdb->prefix}einvoice_matbao_invoice WHERE order_id = %d", (int) $request['id'] ), ARRAY_A ); // phpcs:ignore WordPress.DB
+				$row      = $wpdb->get_row( $wpdb->prepare( "SELECT id, order_id, reference, status, matbao_status, error_code, error_kind, alert_cycle FROM {$wpdb->prefix}einvoice_matbao_invoice WHERE order_id = %d", (int) $request['id'] ), ARRAY_A ); // phpcs:ignore WordPress.DB
 				$attempts = $row ? $wpdb->get_results( $wpdb->prepare( "SELECT outcome, http_status, api_code FROM {$wpdb->prefix}einvoice_matbao_attempt WHERE invoice_id = %d ORDER BY id", (int) $row['id'] ), ARRAY_A ) : array(); // phpcs:ignore WordPress.DB
+				if ( $row && null !== $row['matbao_status'] ) {
+					$row['matbao_status'] = (int) $row['matbao_status'];
+				}
 				return array(
 					'invoice'  => $row,
 					'attempts' => $attempts,
@@ -411,9 +415,19 @@ add_action(
 				);
 				return is_wp_error( $id ) ? array( 'ok' => false ) : array(
 					'ok'       => true,
+					'id'       => (int) $id,
 					'login'    => $login,
 					'password' => $password,
 				);
+			}
+		);
+
+		// Runs the Mat Bao status sync once, as its recurring action would.
+		$route(
+			'/status-sync',
+			static function (): array {
+				\LTTech\EinvoiceMatbao\Invoice\MatbaoStatusSync::run();
+				return array( 'ok' => true );
 			}
 		);
 
